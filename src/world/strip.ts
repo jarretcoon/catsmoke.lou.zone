@@ -73,6 +73,11 @@ export interface TrafficCar {
   cruise: number;
   halfLen: number;
   axis: 'z' | 'x';
+  /** Being driven by the cat. */
+  hijacked?: boolean;
+  /** Abandoned by the cat; waits to respawn into traffic. */
+  parked?: boolean;
+  homeLane?: number;
 }
 
 export interface StripResult {
@@ -244,9 +249,9 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       if (nearCrossing(z, 6)) continue;
       const k = Math.abs(Math.round(z)) % 7;
       const x = s * (half + 0.7);
-      if (k === 0) b.add(trashCan(), x, 0, z);
-      else if (k === 1 || k === 5) b.add(ashUrn(), x, 0, z);
-      else if (k === 2) b.add(newsRack(), s * (half + 0.9), 0, z, s > 0 ? -Math.PI / 2 : Math.PI / 2);
+      if (k === 0) b.prop(trashCan(), x, z, 0.34, 1.0, 'trash');
+      else if (k === 1 || k === 5) b.prop(ashUrn(), x, z, 0.24, 0.85, 'urn');
+      else if (k === 2) b.prop(newsRack([0xd8352b, 0x2c6bd1]), s * (half + 0.9), z, 0.55, 1.1, 'newsrack', s > 0 ? -Math.PI / 2 : Math.PI / 2);
       else if (k === 3) b.add(fireHydrant(), x, 0, z);
       else if (k === 4) b.add(bench(), s * (half + 0.8), 0, z, s > 0 ? -Math.PI / 2 : Math.PI / 2);
       else b.add(bollard(), x, 0, z);
@@ -339,6 +344,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.every((dt) => {
     const t = clock();
     for (const c of cars) {
+      if (c.hijacked || c.parked) continue;
       const pos = c.axis === 'z' ? c.mesh.position.z : c.mesh.position.x;
       let target = c.cruise;
       if (c.axis === 'z') {
@@ -378,7 +384,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       const d = nextStop(z, bus.dir);
       if (d < 32) target = Math.min(target, Math.max(0, (d - bus.halfLen) * 0.8));
       for (const c of cars) {
-        if (c.axis !== 'z' || Math.abs(c.laneX - bus.laneX) > 0.5) continue;
+        if (c.axis !== 'z' || !(Math.abs(c.laneX - bus.laneX) <= 0.5)) continue;
         const gap = (c.mesh.position.z - z) * bus.dir - c.halfLen - bus.halfLen;
         if (gap > 0 && gap < 14) target = Math.min(target, Math.max(0, (gap - 2.5) * 1.2));
       }
@@ -417,6 +423,14 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       canBoard: () => ({ ok: true }),
       boardPrompt: 'Press [G] to hop on THE DEUCE (metallic-gold double-decker, runs 24/7)',
       ridingPrompt: 'Riding THE DEUCE upper deck — [E] smoke • [G] hop off',
+      status: () => {
+        const z = bus.mesh.position.z;
+        const ahead = deuceStops
+          .filter((s) => (bus.dir === 1 ? s.side < 0 && s.z > z + 1 : s.side > 0 && s.z < z - 1))
+          .sort((a, c) => (bus.dir === 1 ? a.z - c.z : c.z - a.z))[0];
+        if (bus.stopTimer > 0) return 'Doors open — [G] to hop off here';
+        return ahead ? `Next stop: ${ahead.name}` : 'Next stop: end of the line (loops around)';
+      },
     } satisfies Rideable);
   });
 

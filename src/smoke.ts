@@ -1,12 +1,16 @@
 import * as THREE from 'three';
 
-export type VapeFlavor = 'Blue Razz' | 'Mango Sunset' | 'Mint Chill' | 'Cotton Candy';
+export type VapeFlavor = 'Blue Razz' | 'Mango Sunset' | 'Mint Chill' | 'Cotton Candy' | 'Watermelon Ice' | 'Vegas Strawberry' | 'Tobacco Gold';
+export type VapeTrick = 'orings' | 'french' | 'ghost' | 'tornado';
 
-const FLAVOR_COLORS: Record<VapeFlavor, number> = {
+export const FLAVOR_COLORS: Record<VapeFlavor, number> = {
   'Blue Razz': 0x7ae8ff,
   'Mango Sunset': 0xffc478,
   'Mint Chill': 0x8effd2,
   'Cotton Candy': 0xff94e4,
+  'Watermelon Ice': 0xff7a8a,
+  'Vegas Strawberry': 0xff4d6d,
+  'Tobacco Gold': 0xe8d2a0,
 };
 
 interface SmokeParticle {
@@ -21,6 +25,10 @@ interface SmokeParticle {
   swirlFreq: number;
   warmTint: number;
   baseColor: THREE.Color;
+  /** Tornado trick: spin around a vertical axis. */
+  orbit?: { cx: number; cz: number; r: number; w: number; a: number; rise: number };
+  /** Ghost trick: after `at` seconds, get sucked back to `to`. */
+  pull?: { to: THREE.Vector3; at: number };
 }
 
 interface SmokeRing {
@@ -141,11 +149,83 @@ export class SmokeSystem {
     }
   }
 
+  private cloudSprite(color: THREE.Color, pos: THREE.Vector3, startScale: number, opacity: number): THREE.Sprite {
+    const mat = new THREE.SpriteMaterial({ map: this.texture, transparent: true, depthWrite: false, opacity, color: color.clone() });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.copy(pos);
+    sprite.scale.setScalar(startScale);
+    mat.rotation = Math.random() * Math.PI * 2;
+    this.scene.add(sprite);
+    return sprite;
+  }
+
+  /** Vape tricks. `mouth` = mouthpiece position, `forwardDir` = facing. */
+  public spawnTrick(trick: VapeTrick, mouth: THREE.Vector3, forwardDir: THREE.Vector3, flavor: VapeFlavor): void {
+    const color = new THREE.Color(FLAVOR_COLORS[flavor]).lerp(new THREE.Color(0xffffff), 0.35);
+    if (trick === 'orings') {
+      for (let r = 0; r < 6; r++) {
+        const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false });
+        const ring = new THREE.Mesh(this.ringGeo, ringMat);
+        ring.position.copy(mouth).addScaledVector(forwardDir, 0.08);
+        ring.lookAt(ring.position.clone().add(forwardDir));
+        this.scene.add(ring);
+        const vel = forwardDir.clone().multiplyScalar(1.4 + r * 0.12);
+        vel.y += 0.25;
+        this.rings.push({ mesh: ring, velocity: vel, age: -r * 0.32, maxAge: 3.2, baseScale: 2.2 });
+      }
+      return;
+    }
+    const n = trick === 'tornado' ? 46 : 24;
+    for (let i = 0; i < n; i++) {
+      let vel: THREE.Vector3;
+      let orbit: SmokeParticle['orbit'];
+      let pull: SmokeParticle['pull'];
+      let start = mouth.clone();
+      let maxAge = 3 + Math.random();
+      if (trick === 'french') {
+        // Cloud rolls out of the mouth and up into the nose
+        vel = new THREE.Vector3(forwardDir.x * 0.25, 0.55 + Math.random() * 0.2, forwardDir.z * 0.25);
+        start.addScaledVector(forwardDir, 0.05 + (i / n) * 0.08);
+        maxAge = 2.2;
+      } else if (trick === 'ghost') {
+        vel = forwardDir.clone().multiplyScalar(0.9 + Math.random() * 0.2).add(new THREE.Vector3((Math.random() - 0.5) * 0.1, 0.05, (Math.random() - 0.5) * 0.1));
+        pull = { to: mouth.clone(), at: 0.75 };
+        maxAge = 1.6;
+      } else {
+        // Tornado: a spinning column off the ground in front of Lou
+        const cx = mouth.x + forwardDir.x * 1.2;
+        const cz = mouth.z + forwardDir.z * 1.2;
+        orbit = { cx, cz, r: 0.15 + (i / n) * 0.7, w: 7 + Math.random() * 2, a: i * 0.6, rise: 0.9 + Math.random() * 0.4 };
+        start = new THREE.Vector3(cx, Math.max(0.05, mouth.y - 0.4), cz);
+        vel = new THREE.Vector3();
+        maxAge = 3.4;
+      }
+      const startScale = trick === 'tornado' ? 0.18 : 0.12;
+      const sprite = this.cloudSprite(color, start, startScale, 0.75);
+      this.particles.push({
+        sprite,
+        velocity: vel,
+        age: trick === 'tornado' ? -i * 0.03 : 0,
+        maxAge,
+        startScale,
+        endScale: trick === 'tornado' ? 0.7 : trick === 'ghost' ? 0.42 : 0.5,
+        baseOpacity: 0.75,
+        swirlPhase: Math.random() * Math.PI * 2,
+        swirlFreq: 1.5,
+        warmTint: 0,
+        baseColor: color.clone(),
+        orbit,
+        pull,
+      });
+    }
+  }
+
   public spawnVapeCloud(
     origin: THREE.Vector3,
     forwardDir: THREE.Vector3,
     flavor: VapeFlavor,
-    catVelocity: THREE.Vector3
+    catVelocity: THREE.Vector3,
+    power = 1
   ): void {
     const colorHex = FLAVOR_COLORS[flavor];
     const cloudColor = new THREE.Color(colorHex).lerp(new THREE.Color(0xffffff), 0.35);
@@ -174,8 +254,9 @@ export class SmokeSystem {
       });
     }
 
-    // Thick Volumetric-Style Sub-Ohm Cloud Plume (20 huge billowing sprites!)
-    for (let i = 0; i < 20; i++) {
+    // Thick sub-ohm plume: more and bigger sprites the longer the rip was held
+    const count = Math.round(14 + power * 14);
+    for (let i = 0; i < count; i++) {
       const mat = new THREE.SpriteMaterial({
         map: this.texture,
         transparent: true,
@@ -188,7 +269,7 @@ export class SmokeSystem {
         .copy(origin)
         .addScaledVector(forwardDir, 0.06 + Math.random() * 0.45)
         .add(new THREE.Vector3((Math.random() - 0.5) * 0.25, (Math.random() - 0.5) * 0.16, (Math.random() - 0.5) * 0.25));
-      const startScale = 0.14 + Math.random() * 0.10;
+      const startScale = (0.14 + Math.random() * 0.1) * (0.8 + power * 0.3);
       sprite.scale.set(startScale, startScale, startScale);
       mat.rotation = Math.random() * Math.PI * 2;
       this.scene.add(sprite);
@@ -196,14 +277,14 @@ export class SmokeSystem {
       this.particles.push({
         sprite,
         velocity: new THREE.Vector3(
-          forwardDir.x * (1.2 + Math.random() * 1.1) + catVelocity.x * 0.22 + (Math.random() - 0.5) * 0.45,
+          forwardDir.x * (1.2 + Math.random() * 1.1) * (0.7 + power * 0.4) + catVelocity.x * 0.22 + (Math.random() - 0.5) * 0.45 * power,
           0.35 + Math.random() * 0.55,
-          forwardDir.z * (1.2 + Math.random() * 1.1) + catVelocity.z * 0.22 + (Math.random() - 0.5) * 0.45
+          forwardDir.z * (1.2 + Math.random() * 1.1) * (0.7 + power * 0.4) + catVelocity.z * 0.22 + (Math.random() - 0.5) * 0.45 * power
         ),
         age: 0,
-        maxAge: 3.1 + Math.random() * 1.3,
+        maxAge: (3.1 + Math.random() * 1.3) * (0.8 + power * 0.35),
         startScale,
-        endScale: 1.15 + Math.random() * 0.55,
+        endScale: (1.15 + Math.random() * 0.55) * (0.7 + power * 0.45),
         baseOpacity: 0.72,
         swirlPhase: Math.random() * Math.PI * 2,
         swirlFreq: 1.5 + Math.random() * 1.2,
@@ -242,12 +323,27 @@ export class SmokeSystem {
         this.particles.splice(i, 1);
         continue;
       }
+      if (p.age < 0) {
+        p.sprite.visible = false;
+        continue;
+      }
+      p.sprite.visible = true;
       const t = p.age / p.maxAge;
       const swirl = Math.sin(p.age * p.swirlFreq + p.swirlPhase) * 0.16;
 
-      p.sprite.position.x += (p.velocity.x + windX + swirl) * dt;
-      p.sprite.position.y += p.velocity.y * dt;
-      p.sprite.position.z += (p.velocity.z + windZ + Math.cos(p.age * p.swirlFreq) * 0.12) * dt;
+      if (p.orbit) {
+        const o = p.orbit;
+        const a = o.a + p.age * o.w;
+        const r = o.r * (1 + t * 1.6);
+        p.sprite.position.set(o.cx + Math.cos(a) * r, p.sprite.position.y + o.rise * dt, o.cz + Math.sin(a) * r);
+      } else if (p.pull && p.age > p.pull.at) {
+        const toMouth = p.pull.to.clone().sub(p.sprite.position);
+        p.sprite.position.addScaledVector(toMouth, Math.min(1, dt * 5));
+      } else {
+        p.sprite.position.x += (p.velocity.x + windX + swirl) * dt;
+        p.sprite.position.y += p.velocity.y * dt;
+        p.sprite.position.z += (p.velocity.z + windZ + Math.cos(p.age * p.swirlFreq) * 0.12) * dt;
+      }
 
       p.velocity.x *= Math.max(0, 1 - dt * 1.45);
       p.velocity.z *= Math.max(0, 1 - dt * 1.45);

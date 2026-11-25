@@ -24,4 +24,6 @@ export interface Rideable {
   wantsExit?(): boolean;
   boardPrompt: string;
   ridingPrompt: string;
+  /** Live status line while riding (e.g. the next Deuce stop). */
+  status?(): string;
 }

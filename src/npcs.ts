@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { bakeGroup } from './meshBake';
 
 export type TouristProp = 'yard-drink' | 'camera' | 'cig' | 'bag' | 'none';
-export type Outfit = 'tourist' | 'guard' | 'elvis' | 'showgirl' | 'slapper';
+export type Outfit = 'tourist' | 'guard' | 'elvis' | 'showgirl' | 'slapper' | 'officer' | 'animal-control' | 'worker';
 export type PerformerKind = 'elvis' | 'showgirl' | 'slapper';
 
 export interface TouristRoute {
@@ -28,7 +28,16 @@ export interface CrowdConfig {
   guards: GuardRoute[];
 }
 
-interface Rig {
+/** Knocked-over state (Goat-Simulator style): fall, slide, lie there, get back up. */
+export interface KnockState {
+  t: number;
+  vx: number;
+  vz: number;
+  yaw: number;
+}
+
+export interface Rig {
+  knock?: KnockState | null;
   group: THREE.Group;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
@@ -81,6 +90,22 @@ export interface GuardNPC extends Rig {
   speechSprite: THREE.Sprite | null;
   speechTimer: number;
 }
+
+export interface PursuerNPC extends Rig {
+  id: number;
+  kind: 'ac' | 'cop';
+  mesh: THREE.Group;
+  speed: number;
+  walkPhase: number;
+  speechSprite: THREE.Sprite | null;
+  speechTimer: number;
+  shoutTimer: number;
+}
+
+const PURSUER_LINES: Record<'ac' | 'cop', string[]> = {
+  ac: ['Animal Control! Drop the cigarette!', 'Here kitty kitty… GOTCHA— no.', 'That cat is NOT chipped!', 'Get the net! The NET!', 'Suspect is a large brown tabby!'],
+  cop: ['LVMPD! Stop right there… cat!', 'Dispatch, it’s the smoking cat again', 'Freeze! …Do cats freeze?', 'Suspect fleeing on four legs!'],
+};
 
 const SKIN_TONES = [0xf2c8a8, 0xe2ae88, 0xc88c64, 0x9b6342, 0x6b412a];
 const HAIR_COLORS = [0x1c1512, 0x4a2e1b, 0x9c6b30, 0xd8b158, 0x7b2c25, 0x8e939e];
@@ -156,17 +181,19 @@ function std(color: number, roughness = 0.7, metalness = 0, extra: THREE.MeshSta
   return new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
 }
 
-function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { flashMat: THREE.MeshBasicMaterial | null } {
+export function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { flashMat: THREE.MeshBasicMaterial | null } {
   const g = new THREE.Group();
-  const isGuard = outfit === 'guard';
+  g.rotation.order = 'YXZ';
+  const isGuard = outfit === 'guard' || outfit === 'officer';
+  const isAC = outfit === 'animal-control';
   const female = outfit === 'showgirl' || (outfit === 'tourist' && seed % 2 === 1);
 
   const skinColor = SKIN_TONES[seed % SKIN_TONES.length];
   const hairColor = outfit === 'elvis' ? 0x0b0b10 : HAIR_COLORS[(seed * 3) % HAIR_COLORS.length];
   const shirtHex =
-    outfit === 'guard' ? 0x162038 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xff3fa4 : outfit === 'slapper' ? 0x8cff3a : SHIRT_COLORS[(seed * 5) % SHIRT_COLORS.length];
+    outfit === 'guard' ? 0x162038 : outfit === 'officer' ? 0x1b2433 : isAC ? 0xc2a878 : outfit === 'worker' ? 0xf4f4f4 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xff3fa4 : outfit === 'slapper' ? 0x8cff3a : SHIRT_COLORS[(seed * 5) % SHIRT_COLORS.length];
   const pantsHex =
-    outfit === 'guard' ? 0x0e1320 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? skinColor : outfit === 'slapper' ? 0x1c1f2a : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
+    outfit === 'guard' ? 0x0e1320 : outfit === 'officer' ? 0x141a26 : isAC ? 0x4a4f36 : outfit === 'worker' ? 0x2a2a2e : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? skinColor : outfit === 'slapper' ? 0x1c1f2a : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
 
   const skinMat = std(skinColor, 0.68);
   const hairMat = std(hairColor, outfit === 'elvis' ? 0.25 : 0.78);
@@ -202,6 +229,15 @@ function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { fl
     const badge = add(g, new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), goldMat, 0.1, 1.28, 0.13);
     badge.rotation.x = Math.PI / 2;
     add(g, new THREE.BoxGeometry(0.06, 0.3, 0.03), std(0x10141f, 0.5), 0, 1.24, 0.13);
+    if (outfit === 'officer') {
+      add(g, new THREE.BoxGeometry(0.42, 0.1, 0.26), std(0x111111, 0.5), 0, 0.92, 0); // duty belt
+      add(g, new THREE.BoxGeometry(0.38, 0.3, 0.25), std(0x22262e, 0.6), 0, 1.2, 0.02); // vest
+    }
+  } else if (isAC) {
+    add(g, new THREE.BoxGeometry(0.1, 0.07, 0.02), std(0x2d5a2d, 0.6), -0.1, 1.3, 0.13); // patch
+    add(g, new THREE.BoxGeometry(0.42, 0.07, 0.26), std(0x3a2a1a, 0.6), 0, 0.92, 0);
+  } else if (outfit === 'worker') {
+    add(g, new THREE.BoxGeometry(0.34, 0.5, 0.02), std(0xffffff, 0.6), 0, 1.0, 0.13); // apron
   } else if (outfit === 'elvis') {
     // High collar, open V and rhinestone studs
     for (const s of [-1, 1]) {
@@ -238,7 +274,7 @@ function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { fl
     ear.scale.set(0.55, 1.0, 0.75);
   }
 
-  const hasShades = isGuard || outfit === 'elvis' || (outfit === 'tourist' && seed % 2 === 0);
+  const hasShades = isGuard || isAC || outfit === 'elvis' || (outfit === 'tourist' && seed % 2 === 0);
   if (hasShades) {
     const frameMat = outfit === 'elvis' ? goldMat : std(0x12141c, 0.2, 0.7);
     const lensMat = std(isGuard ? 0x090b10 : outfit === 'elvis' ? 0x5a3a12 : 0x261436, 0.08, 0.85);
@@ -249,9 +285,13 @@ function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { fl
     for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.016, 8, 8), eyeMat, s * 0.046, 0.022, 0.132);
   }
 
-  if (isGuard) {
-    add(head, new THREE.CylinderGeometry(0.155, 0.145, 0.09, 14), std(0x13192b, 0.5), 0, 0.11, 0);
+  if (isGuard || isAC) {
+    add(head, new THREE.CylinderGeometry(0.155, 0.145, 0.09, 14), std(isAC ? 0x4a4f36 : 0x13192b, 0.5), 0, 0.11, 0);
     add(head, new THREE.BoxGeometry(0.2, 0.02, 0.12), std(0x090b12, 0.2), 0, 0.075, 0.12);
+  } else if (outfit === 'worker') {
+    // White paper hat
+    add(head, new THREE.BoxGeometry(0.3, 0.09, 0.14), std(0xffffff, 0.7), 0, 0.12, 0);
+    add(head, new THREE.BoxGeometry(0.31, 0.025, 0.145), std(0xd81e2a, 0.6), 0, 0.09, 0);
   } else {
     add(head, new THREE.SphereGeometry(0.152, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat, 0, 0.02, -0.01);
     if (outfit === 'elvis') {
@@ -299,7 +339,7 @@ function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { fl
     const arm = new THREE.Group();
     arm.position.set(side * 0.24, 1.38, 0);
     add(arm, new THREE.CapsuleGeometry(0.056, 0.16, 6, 10), shirtMat, 0, -0.12, 0, true);
-    add(arm, new THREE.CapsuleGeometry(0.044, 0.22, 6, 10), isGuard || outfit === 'elvis' ? shirtMat : skinMat, 0, -0.34, 0, true);
+    add(arm, new THREE.CapsuleGeometry(0.044, 0.22, 6, 10), isGuard || isAC || outfit === 'elvis' ? shirtMat : skinMat, 0, -0.34, 0, true);
     add(arm, new THREE.SphereGeometry(0.046, 8, 8), skinMat, 0, -0.5, 0);
     return arm;
   };
@@ -308,6 +348,13 @@ function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { fl
   g.add(leftArm, rightArm);
 
   let flashMat: THREE.MeshBasicMaterial | null = null;
+  if (isAC) {
+    // Catch-pole: long aluminum pole with a cable loop at the end
+    const pole = add(rightArm, new THREE.CylinderGeometry(0.02, 0.02, 1.9, 6), std(0xb8bcc6, 0.3, 0.8), 0, -0.5, 0.9);
+    pole.rotation.x = Math.PI / 2;
+    const loop = add(rightArm, new THREE.TorusGeometry(0.13, 0.012, 6, 16), std(0x222222, 0.5), 0, -0.5, 1.88);
+    loop.rotation.y = Math.PI / 2;
+  }
   if (isGuard) {
     const torch = add(rightArm, new THREE.CylinderGeometry(0.032, 0.028, 0.22, 8), std(0x1a1e26, 0.3, 0.8), 0, -0.5, 0.1);
     torch.rotation.x = Math.PI / 2;
@@ -363,6 +410,8 @@ export class StripCrowdSystem {
   public readonly tourists: TouristNPC[] = [];
   public readonly performers: PerformerNPC[] = [];
   public readonly guards: GuardNPC[] = [];
+  public readonly pursuers: PursuerNPC[] = [];
+  private pursuerSeq = 0;
   private readonly scene: THREE.Scene;
 
   constructor(scene: THREE.Scene, config: CrowdConfig) {
@@ -459,6 +508,140 @@ export class StripCrowdSystem {
     }
   }
 
+  public spawnPursuer(kind: 'ac' | 'cop', x: number, z: number): PursuerNPC {
+    const built = buildHuman(40 + this.pursuerSeq, kind === 'ac' ? 'animal-control' : 'officer', 'none');
+    built.group.position.set(x, 0, z);
+    this.scene.add(built.group);
+    const p: PursuerNPC = {
+      ...built,
+      id: this.pursuerSeq++,
+      kind,
+      mesh: built.group,
+      speed: kind === 'ac' ? 6.0 : 6.7,
+      walkPhase: 0,
+      speechSprite: null,
+      speechTimer: 0,
+      shoutTimer: 1 + Math.random() * 2,
+    };
+    this.pursuers.push(p);
+    return p;
+  }
+
+  /** A one-off pedestrian (e.g. the driver Lou just yanked out of their car). */
+  public spawnBystander(x: number, z: number, toX: number, toZ: number, line: string, knockDir?: [number, number]): TouristNPC {
+    const idx = this.tourists.length;
+    const built = buildHuman(idx + 77, 'tourist', 'none');
+    built.group.position.set(x, 0, z);
+    this.scene.add(built.group);
+    const t: TouristNPC = {
+      ...built,
+      id: idx,
+      mesh: built.group,
+      waypoints: [new THREE.Vector3(toX, 0, toZ), new THREE.Vector3(toX + 6, 0, toZ + 6)],
+      wpIndex: 0,
+      speed: 2.6,
+      pauseTimer: 0,
+      begCooldown: 30,
+      reactCooldown: 20,
+      hasCig: false,
+      hasCamera: false,
+      cigStolen: false,
+      speechSprite: null,
+      speechTimer: 0,
+      walkPhase: 0,
+      lookAtCat: 0,
+    };
+    this.tourists.push(t);
+    if (knockDir) this.knockdown(t, knockDir[0], knockDir[1], 3.5);
+    this.setSpeech(t, line, 3.2, '#ff8a3d');
+    return t;
+  }
+
+  public removePursuer(p: PursuerNPC): void {
+    this.scene.remove(p.mesh);
+    const i = this.pursuers.indexOf(p);
+    if (i >= 0) this.pursuers.splice(i, 1);
+  }
+
+  /** Move pursuers toward the cat (or its last known spot). Returns the pursuer that caught it, if any. */
+  public updatePursuers(dt: number, target: THREE.Vector3, chasing: boolean, canCatch: boolean): PursuerNPC | null {
+    let caught: PursuerNPC | null = null;
+    for (const p of this.pursuers) {
+      this.tickSpeech(p, dt);
+      if (this.tickKnock(p, dt)) continue;
+      tmpV.copy(target).sub(p.mesh.position);
+      tmpV.y = 0;
+      const d = tmpV.length();
+      if (canCatch && chasing && d < 0.95) caught = p;
+      if (d < 0.6) continue;
+      tmpV.normalize();
+      const speed = chasing ? p.speed : 2.4;
+      p.mesh.position.addScaledVector(tmpV, speed * dt);
+      p.mesh.rotation.y = Math.atan2(tmpV.x, tmpV.z);
+      p.walkPhase += dt * (chasing ? 12 : 7);
+      const swing = Math.sin(p.walkPhase) * (chasing ? 0.85 : 0.5);
+      p.leftLeg.rotation.x = swing;
+      p.rightLeg.rotation.x = -swing;
+      p.leftArm.rotation.x = -swing * 0.7;
+      p.rightArm.rotation.x = p.kind === 'ac' ? -1.1 : -swing * 0.7;
+      p.shoutTimer -= dt;
+      if (chasing && p.shoutTimer <= 0 && d < 30) {
+        p.shoutTimer = 5 + Math.random() * 4;
+        const lines = PURSUER_LINES[p.kind];
+        this.setSpeech(p, lines[Math.floor(Math.random() * lines.length)], 2.4, p.kind === 'ac' ? '#9fd46a' : '#5a8cff');
+      }
+    }
+    return caught;
+  }
+
+  /** Everyone on foot the cat can bowl over. */
+  public allPeople(): Array<TouristNPC | PerformerNPC | GuardNPC | PursuerNPC> {
+    return [...this.tourists, ...this.performers, ...this.guards, ...this.pursuers];
+  }
+
+  /** Knock someone over, pushed away along (dx, dz). */
+  public knockdown(npc: Rig & { mesh: THREE.Group }, dx: number, dz: number, power: number): void {
+    const len = Math.hypot(dx, dz) || 1;
+    dx /= len;
+    dz /= len;
+    npc.mesh.rotation.y = Math.atan2(-dx, -dz);
+    npc.knock = { t: 0, vx: dx * power, vz: dz * power, yaw: npc.mesh.rotation.y };
+  }
+
+  public say(npc: { mesh: THREE.Group; speechSprite: THREE.Sprite | null; speechTimer: number }, text: string, duration = 2.6, accent?: string): void {
+    this.setSpeech(npc, text, duration, accent);
+  }
+
+  /** Returns true while the person is down (callers skip their normal behaviour). */
+  private tickKnock(npc: Rig & { mesh: THREE.Group }, dt: number): boolean {
+    const k = npc.knock;
+    if (!k) return false;
+    k.t += dt;
+    const m = npc.mesh;
+    m.rotation.y = k.yaw;
+    if (k.t < 0.35) m.rotation.x = (-Math.PI / 2) * (k.t / 0.35);
+    else if (k.t < 3.2) m.rotation.x = -Math.PI / 2;
+    else if (k.t < 3.8) m.rotation.x = (-Math.PI / 2) * (1 - (k.t - 3.2) / 0.6);
+    else {
+      m.rotation.x = 0;
+      m.position.y = 0;
+      npc.knock = null;
+      return false;
+    }
+    m.position.x += k.vx * dt;
+    m.position.z += k.vz * dt;
+    const damp = Math.max(0, 1 - dt * 3.5);
+    k.vx *= damp;
+    k.vz *= damp;
+    m.position.y = k.t < 0.3 ? Math.sin((k.t / 0.3) * Math.PI) * 0.35 : 0.05;
+    const flail = k.t < 3.2 ? Math.sin(k.t * 18) * (k.t < 0.8 ? 1.2 : 0.25) : 0;
+    npc.leftArm.rotation.x = -1.4 + flail;
+    npc.rightArm.rotation.x = -1.4 - flail;
+    npc.leftLeg.rotation.x = 0.3 + flail * 0.5;
+    npc.rightLeg.rotation.x = -0.3 - flail * 0.5;
+    return true;
+  }
+
   public showTouristSpeech(tourist: TouristNPC, text: string, duration = 3.0): void {
     this.setSpeech(tourist, text, duration);
   }
@@ -549,6 +732,7 @@ export class StripCrowdSystem {
       if (t.begCooldown > 0) t.begCooldown = Math.max(0, t.begCooldown - dt);
       if (t.reactCooldown > 0) t.reactCooldown = Math.max(0, t.reactCooldown - dt);
       this.tickSpeech(t, dt);
+      if (this.tickKnock(t, dt)) continue;
 
       const far = t.mesh.position.distanceToSquared(catPos) > 110 * 110;
       t.mesh.visible = !far;
@@ -600,6 +784,7 @@ export class StripCrowdSystem {
     for (const p of this.performers) {
       if (p.begCooldown > 0) p.begCooldown = Math.max(0, p.begCooldown - dt);
       this.tickSpeech(p, dt);
+      if (this.tickKnock(p, dt)) continue;
       const near = p.mesh.position.distanceToSquared(catPos) < 90 * 90;
       p.mesh.visible = near;
       if (!near) continue;
@@ -628,6 +813,7 @@ export class StripCrowdSystem {
 
     for (const g of this.guards) {
       this.tickSpeech(g, dt);
+      if (this.tickKnock(g, dt)) continue;
       const z = g.zone;
       const catInZone = catPos.x > z.minX - 2 && catPos.x < z.maxX + 2 && catPos.z > z.minZ - 2 && catPos.z < z.maxZ + 2;
       let speed = 2.2;

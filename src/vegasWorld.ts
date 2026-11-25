@@ -32,10 +32,13 @@ export interface VegasWorldContext {
   mapFeatures: MapFeature[];
   staticMarkers: MapMarker[];
   crowd: CrowdConfig;
+  props: Array<{ obj: THREE.Object3D; r: number; h: number; kind: string }>;
   deuceBuses: DeuceState[];
+  deuceStops: Array<{ z: number; side: 1 | -1; name: string }>;
   trafficVehicles: TrafficCar[];
   spawn: THREE.Vector3;
   spawnYaw: number;
+  sun: THREE.DirectionalLight;
   stats: { meshesBefore: number; meshesAfter: number };
   setTimePreset: (preset: TimePreset) => void;
   getTimePreset: () => TimePreset;
@@ -178,10 +181,13 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     mapFeatures: b.mapFeatures,
     staticMarkers: b.staticMarkers,
     crowd: b.crowd,
+    props: b.props,
     deuceBuses: strip.buses,
+    deuceStops: DEUCE_STOPS,
     trafficVehicles: strip.cars,
     spawn: new THREE.Vector3(-15, 0.2, 40),
     spawnYaw: 0,
+    sun,
     stats: { meshesBefore: baked.before, meshesAfter: baked.after },
     setTimePreset: (p) => {
       timePreset = p;

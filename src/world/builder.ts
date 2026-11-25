@@ -82,6 +82,8 @@ export class WorldBuilder {
   readonly crowd: CrowdConfig = { tourists: [], performers: [], guards: [] };
   /** Water the cat refuses to swim in (it gets bounced back to the edge with a splash). */
   readonly waterZones: Array<{ name: string; minX: number; maxX: number; minZ: number; maxZ: number; y: number }> = [];
+  /** Knockable street props (trash cans, urns, newsracks, cones…) simulated by PropPhysics. */
+  readonly props: Array<{ obj: THREE.Object3D; r: number; h: number; kind: string }> = [];
   /** Colliders that disappear when the player earns VIP. */
   readonly vipColliders: PlatformBox[] = [];
 
@@ -100,6 +102,15 @@ export class WorldBuilder {
     const c = { minX, maxX, minZ, maxZ, minY, topY, isWall };
     this.colliders.push(c);
     return c;
+  }
+
+  /** A physics prop: lives outside the static batch so it can be knocked over. */
+  prop(obj: THREE.Object3D, x: number, z: number, r: number, h: number, kind: string, rotY = 0, y = 0): THREE.Object3D {
+    obj.position.set(x, y, z);
+    obj.rotation.y = rotY;
+    this.scene.add(obj);
+    this.props.push({ obj, r, h, kind });
+    return obj;
   }
 
   /** Solid box mesh + matching collider (y = bottom). */

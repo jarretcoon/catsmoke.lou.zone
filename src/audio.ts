@@ -164,6 +164,85 @@ export class SoundFX {
     });
   }
 
+  private engine: { osc: OscillatorNode; osc2: OscillatorNode; gain: GainNode } | null = null;
+
+  public startEngine(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx || this.engine) return;
+    const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.type = 'sawtooth';
+    osc2.type = 'square';
+    filter.type = 'lowpass';
+    filter.frequency.value = 520;
+    gain.gain.value = 0.035;
+    osc.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc2.start();
+    this.engine = { osc, osc2, gain };
+    this.setEngine(0);
+  }
+
+  public setEngine(speed: number): void {
+    if (!this.engine || !this.ctx) return;
+    const f = 38 + Math.abs(speed) * 3.2;
+    this.engine.osc.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.08);
+    this.engine.osc2.frequency.setTargetAtTime(f * 0.5, this.ctx.currentTime, 0.08);
+    this.engine.gain.gain.setTargetAtTime(this.enabled ? 0.03 + Math.min(0.04, Math.abs(speed) * 0.0015) : 0, this.ctx.currentTime, 0.1);
+  }
+
+  public stopEngine(): void {
+    if (!this.engine) return;
+    this.engine.osc.stop();
+    this.engine.osc2.stop();
+    this.engine = null;
+  }
+
+  public playHonk(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    for (const f of [392, 494]) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = f;
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.setValueAtTime(0.06, now + 0.32);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.42);
+    }
+  }
+
+  public playCrash(): void {
+    const ctx = this.ensureCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const len = Math.floor(ctx.sampleRate * 0.4);
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * 0.18));
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 900;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.25;
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(now);
+  }
+
   public playBusted(): void {
     const ctx = this.ensureCtx();
     if (!ctx) return;

@@ -24,6 +24,17 @@ export interface GameStats {
   cartonsBought: number;
   photoOps: number;
   zonesVisited: string[];
+  degenPoints: number;
+  knockdowns: number;
+  propsSmashed: number;
+  wantedEscapes: number;
+  maxStars: number;
+  carsStolen: number;
+  burgersEaten: number;
+  tablesLost: number;
+  vapeTricks: number;
+  bigClouds: number;
+  missionsDone: string[];
 }
 
 /**
@@ -89,6 +100,17 @@ export function defaultState(): GameState {
       cartonsBought: 0,
       photoOps: 0,
       zonesVisited: [],
+      degenPoints: 0,
+      knockdowns: 0,
+      propsSmashed: 0,
+      wantedEscapes: 0,
+      maxStars: 0,
+      carsStolen: 0,
+      burgersEaten: 0,
+      tablesLost: 0,
+      vapeTricks: 0,
+      bigClouds: 0,
+      missionsDone: [],
     },
     savedAt: 0,
   };
@@ -147,6 +169,7 @@ function migrate(raw: unknown): GameState | null {
     goalsDone: Array.isArray(r.goalsDone) ? r.goalsDone : [],
   };
   if (!Array.isArray(merged.stats.zonesVisited)) merged.stats.zonesVisited = [];
+  if (!Array.isArray(merged.stats.missionsDone)) merged.stats.missionsDone = [];
   if (!Number.isFinite(merged.cash)) merged.cash = 0;
   return merged;
 }

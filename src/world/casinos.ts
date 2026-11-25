@@ -50,6 +50,11 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
   b.floor(cx, cz, w, d, carpet, 0.03);
 
   const wallMat = mat(s.wall, 0.75);
+  const wallC = new THREE.Color(s.wall);
+  const pilaster = mat(wallC.clone().lerp(new THREE.Color(0xffffff), 0.25).getHex(), 0.6, 0.1);
+  const cornice = mat(wallC.clone().lerp(new THREE.Color(0xffffff), 0.4).getHex(), 0.55, 0.15);
+  const accent = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: s.light, emissiveIntensity: 0.1, roughness: 0.4 });
+  b.nightGlow(accent, 0.1, 2.2);
   const t = 1.2; // wall thickness
   const entrances = [s.entrance, ...(s.extraEntrances ?? [])];
   const wallSide = (side: 'east' | 'west' | 'north' | 'south') => {
@@ -65,11 +70,27 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
       cursor = Math.max(cursor, g1);
     }
     if (cursor < hi) segs.push([cursor, hi]);
+    const out = side === 'east' || side === 'south' ? 1 : -1;
     for (const [a, c] of segs) {
       const len = c - a;
       const mid = (a + c) / 2;
       if (along === 'z') b.box(fixed, 0, mid, t, s.height, len, wallMat, true, false);
       else b.box(mid, 0, fixed, len, s.height, t, wallMat, true, false);
+      // Pilasters on the outside face
+      for (let u = a + 1.2; u < c - 0.6; u += 4.5) {
+        if (along === 'z') b.add(mesh(new THREE.BoxGeometry(0.4, s.height, 0.7), pilaster, fixed + out * (t / 2 + 0.2), s.height / 2, u));
+        else b.add(mesh(new THREE.BoxGeometry(0.7, s.height, 0.4), pilaster, u, s.height / 2, fixed + out * (t / 2 + 0.2)));
+      }
+    }
+    // Cornice + glowing accent strip across the whole side
+    const full = hi - lo;
+    const mid2 = (lo + hi) / 2;
+    if (along === 'z') {
+      b.add(mesh(new THREE.BoxGeometry(t + 1, 0.8, full + 1), cornice, fixed + out * 0.25, s.height - 0.4, mid2));
+      b.add(mesh(new THREE.BoxGeometry(t + 1.05, 0.22, full + 1), accent, fixed + out * 0.25, s.height - 1.0, mid2));
+    } else {
+      b.add(mesh(new THREE.BoxGeometry(full + 1, 0.8, t + 1), cornice, mid2, s.height - 0.4, fixed + out * 0.25));
+      b.add(mesh(new THREE.BoxGeometry(full + 1, 0.22, t + 1.05), accent, mid2, s.height - 1.0, fixed + out * 0.25));
     }
     // Lintel over each doorway so the facade reads as one building
     for (const [g0, g1] of gaps) {

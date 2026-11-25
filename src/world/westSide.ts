@@ -730,7 +730,12 @@ function buildHardRockSite(b: WorldBuilder): void {
     [-130, -300, 7],
   ]) b.add(mesh(new THREE.ConeGeometry(r, r * 0.6, 10), dirt, x, r * 0.3, z, true));
   for (let i = 0; i < 4; i++) b.add(mesh(new THREE.BoxGeometry(1.2, 2.3, 1.2), mat(0x2a66cc, 0.6), -26 - i * 1.4, 1.15, -300, true));
-  for (let i = 0; i < 10; i++) b.add(mesh(new THREE.ConeGeometry(0.2, 0.7, 8), mat(0xff6a00, 0.6), -24 - (i % 5) * 2, 0.35, -260 - Math.floor(i / 5) * 3));
+  for (let i = 0; i < 10; i++) {
+    const cone = new THREE.Group();
+    cone.add(mesh(new THREE.ConeGeometry(0.2, 0.7, 8), mat(0xff6a00, 0.6), 0, 0.35, 0));
+    cone.add(mesh(new THREE.BoxGeometry(0.42, 0.04, 0.42), mat(0x222222, 0.7), 0, 0.02, 0));
+    b.prop(cone, -24 - (i % 5) * 2, -260 - Math.floor(i / 5) * 3, 0.22, 0.7, 'cone');
+  }
   b.box(-40, 0, -290, 10, 3.2, 3.6, mat(0xeeeeee, 0.6), true);
   b.add(neonSign('FIELD OFFICE', '#ffffff', '#1a1a1a', 3.4, 0.6, undefined, 0.05), -40, 2.4, -288.15);
   for (let i = 0; i < 6; i++) b.add(mesh(new THREE.BoxGeometry(6, 0.3, 0.3), mat(0x7a4a2a, 0.8, 0.4), -60, 0.15 + i * 0.32, -284 + (i % 2) * 0.2));

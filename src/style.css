@@ -811,3 +811,465 @@ kbd {
     max-width: 60dvw;
   }
 }
+
+/* ---------- Chaos HUD: degen points, wanted stars, popups ---------- */
+.degen-hud {
+  position: absolute;
+  left: 0.9rem;
+  top: 9.6rem;
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 12px;
+  background: var(--bg-glass);
+  border: 1px solid rgba(255, 120, 220, 0.45);
+  pointer-events: none;
+  min-width: 9rem;
+}
+.degen-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ff9ad8;
+}
+.degen-points {
+  font-size: 1.2rem;
+  color: #ffd24d;
+}
+.degen-rank {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.degen-combo {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #7dffb0;
+}
+.degen-hud--combo {
+  border-color: #7dffb0;
+  box-shadow: 0 0 18px rgba(125, 255, 176, 0.35);
+}
+.wanted-hud {
+  position: absolute;
+  right: 0.9rem;
+  top: calc(9.6rem + 150px);
+  font-size: 1.7rem;
+  letter-spacing: 0.08em;
+  color: #ffd24d;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.9), 0 0 4px #000;
+  pointer-events: none;
+}
+.wanted-hud--flash {
+  animation: wanted-flash 0.5s steps(2) infinite;
+}
+@keyframes wanted-flash {
+  50% {
+    opacity: 0.25;
+  }
+}
+.pop-layer {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+.pop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(calc(-50% + var(--dx, 0px)), 0);
+  white-space: nowrap;
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: #ffe066;
+  text-shadow: 0 2px 0 #000, 0 0 12px rgba(255, 120, 40, 0.8);
+  animation: pop-up 1.7s ease-out forwards;
+}
+.pop b {
+  color: #7dffb0;
+}
+.pop--big {
+  font-size: 1.5rem;
+  color: #ff7ad8;
+}
+@keyframes pop-up {
+  0% {
+    opacity: 0;
+    margin-top: 20px;
+  }
+  12% {
+    opacity: 1;
+    margin-top: 0;
+  }
+  100% {
+    opacity: 0;
+    margin-top: -90px;
+  }
+}
+@media (max-width: 720px) {
+  .degen-hud {
+    top: 12rem;
+  }
+  .wanted-hud {
+    top: calc(12rem + 110px);
+    font-size: 1.3rem;
+  }
+}
+
+/* ---------- Intro comic: How Lou Got to Vegas ---------- */
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: radial-gradient(circle at 30% 20%, var(--c1, #333), var(--c2, #111) 70%, #05050a);
+  cursor: pointer;
+  animation: intro-fade 0.35s ease;
+}
+.intro[hidden] {
+  display: none;
+}
+@keyframes intro-fade {
+  from {
+    opacity: 0;
+  }
+}
+.intro-panel {
+  width: min(62rem, 96dvw);
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 1.2rem;
+  align-items: center;
+  animation: intro-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes intro-pop {
+  from {
+    transform: scale(0.94) rotate(-1deg);
+    opacity: 0;
+  }
+}
+@media (max-width: 760px) {
+  .intro-panel {
+    grid-template-columns: 1fr;
+  }
+}
+.intro-art {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border: 6px solid #111;
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--c1), var(--c2));
+  box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.intro-text {
+  background: #fffbe8;
+  color: #1a1410;
+  border: 4px solid #111;
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.55);
+  font-family: 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+}
+.intro-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #a33;
+}
+.intro-text h2 {
+  margin: 0.2rem 0 0.5rem;
+  font-size: clamp(1.4rem, 1.1rem + 1.4vw, 2.2rem);
+}
+.intro-caption {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.intro-hint {
+  margin: 0.8rem 0 0;
+  font-size: 0.8rem;
+  color: #665;
+}
+.intro-dots {
+  margin-left: 0.4rem;
+  letter-spacing: 0.15em;
+}
+.intro-skip {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+}
+.intro-bubble {
+  position: absolute;
+  right: 6%;
+  top: 8%;
+  max-width: 50%;
+  background: #fff;
+  color: #111;
+  border: 3px solid #111;
+  border-radius: 18px;
+  padding: 0.45rem 0.8rem;
+  font: 700 1.05rem 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+}
+.intro-art .lou {
+  display: inline-block;
+  font-size: 7.5rem;
+  line-height: 1;
+  filter: saturate(0.35) sepia(0.45) brightness(0.72) contrast(1.15);
+}
+.sc-sky,
+.sc-road {
+  position: absolute;
+  inset: 0;
+}
+.sc-turbines {
+  position: absolute;
+  top: 18%;
+  left: 8%;
+  font-size: 2.2rem;
+  letter-spacing: 1.2rem;
+  opacity: 0.85;
+}
+.sc-corn {
+  position: absolute;
+  bottom: 30%;
+  left: 0;
+  right: 0;
+  font-size: 2rem;
+  text-align: center;
+}
+.sc-dash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  background: linear-gradient(#2a2c30, #111);
+  border-top: 6px solid #3a3d44;
+}
+.sc-lou-dash {
+  position: absolute;
+  bottom: 18%;
+  left: 30%;
+  transform: scaleX(-1);
+}
+.sc-fridge {
+  position: absolute;
+  left: 8%;
+  top: 6%;
+  font-size: 9rem;
+}
+.sc-brochure {
+  position: absolute;
+  left: 40%;
+  bottom: 12%;
+  padding: 0.4rem 0.7rem;
+  background: linear-gradient(135deg, #ff2c8a, #ffd24d);
+  color: #fff;
+  font: 900 1.1rem Georgia, serif;
+  transform: rotate(-12deg);
+  border: 3px solid #fff;
+}
+.sc-lou-stare {
+  position: absolute;
+  right: 6%;
+  bottom: 8%;
+}
+.sc-zzz {
+  position: absolute;
+  right: 22%;
+  top: 30%;
+  font: 900 3rem system-ui;
+  color: #ffd24d;
+}
+.sc-loot {
+  position: absolute;
+  top: 12%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 2.6rem;
+  letter-spacing: 0.6rem;
+}
+.sc-lou-center {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%);
+}
+.sc-cig {
+  position: absolute;
+  right: 12%;
+  bottom: 18%;
+  font-size: 2.6rem;
+}
+.sc-road {
+  background: linear-gradient(transparent 55%, #3a3a40 55%);
+}
+.sc-car {
+  position: absolute;
+  bottom: 20%;
+  left: 10%;
+  font-size: 5rem;
+  animation: drive 2.4s linear infinite;
+}
+.sc-car--2 {
+  left: 60%;
+  bottom: 8%;
+  animation-delay: -1.2s;
+}
+@keyframes drive {
+  from {
+    transform: translateX(-30%);
+  }
+  to {
+    transform: translateX(30%);
+  }
+}
+.sc-lou-squint {
+  position: absolute;
+  right: 6%;
+  top: 14%;
+}
+.sc-lou-squint .squint {
+  position: absolute;
+  left: 30%;
+  top: 0;
+  font-size: 2.4rem;
+}
+.sc-bag {
+  position: absolute;
+  left: 18%;
+  bottom: 8%;
+  width: 46%;
+  height: 62%;
+  display: grid;
+  place-items: center;
+  background: #d9c08a;
+  border: 4px solid #6b4a1a;
+  border-radius: 14px 14px 6px 6px;
+  font: 900 1.4rem system-ui;
+  color: #6b1a1a;
+  text-align: center;
+}
+.sc-lou-peek {
+  position: absolute;
+  left: 34%;
+  top: 2%;
+}
+.sc-crumbs {
+  position: absolute;
+  right: 10%;
+  bottom: 10%;
+  font-size: 2rem;
+  color: #6b4a1a;
+}
+.sc-sign {
+  position: absolute;
+  left: 8%;
+  top: 8%;
+  width: 54%;
+  padding: 0.6rem;
+  background: #fff;
+  border: 5px solid #ffd24d;
+  border-radius: 50% / 30%;
+  display: grid;
+  justify-items: center;
+  color: #d81e2a;
+  font-family: Georgia, serif;
+  box-shadow: 0 0 30px rgba(255, 210, 77, 0.7);
+}
+.sc-sign span {
+  font: 900 1rem system-ui;
+  letter-spacing: 0.2em;
+  color: #1a5ad8;
+}
+.sc-sign b {
+  font-style: italic;
+  font-size: 0.9rem;
+  color: #1a5ad8;
+}
+.sc-sign strong {
+  font-size: 1.8rem;
+}
+.sc-sign em {
+  font-size: 0.8rem;
+  color: #1a5ad8;
+}
+.sc-lou-arrive {
+  position: absolute;
+  right: 6%;
+  bottom: 4%;
+}
+.sc-neon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6%;
+  font-size: 2rem;
+  text-align: left;
+  padding-left: 8%;
+}
+
+/* ---------- Missions ---------- */
+.mission-hud {
+  position: absolute;
+  left: 50%;
+  top: 0.9rem;
+  transform: translateX(-50%);
+  max-width: min(30rem, 60dvw);
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(10, 30, 16, 0.88);
+  border: 1px solid #5cff8a;
+  color: #eafff0;
+  font-size: 0.82rem;
+  text-align: center;
+  pointer-events: none;
+  z-index: 11;
+}
+.mission-hud b {
+  color: #5cff8a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+}
+.mission-dialog {
+  position: absolute;
+  left: 50%;
+  bottom: 7.5rem;
+  transform: translateX(-50%);
+  width: min(34rem, 92dvw);
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: rgba(20, 16, 6, 0.95);
+  border: 2px solid #ffd24d;
+  color: #fff4d6;
+  z-index: 20;
+  cursor: pointer;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+.mission-dialog strong {
+  color: #ffd24d;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.mission-dialog p {
+  margin: 0.3rem 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.mission-dialog small {
+  color: #b9b2a8;
+}

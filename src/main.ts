@@ -1,16 +1,25 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { AbcShopController } from './abcShop';
 import { SoundFX } from './audio';
 import { CasinoController } from './casino';
+import { DegenScore, PropPhysics, WantedSystem } from './chaos';
+import { IntroComic } from './intro';
+import { MissionCtx, MissionEvent, MissionManager } from './missions';
+import { PlayerDriving } from './driving';
 import { BoutiqueController, CatWardrobe, swagFor } from './cosmetics';
 import { GoalTracker } from './goals';
 import { MapMarker, Minimap } from './minimap';
 import { GuardNPC, StripCrowdSystem } from './npcs';
 import type { Rideable } from './rides';
-import { SmokeSystem } from './smoke';
+import { SmokeSystem, VapeTrick } from './smoke';
 import { defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
+import { STRIP } from './world/strip';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game-canvas');
@@ -63,6 +72,72 @@ const world = buildVegasStripWorld(scene);
 const crowd = new StripCrowdSystem(scene, world.crowd);
 const smokeSystem = new SmokeSystem(scene);
 const minimap = new Minimap(world.mapFeatures);
+const props = new PropPhysics();
+props.register(world.props);
+const driving = new PlayerDriving();
+const DRIVER_LINES = ['MY UBER!! A CAT TOOK MY UBER!', 'Hey! That is a rental!', 'Was that cat SMOKING?!', 'I just got this detailed!', 'Somebody call Animal Control!'];
+
+// ---------------------------------------------------------------- graphics quality + bloom
+type Quality = 'low' | 'medium' | 'high';
+const QUALITY_KEY = 'smoking-cat-sim.quality';
+let quality: Quality = (() => {
+  try {
+    const q = localStorage.getItem(QUALITY_KEY);
+    if (q === 'low' || q === 'medium' || q === 'high') return q;
+  } catch {
+    /* ignore */
+  }
+  return window.matchMedia('(pointer: coarse)').matches ? 'low' : 'high';
+})();
+let composer: EffectComposer | null = null;
+let bloom: UnrealBloomPass | null = null;
+const btnQuality = document.createElement('button');
+btnQuality.type = 'button';
+btnQuality.className = 'action-btn';
+document.querySelector('#controls-popover .controls-footer')?.prepend(btnQuality);
+
+function applyQuality(): void {
+  renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : quality === 'medium' ? Math.min(window.devicePixelRatio, 1.25) : 1);
+  const shadows = quality !== 'low';
+  if (renderer.shadowMap.enabled !== shadows) {
+    renderer.shadowMap.enabled = shadows;
+    scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material;
+      if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
+    });
+  }
+  world.sun.castShadow = shadows;
+  const size = quality === 'high' ? 2048 : 1024;
+  if (world.sun.shadow.mapSize.x !== size) {
+    world.sun.shadow.mapSize.set(size, size);
+    world.sun.shadow.map?.dispose();
+    world.sun.shadow.map = null;
+  }
+  if (quality === 'low') {
+    composer?.dispose();
+    composer = null;
+    bloom = null;
+  } else if (!composer) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.82);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+  }
+  composer?.setPixelRatio(renderer.getPixelRatio());
+  composer?.setSize(window.innerWidth, window.innerHeight);
+  btnQuality.textContent = `Graphics: ${quality === 'high' ? 'High (bloom)' : quality === 'medium' ? 'Medium' : 'Low (fast)'}`;
+}
+btnQuality.addEventListener('click', () => {
+  quality = quality === 'high' ? 'medium' : quality === 'medium' ? 'low' : 'high';
+  try {
+    localStorage.setItem(QUALITY_KEY, quality);
+  } catch {
+    /* ignore */
+  }
+  applyQuality();
+});
+applyQuality();
 
 const catHolder = new THREE.Group();
 catHolder.position.fromArray(S.position);
@@ -78,8 +153,16 @@ let buzzTimer = 0;
 let performerTipCooldown = 0;
 let toastTimeout: number | undefined;
 let riding: Rideable | null = null;
+let waitingStop: { z: number; side: 1 | -1; name: string } | null = null;
 let lastZone = '';
 let wardrobe: CatWardrobe | null = null;
+let catModel: THREE.Object3D | null = null;
+let pounceTimer = 0;
+let vapeChargeStart = -1;
+let trickCooldown = 0;
+let airTime = 0;
+let peakY = 0;
+const rag = { active: false, t: 0, spin: new THREE.Vector3(), lastVy: 0 };
 const cigMeshes: THREE.Mesh[] = [];
 const vapeMeshes: THREE.Mesh[] = [];
 const tmpV = new THREE.Vector3();
@@ -141,8 +224,10 @@ const casino = new CasinoController(sfx, {
     updateHUD();
   },
   onOutcome: (msg) => showToast(msg),
-  recordResult: (game, net) => {
+  recordResult: (game, net, vipTable) => {
     if (net > 0) {
+      emit('casino-win', { amount: net, vip: vipTable, game });
+      if (game === 'blackjack') emit('blackjack-win', {});
       S.stats.casinoWon += net;
       S.stats.biggestWin = Math.max(S.stats.biggestWin, net);
       if (game === 'blackjack') S.stats.blackjackWins += 1;
@@ -164,6 +249,7 @@ const abcShop = new AbcShopController(sfx, {
   },
   addCigs: (count, boughtCarton) => {
     S.cigStash += count;
+    emit('abc-buy', { count });
     if (!S.isLit && S.cigStash > 0) {
       S.cigStash -= 1;
       S.isLit = true;
@@ -206,6 +292,10 @@ const boutique = new BoutiqueController(sfx, {
   setOwnedEquipped: (owned, equipped) => {
     S.cosmetics = { owned, equipped };
     wardrobe?.apply(equipped);
+    if (wanted.stars > 0) {
+      wanted.lose(2);
+      showToast('New look! Animal Control lost your description (-2 stars).');
+    }
     goals.check(S);
     updateHUD();
     save();
@@ -215,9 +305,161 @@ const boutique = new BoutiqueController(sfx, {
 
 const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen();
 
+// ---------------------------------------------------------------- chaos: score + wanted level
+const degen = new DegenScore(
+  () => S.stats.degenPoints,
+  (n) => {
+    S.stats.degenPoints = n;
+  },
+  (rank) => {
+    sfx.playJackpot();
+    showToast(`New Degen rank: ${rank}!`, 3600);
+  }
+);
+const wanted = new WantedSystem(scene, crowd, STRIP.laneCenters, {
+  onBusted: (by) => impound(by.kind),
+  onEscaped: (stars) => {
+    S.stats.wantedEscapes += 1;
+    emit('wanted-escaped', { stars });
+    degen.add(150 * stars, `Shook ${stars} star heat`);
+    sfx.playSteal();
+    showToast(stars >= 3 ? 'Animal Control lost the trail. They are telling everyone it was a raccoon.' : 'Animal Control gave up. Lou is a free cat again.');
+    goals.check(S);
+    save();
+  },
+  onStarsChanged: (n) => {
+    S.stats.maxStars = Math.max(S.stats.maxStars, n);
+  },
+});
+const intro = new IntroComic();
+const missions = new MissionManager(
+  scene,
+  () => S,
+  (m) => {
+    S.cash += m.reward.cash;
+    degen.add(m.reward.points, 'MISSION PASSED');
+    sfx.playJackpot();
+    showToast(`MISSION PASSED: ${m.title} — +$${m.reward.cash}`, 4200);
+    updateHUD();
+    goals.check(S);
+    save();
+  },
+  (msg) => showToast(msg, 3600)
+);
+function missionCtx(): MissionCtx {
+  return { state: S, catPos: catHolder.position, driving: driving.active, stars: wanted.stars, cigLit: S.deviceMode === 'cig' && S.isLit };
+}
+function emit(event: MissionEvent, data: Record<string, unknown> = {}): void {
+  missions.emit(event, data, missionCtx());
+}
+
+function crime(amount: number): void {
+  const before = wanted.stars;
+  wanted.crime(amount);
+  if (wanted.stars > before && before === 0) showToast('Clark County Animal Control has been called. Run, Lou!');
+  else if (wanted.stars > before && wanted.stars === 4) showToast('Metro Police joined the chase!');
+  else if (wanted.stars > before && wanted.stars === 5) showToast('They sent a HELICOPTER. For a cat.');
+}
+function impound(kind: 'ac' | 'cop'): void {
+  const bail = Math.min(S.cash, Math.max(25, Math.floor(S.cash * 0.3)));
+  const lost = Math.min(S.cigStash, 8);
+  S.cash -= bail;
+  S.cigStash -= lost;
+  wanted.clearAll();
+  if (riding) exitRide();
+  if (driving.active) exitCar();
+  endRagdoll();
+  catHolder.position.copy(world.spawn);
+  catVelocity.set(0, 0, 0);
+  sfx.playBusted();
+  showToast(
+    kind === 'cop'
+      ? `BUSTED by Metro. Lou spent the night at the Clark County Animal Shelter. Bail: $${bail}, ${lost} smokes confiscated.`
+      : `Caught in the catch-pole! Animal Control impounded Lou. A volunteer paid $${bail} bail and kept ${lost} of your smokes.`,
+    5200
+  );
+  updateHUD();
+  save();
+}
+
+function startRagdoll(launch?: THREE.Vector3): void {
+  if (riding) return;
+  rag.active = true;
+  rag.t = 0;
+  if (launch) catVelocity.copy(launch);
+  rag.spin.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 14);
+  isGrounded = false;
+  if (actions.Flop) fadeToAction(actions.Flop, 0.1);
+}
+function endRagdoll(): void {
+  if (!rag.active) return;
+  rag.active = false;
+  catModel?.rotation.set(0, 0, 0);
+}
+
+function triggerPounce(): void {
+  if (riding || rag.active || !isGrounded) return;
+  pounceTimer = 0.6;
+  catVelocity.x = Math.sin(catYaw) * 10.5;
+  catVelocity.z = Math.cos(catYaw) * 10.5;
+  catVelocity.y = 4.4;
+  isGrounded = false;
+  playOneShot(actions.Pounce ?? actions.Steal, 0.6);
+  sfx.playMeow();
+}
+
+/** While pouncing (or ragdolling at speed) bowl over anyone in the way. */
+function pounceHits(): void {
+  const p = catHolder.position;
+  for (const npc of crowd.allPeople()) {
+    if (npc.knock) continue;
+    const dx = npc.mesh.position.x - p.x;
+    const dz = npc.mesh.position.z - p.z;
+    if (dx * dx + dz * dz > 1.5 || p.y > 1.6) continue;
+    crowd.knockdown(npc, dx, dz, 5.5);
+    S.stats.knockdowns += 1;
+    emit('knockdown', {});
+    sfx.playBusted();
+    if ('casinoName' in npc) {
+      degen.add(120, 'Security Takedown');
+      crime(0.9);
+      crowd.say(npc, 'OOF! Assault by feline!', 2.2);
+    } else if ('kind' in npc && (npc.kind === 'ac' || npc.kind === 'cop')) {
+      degen.add(200, npc.kind === 'ac' ? 'Catch-Pole Denied' : 'Cop Bowling');
+      crime(1.0);
+    } else {
+      degen.add(50, 'Tourist Bowling');
+      crime(0.45);
+      const lines = ['MY YARD DRINK!', 'Was that a CAT?!', 'I am calling Animal Control!', 'Ow! Vegas is wild...', 'He took my dignity!'];
+      crowd.say(npc, lines[Math.floor(Math.random() * lines.length)], 2.6);
+      if (Math.random() < 0.4) {
+        const drop = 5 + Math.floor(Math.random() * 4) * 5;
+        S.cash += drop;
+        sfx.playCash();
+        showToast(`They dropped $${drop}. Finders keepers.`);
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------- cat model
 let mixer: THREE.AnimationMixer | null = null;
-const actions: Record<string, THREE.AnimationAction | null> = { Idle: null, Walk: null, Puff: null, VapeRip: null, Beg: null, Steal: null };
+const actions: Record<string, THREE.AnimationAction | null> = {
+  Idle: null,
+  Walk: null,
+  Run: null,
+  Jump: null,
+  Puff: null,
+  VapeRip: null,
+  Beg: null,
+  Steal: null,
+  Pounce: null,
+  Sit: null,
+  Eat: null,
+  Drive: null,
+  Flop: null,
+  Dance: null,
+};
 let activeAction: THREE.AnimationAction | null = null;
 let cigTipObj: THREE.Object3D | null = null;
 let vapeTipObj: THREE.Object3D | null = null;
@@ -266,6 +508,7 @@ new GLTFLoader().load(
       if (child.name === 'VapeTip') vapeTipObj = child;
     });
     catHolder.add(model);
+    catModel = model;
     wardrobe = new CatWardrobe(model);
     wardrobe.apply(S.cosmetics.equipped);
     if (gltf.animations.length) {
@@ -300,6 +543,7 @@ btnContinue.disabled = true;
 
 function startGame(fresh: boolean): void {
   if (fresh) {
+    missions.abandon();
     localSaveBackend.clear();
     S = defaultState();
     catHolder.position.copy(world.spawn);
@@ -309,6 +553,7 @@ function startGame(fresh: boolean): void {
     wardrobe?.apply([]);
     goals.render(S);
   }
+  missions.refreshMarkers();
   started = true;
   titleScreen.hidden = true;
   sfx.playBusBell();
@@ -317,7 +562,11 @@ function startGame(fresh: boolean): void {
   showToast(fresh ? 'Welcome to the Strip! Beg [B], steal [Q], smoke [E], ride [G], gamble & shop [F].' : 'Back on the Strip. The hustle never sleeps.', 4200);
   save();
 }
-btnNewGame.addEventListener('click', () => startGame(true));
+btnNewGame.addEventListener('click', async () => {
+  titleScreen.hidden = true;
+  await intro.play();
+  startGame(true);
+});
 btnContinue.addEventListener('click', () => startGame(false));
 btnResetSave.addEventListener('click', () => {
   if (!window.confirm('Start over? This erases your saved cash, smokes, swag and goals.')) return;
@@ -338,22 +587,77 @@ function toggleDevice(): void {
   updateHUD();
 }
 
-function triggerSmokeOrVape(): void {
+const TRICKS: Record<VapeTrick, { name: string; points: number }> = {
+  orings: { name: 'O-Ring Barrage', points: 50 },
+  french: { name: 'French Inhale', points: 60 },
+  ghost: { name: 'The Ghost', points: 80 },
+  tornado: { name: 'Vape Tornado', points: 110 },
+};
+
+function vapeTrick(trick: VapeTrick): void {
+  if (S.deviceMode !== 'vape' || trickCooldown > 0) return;
+  if (S.vapeJuice < 4) return showToast('Not enough juice for tricks. Pods at ABC Stores.');
+  S.vapeJuice -= 4;
+  trickCooldown = 1.4;
+  S.stats.vapeTricks += 1;
+  emit('vape-trick', { trick });
+  sfx.playVapeRip();
+  playOneShot(actions.VapeRip ?? actions.Puff, 1.1);
+  const mouth = getTipWorld(true);
+  const forward = new THREE.Vector3(Math.sin(catYaw), 0.1, Math.cos(catYaw)).normalize();
+  smokeSystem.spawnTrick(trick, mouth, forward, S.vapeFlavor);
+  degen.add(TRICKS[trick].points, TRICKS[trick].name);
+  const reaction = crowd.reactToCloud(catHolder.position, tipMultiplier(false) * 1.5);
+  if (reaction.tips > 0) {
+    S.cash += reaction.tips;
+    S.stats.tipsEarned += reaction.tips;
+    S.stats.cloudsCheered += reaction.cheers;
+    sfx.playCash();
+  }
+  showToast(`${TRICKS[trick].name}!${reaction.tips ? ` The crowd tipped $${reaction.tips}.` : ''}`);
+  goals.check(S);
+  updateHUD();
+}
+
+/** Vape: hold E to charge a bigger rip; release to exhale. Too long = dry hit. */
+function releaseVapeCharge(): void {
+  if (vapeChargeStart < 0) return;
+  const held = elapsed - vapeChargeStart;
+  vapeChargeStart = -1;
+  if (held > 3.2) {
+    S.vapeJuice = Math.max(0, S.vapeJuice - 3);
+    sfx.playMeow();
+    window.setTimeout(() => sfx.playMeow(), 220);
+    degen.add(5, 'Dry Hit');
+    showToast('DRY HIT. *cough cough hack* Lou sees colors.');
+    playOneShot(actions.Beg ?? actions.Puff, 1);
+    return;
+  }
+  triggerSmokeOrVape(THREE.MathUtils.clamp(held / 1.1, 0.35, 2.4));
+}
+
+function triggerSmokeOrVape(power = 1): void {
   if (S.deviceMode === 'vape') {
     if (S.vapeJuice <= 0) {
       sfx.playMeow();
       return showToast('Pod empty! Flavor pods at ABC Stores (Miracle Mile) [F].');
     }
-    S.vapeJuice = Math.max(0, S.vapeJuice - 7);
+    S.vapeJuice = Math.max(0, S.vapeJuice - (4 + power * 3));
     S.stats.vapeRips += 1;
-    puffTimer = 1.8;
+    puffTimer = 1.4 + power * 0.4;
     idleAutoPuffTimer = 7 + Math.random() * 4;
     sfx.playVapeRip();
     playOneShot(actions.VapeRip ?? actions.Puff, 1.3);
     const tip = getTipWorld(true);
     const forward = new THREE.Vector3(Math.sin(catYaw), 0.16, Math.cos(catYaw)).normalize();
-    smokeSystem.spawnVapeCloud(tip, forward, S.vapeFlavor, catVelocity);
-    const reaction = crowd.reactToCloud(catHolder.position, tipMultiplier(false));
+    smokeSystem.spawnVapeCloud(tip, forward, S.vapeFlavor, catVelocity, power);
+    // Thick clouds are a smoke screen: Animal Control loses sight of Lou inside
+    wanted.addCloud(catHolder.position.x + forward.x * 1.2, catHolder.position.z + forward.z * 1.2, 1.4 + power * 1.7, 3 + power * 2.5);
+    if (power > 1.6) {
+      S.stats.bigClouds += 1;
+      degen.add(Math.round(40 * power), 'Cloud Chaser');
+    }
+    const reaction = crowd.reactToCloud(catHolder.position, tipMultiplier(false) * (0.7 + power * 0.4));
     if (reaction.tips > 0) {
       S.cash += reaction.tips;
       S.stats.tipsEarned += reaction.tips;
@@ -381,6 +685,7 @@ function triggerSmokeOrVape(): void {
   puffTimer = 1.4;
   idleAutoPuffTimer = 6 + Math.random() * 4;
   S.cigBurn = Math.max(0, S.cigBurn - 12);
+  emit('smoke', {});
   sfx.playPuff();
   playOneShot(actions.Puff, 1.0);
   const tipWorld = getTipWorld(false);
@@ -432,6 +737,7 @@ function triggerBeg(): void {
         const cut = Math.round(5 * mult);
         S.cash += cut;
         S.stats.tipsEarned += cut;
+        emit('tip', { amount: cut });
         sfx.playCash();
         crowd.showPerformerSpeech(performer, performer.kind === 'elvis' ? `Thank you very much! Here's your cut: $${cut}` : `Cute! Split the photo tips: $${cut}`, 3);
         showToast(`Worked the crowd with the ${performer.kind === 'elvis' ? 'Elvis' : 'showgirl'} — +$${cut}`);
@@ -455,6 +761,7 @@ function triggerBeg(): void {
     S.cash += tip;
     S.stats.tipsEarned += tip;
     S.stats.photoOps += 1;
+    emit('tip', { amount: tip });
     sfx.playCash();
     crowd.showTouristSpeech(closest, `Selfie with the smoking cat! +$${tip}`, 3.2);
     showToast(`📸 Photo op! +$${tip}`);
@@ -462,6 +769,7 @@ function triggerBeg(): void {
     const tip = Math.round([5, 10, 15, 20][Math.floor(Math.random() * 4)] * mult);
     S.cash += tip;
     S.stats.tipsEarned += tip;
+    emit('tip', { amount: tip });
     sfx.playCash();
     crowd.showTouristSpeech(closest, `OMG a smoking cat! +$${tip}`, 3.2);
     showToast(`Tourist tipped $${tip}${mult > 1.01 ? ` (×${mult.toFixed(1)} swag)` : ''}`);
@@ -489,6 +797,8 @@ function triggerSteal(): void {
     S.cigStash += amount;
     S.stats.steals += 1;
     if (insideCasino) S.stats.casinoSteals += 1;
+    degen.add(insideCasino ? 60 : 25, insideCasino ? 'Casino Heist' : 'Five-Finger Discount');
+    if (Math.random() < (insideCasino ? 0.5 : 0.3)) crime(insideCasino ? 0.6 : 0.4);
     if (!S.isLit) {
       S.cigStash -= 1;
       S.isLit = true;
@@ -541,6 +851,54 @@ function nearestRideable(): Rideable | null {
   return best;
 }
 
+function nearestDeuceStop() {
+  for (const s of world.deuceStops) {
+    const x = s.side * (STRIP.curb + 3.2);
+    if (Math.hypot(catHolder.position.x - x, catHolder.position.z - s.z) < 5) return s;
+  }
+  return null;
+}
+
+function deuceEta(stop: { z: number; side: 1 | -1 }): string {
+  const dir = stop.side < 0 ? 1 : -1;
+  let best = Infinity;
+  for (const bus of world.deuceBuses) {
+    if (bus.dir !== dir) continue;
+    const d = (stop.z - bus.mesh.position.z) * dir;
+    const loop = STRIP.south - STRIP.north;
+    const dist = d >= 0 ? d : d + loop;
+    best = Math.min(best, dist);
+  }
+  return best < Infinity ? `Next Deuce in ~${Math.max(3, Math.round(best / 7))}s.` : '';
+}
+
+/** Board automatically when the bus we're waiting for pulls in (or we land on its roof). */
+function deuceAutoBoard(): void {
+  if (riding || driving.active) return;
+  const p = catHolder.position;
+  world.deuceBuses.forEach((bus, i) => {
+    if (riding) return;
+    const dx = Math.abs(p.x - bus.mesh.position.x);
+    const dz = Math.abs(p.z - bus.mesh.position.z);
+    const onRoof = p.y > 3.4 && dx < 1.5 && dz < bus.halfLen;
+    const arrived = waitingStop && bus.stopTimer > 0 && Math.abs(bus.mesh.position.z - waitingStop.z) < 1.5 && Math.sign(bus.laneX) === waitingStop.side;
+    if (!onRoof && !arrived) return;
+    const ride = world.rideables.find((r) => r.id === `deuce-${i}`);
+    if (!ride) return;
+    riding = ride;
+    waitingStop = null;
+    S.stats.deuceRides += 1;
+    btnBus.innerHTML = 'Hop off <kbd>G</kbd>';
+    sfx.playBusBell();
+    showToast(onRoof ? 'Landed on THE DEUCE. Lou climbs in through the roof hatch.' : 'THE DEUCE pulled in. Lou boards and takes the front seat upstairs.');
+    goals.check(S);
+  });
+  if (waitingStop) {
+    const x = waitingStop.side * (STRIP.curb + 3.2);
+    if (Math.hypot(p.x - x, p.z - waitingStop.z) > 7) waitingStop = null;
+  }
+}
+
 function exitRide(msg?: string): void {
   if (!riding) return;
   const r = riding;
@@ -554,8 +912,44 @@ function exitRide(msg?: string): void {
   showToast(msg ?? `Hopped off ${r.label}.`);
 }
 
+function enterCar(car: (typeof world.trafficVehicles)[number]): void {
+  driving.enter(car);
+  S.stats.carsStolen += 1;
+  crime(1.6);
+  emit('car-stolen', {});
+  degen.add(150, 'Grand Theft Auto-Cat');
+  const side = new THREE.Vector3(Math.cos(car.mesh.rotation.y), 0, -Math.sin(car.mesh.rotation.y));
+  const out = car.mesh.position.clone().addScaledVector(side, 2.2);
+  crowd.spawnBystander(out.x, out.z, out.x + side.x * 8, out.z + side.z * 8, DRIVER_LINES[Math.floor(Math.random() * DRIVER_LINES.length)], [side.x, side.z]);
+  btnBus.innerHTML = 'Exit car <kbd>G</kbd>';
+  sfx.playCrash();
+  sfx.startEngine();
+  showToast('Lou yanked the driver out. W/S gas & brake, A/D steer, Space handbrake, H honk, G to bail.', 4200);
+  goals.check(S);
+}
+
+function exitCar(): void {
+  driving.exit(tmpV);
+  catHolder.position.copy(tmpV);
+  catVelocity.set(0, 0, 0);
+  sfx.stopEngine();
+  btnBus.innerHTML = 'Ride <kbd>G</kbd>';
+  showToast('Lou ditched the car. Somebody else can explain the scratches.');
+}
+
 function toggleRide(): void {
+  if (driving.active) return exitCar();
   if (riding) return exitRide();
+  if (!nearestRideable()) {
+    const stop = nearestDeuceStop();
+    if (stop) {
+      waitingStop = stop;
+      showToast(`Waiting at the ${stop.name} stop. ${deuceEta(stop)}`);
+      return;
+    }
+    const car = driving.nearestCar(world.trafficVehicles, catHolder.position);
+    if (car) return enterCar(car);
+  }
   const r = nearestRideable();
   if (!r) return showToast('Nothing to ride here. Deuce stops, the High Roller, the Eiffel elevator and Venetian gondolas all take [G].');
   const can = r.canBoard();
@@ -594,6 +988,12 @@ function vipProgress(): string {
 }
 
 function triggerInteract(): void {
+  const offer = missions.nearbyOffer(catHolder.position);
+  if (offer) {
+    missions.start(offer);
+    sfx.playBusBell();
+    return;
+  }
   const shop = nearestShop();
   if (shop) {
     if (shop.kind === 'abc') return abcShop.open();
@@ -663,7 +1063,20 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   switch (e.code) {
     case 'KeyE':
-      triggerSmokeOrVape();
+      if (S.deviceMode === 'vape' && S.vapeJuice > 0) vapeChargeStart = elapsed;
+      else triggerSmokeOrVape();
+      break;
+    case 'Digit1':
+      vapeTrick('orings');
+      break;
+    case 'Digit2':
+      vapeTrick('french');
+      break;
+    case 'Digit3':
+      vapeTrick('ghost');
+      break;
+    case 'Digit4':
+      vapeTrick('tornado');
       break;
     case 'KeyV':
       toggleDevice();
@@ -686,6 +1099,27 @@ window.addEventListener('keydown', (e) => {
     case 'KeyR':
       resetCat();
       break;
+    case 'KeyC':
+      triggerPounce();
+      break;
+    case 'KeyH':
+      if (driving.active) {
+        sfx.playHonk();
+        for (const t of crowd.tourists) {
+          if (t.mesh.position.distanceTo(catHolder.position) < 14 && !t.knock) {
+            t.lookAtCat = 1.5;
+            if (Math.random() < 0.3) crowd.say(t, ['JEEZ!', 'Is a cat DRIVING?', 'Learn to drive!'][Math.floor(Math.random() * 3)], 2);
+          }
+        }
+      }
+      break;
+    case 'KeyZ':
+      if (rag.active) endRagdoll();
+      else {
+        startRagdoll(new THREE.Vector3(catVelocity.x, Math.max(catVelocity.y, 2.5), catVelocity.z));
+        degen.add(10, 'Dramatic Flop');
+      }
+      break;
     case 'KeyM':
       showToast(minimap.cycle());
       break;
@@ -697,7 +1131,10 @@ window.addEventListener('keydown', (e) => {
       break;
   }
 });
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (e.code === 'KeyE') releaseVapeCharge();
+});
 window.addEventListener('blur', () => keys.clear());
 
 let camYaw = S === saved ? catYaw + Math.PI : Math.PI;
@@ -798,7 +1235,7 @@ function resetCat(): void {
 const guard = (fn: () => void) => () => {
   if (started && !anyDialogOpen()) fn();
 };
-btnPuff.addEventListener('click', guard(triggerSmokeOrVape));
+btnPuff.addEventListener('click', guard(() => triggerSmokeOrVape(1.2)));
 btnDevice.addEventListener('click', guard(toggleDevice));
 btnBeg.addEventListener('click', guard(triggerBeg));
 btnSteal.addEventListener('click', guard(triggerSteal));
@@ -814,6 +1251,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer?.setSize(window.innerWidth, window.innerHeight);
 });
 window.addEventListener('pagehide', save);
 document.addEventListener('visibilitychange', () => {
@@ -826,7 +1264,14 @@ const overlapsXZ = (x: number, z: number, r: number, b: PlatformBox) => x + r > 
 function resolveCatPhysics(dt: number, moveDir: THREE.Vector3, sprinting: boolean): void {
   const maxSpeed = sprinting ? 9.0 : 5.2;
   const accel = isGrounded ? 24 : 10;
-  if (moveDir.lengthSq() > 0.001) {
+  const steering = pounceTimer <= 0 && !rag.active;
+  if (!steering) {
+    if (isGrounded) {
+      const f = Math.max(0, 1 - dt * (rag.active ? 2.5 : 6));
+      catVelocity.x *= f;
+      catVelocity.z *= f;
+    }
+  } else if (moveDir.lengthSq() > 0.001) {
     catVelocity.x = THREE.MathUtils.lerp(catVelocity.x, moveDir.x * maxSpeed, Math.min(1, accel * dt));
     catVelocity.z = THREE.MathUtils.lerp(catVelocity.z, moveDir.z * maxSpeed, Math.min(1, accel * dt));
     let diff = Math.atan2(moveDir.x, moveDir.z) - catYaw;
@@ -838,7 +1283,7 @@ function resolveCatPhysics(dt: number, moveDir: THREE.Vector3, sprinting: boolea
     catVelocity.x = THREE.MathUtils.lerp(catVelocity.x, 0, Math.min(1, drag * dt));
     catVelocity.z = THREE.MathUtils.lerp(catVelocity.z, 0, Math.min(1, drag * dt));
   }
-  if ((keys.has('Space') || jumpQueued) && (isGrounded || coyoteTimer > 0)) {
+  if (steering && (keys.has('Space') || jumpQueued) && (isGrounded || coyoteTimer > 0)) {
     catVelocity.y = 7.4;
     isGrounded = false;
     coyoteTimer = 0;
@@ -881,8 +1326,15 @@ function resolveCatPhysics(dt: number, moveDir: THREE.Vector3, sprinting: boolea
   pos.y += catVelocity.y * dt;
   if (pos.y <= floorY) {
     pos.y = floorY;
-    catVelocity.y = 0;
-    isGrounded = true;
+    const impact = catVelocity.y;
+    if (rag.active && impact < -4) {
+      catVelocity.y = -impact * 0.42;
+      isGrounded = false;
+      sfx.playMeow();
+    } else {
+      catVelocity.y = 0;
+      isGrounded = true;
+    }
     coyoteTimer = 0.12;
   } else {
     isGrounded = false;
@@ -916,31 +1368,96 @@ function vehicleBumps(): void {
   for (const car of world.trafficVehicles) {
     const along = car.axis === 'z' ? Math.abs(p.z - car.mesh.position.z) : Math.abs(p.x - car.mesh.position.x);
     const across = car.axis === 'z' ? Math.abs(p.x - car.mesh.position.x) : Math.abs(p.z - car.mesh.position.z);
-    if (p.y < 1.8 && across < 1.2 && along < car.halfLen && car.speed > 1) {
-      catVelocity.y = 5.8;
+    if (p.y < 1.8 && across < 1.2 && along < car.halfLen && car.speed > 1 && !rag.active) {
       const side = car.axis === 'z' ? Math.sign(p.x - car.laneX || 1) : Math.sign(p.z - car.laneX || 1);
-      if (car.axis === 'z') catVelocity.x = side * 7.4;
-      else catVelocity.z = side * 7.4;
+      const fwd = car.dir * car.speed * 0.9;
+      if (car.speed > 5) {
+        startRagdoll(car.axis === 'z' ? new THREE.Vector3(side * 6, 7 + car.speed * 0.25, fwd) : new THREE.Vector3(fwd, 7 + car.speed * 0.25, side * 6));
+        degen.add(Math.round(car.speed * 8), 'Hood Ornament');
+        showToast('SPLAT… just kidding. Nine lives, baby.');
+      } else {
+        catVelocity.y = 5.8;
+        if (car.axis === 'z') catVelocity.x = side * 7.4;
+        else catVelocity.z = side * 7.4;
+        showToast('HONK! Use the skybridges or crosswalks, kitty.');
+      }
       sfx.playMeow();
-      showToast('HONK! Use the skybridges or crosswalks, kitty.');
     }
   }
   for (const bus of world.deuceBuses) {
     const dx = Math.abs(p.x - bus.mesh.position.x);
     const dz = Math.abs(p.z - bus.mesh.position.z);
-    if (p.y < 2.2 && dx < 1.5 && dz < bus.halfLen && bus.stopTimer <= 0) {
-      catVelocity.y = 5.4;
-      catVelocity.x = Math.sign(p.x - bus.laneX || 1) * 7;
+    if (p.y < 2.2 && dx < 1.5 && dz < bus.halfLen && bus.stopTimer <= 0 && !rag.active && !waitingStop) {
+      startRagdoll(new THREE.Vector3(Math.sign(p.x - bus.laneX || 1) * 7, 9, bus.dir * 8));
+      degen.add(120, 'Deuce Bumper Sticker');
       sfx.playMeow();
-      showToast('The Deuce stops at the gold shelters — press [G] there.');
+      showToast('Flattened by The Deuce. Next time wait at a gold stop and press [G].');
     }
+  }
+}
+
+function chaosStep(dt: number, moving: boolean): void {
+  const p = catHolder.position;
+  if (pounceTimer > 0) {
+    pounceTimer -= dt;
+    pounceHits();
+  }
+  if (rag.active) {
+    rag.t += dt;
+    const speed = Math.hypot(catVelocity.x, catVelocity.z);
+    if (speed > 5) pounceHits();
+    if (catModel) {
+      if (!isGrounded) {
+        catModel.rotation.x += rag.spin.x * dt;
+        catModel.rotation.y += rag.spin.y * dt;
+        catModel.rotation.z += rag.spin.z * dt;
+      } else {
+        rag.spin.multiplyScalar(Math.max(0, 1 - dt * 4));
+        catModel.rotation.x = THREE.MathUtils.lerp(catModel.rotation.x, 0, dt * 6);
+        catModel.rotation.z = THREE.MathUtils.lerp(catModel.rotation.z, Math.PI / 2, dt * 6);
+        catModel.position.y = THREE.MathUtils.lerp(catModel.position.y, 0.12, dt * 6);
+      }
+    }
+    if ((rag.t > 1.2 && isGrounded && speed < 0.8 && moving) || rag.t > 6) {
+      endRagdoll();
+      if (catModel) catModel.position.y = 0;
+    }
+  }
+  // Knock over street props (Goat-Simulator rules: everything is a bowling pin)
+  const kinds = props.hit(p, catVelocity, rag.active ? 0.6 : 0.42, rag.active ? 2 : 3.4);
+  for (const k of kinds) {
+    S.stats.propsSmashed += 1;
+    sfx.playBusted();
+    if (k === 'trash') degen.add(15, 'Trash Panda');
+    else if (k === 'newsrack') degen.add(25, 'Breaking News');
+    else if (k === 'cone') degen.add(10, 'Cone Zone');
+    else if (k === 'urn') {
+      degen.add(20, 'Ash Tray Toss');
+      if (Math.random() < 0.3) {
+        S.cigStash += 1;
+        showToast('A perfectly good half-smoked butt fell out. (+1)');
+      }
+    } else degen.add(15, 'Vandal Cat');
+  }
+  // Air time
+  if (!isGrounded && !riding) {
+    airTime += dt;
+    peakY = Math.max(peakY, p.y);
+  } else if (airTime > 0) {
+    if (airTime > 1.1) degen.add(Math.round(airTime * 40), 'Big Air');
+    if (peakY - p.y > 6) degen.add(Math.round((peakY - p.y) * 12), 'Gravity Check');
+    airTime = 0;
+    peakY = p.y;
   }
 }
 
 // ---------------------------------------------------------------- context prompt + zones
 function updatePrompt(): void {
   let text = '';
-  if (riding) text = riding.ridingPrompt;
+  if (driving.active) text = 'Driving a stolen car — W/S gas/brake, A/D steer, Space handbrake, H honk, G to bail';
+  else if (riding) text = riding.status ? `${riding.ridingPrompt} • ${riding.status()}` : riding.ridingPrompt;
+  else if (waitingStop) text = `Waiting for THE DEUCE at ${waitingStop.name} — ${deuceEta(waitingStop)}`;
+  else if (missions.nearbyOffer(catHolder.position)) text = `Press [F] — start mission: ${missions.nearbyOffer(catHolder.position)!.title}`;
   else {
     const shop = nearestShop();
     const game = nearestGame();
@@ -1039,6 +1556,12 @@ function step(now: number, render = true): void {
   elapsed += dt;
 
   if (started) {
+    if (trickCooldown > 0) trickCooldown -= dt;
+    if (vapeChargeStart >= 0) {
+      const held = elapsed - vapeChargeStart;
+      stateEl.textContent = held > 3.2 ? 'TOO MUCH!' : `Charging ${'▮'.repeat(Math.min(8, Math.ceil(held * 3)))}`;
+      if (held > 3.6) releaseVapeCharge();
+    }
     if (buzzTimer > 0) buzzTimer = Math.max(0, buzzTimer - dt);
     if (performerTipCooldown > 0) performerTipCooldown -= dt;
     if (S.deviceMode === 'cig' && S.isLit) {
@@ -1050,12 +1573,43 @@ function step(now: number, render = true): void {
   world.update(dt, elapsed, catHolder.position, camera);
   crowd.update(dt, elapsed, catHolder.position, { onCaught, onEscaped });
 
-  if (riding) {
+  if (driving.active) {
+    const throttle = started && !anyDialogOpen() ? (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - stick.y : 0;
+    const steer = started && !anyDialogOpen() ? (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) - (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - stick.x : 0;
+    const res = driving.update(dt, { throttle: THREE.MathUtils.clamp(throttle, -1, 1), steer: THREE.MathUtils.clamp(steer, -1, 1), handbrake: keys.has('Space') }, world.colliders, world.trafficVehicles);
+    if (res.crashed) {
+      sfx.playCrash();
+      degen.add(30, 'Fender Bender');
+    }
+    driving.seat(catHolder.position);
+    catYaw = driving.heading;
+    catVelocity.copy(driving.velocity);
+    sfx.setEngine(driving.speed);
+    const carPos = driving.car!.mesh.position;
+    if (Math.abs(driving.speed) > 4) {
+      for (const npc of crowd.allPeople()) {
+        if (npc.knock) continue;
+        const dx = npc.mesh.position.x - carPos.x;
+        const dz = npc.mesh.position.z - carPos.z;
+        if (dx * dx + dz * dz > 3.2) continue;
+        crowd.knockdown(npc, driving.velocity.x + dx, driving.velocity.z + dz, Math.min(9, Math.abs(driving.speed) * 0.5));
+        S.stats.knockdowns += 1;
+        degen.add(75, 'Pedestrian Bowling');
+        crime(0.8);
+        sfx.playBusted();
+      }
+    }
+    for (const k of props.hit(carPos, driving.velocity, 1.7, 3)) {
+      S.stats.propsSmashed += 1;
+      degen.add(k === 'newsrack' ? 30 : 15, k === 'trash' ? 'Trash Day' : k === 'cone' ? 'Cone Zone' : 'Street Sweeper');
+    }
+  } else if (riding) {
     riding.seat(catHolder.position);
     catYaw = riding.yaw();
     catVelocity.set(0, 0, 0);
     if (riding.wantsExit?.()) {
       const r = riding;
+      emit('ride', { kind: r.kind });
       exitRide(r.kind === 'highroller' ? 'Full loop on the High Roller — what a view!' : r.kind === 'gondola' ? 'Grazie! End of the canal.' : r.kind === 'elevator' ? 'Doors open.' : undefined);
     }
     if ((keys.has('Space') || jumpQueued) && !anyDialogOpen() && riding?.kind === 'deuce') {
@@ -1078,22 +1632,46 @@ function step(now: number, render = true): void {
     moveDir.set(0, 0, 0).addScaledVector(camForward, -inZ).addScaledVector(camRight, inX);
     if (moveDir.lengthSq() > 1) moveDir.normalize();
     const sprinting = keys.has('ShiftLeft') || keys.has('ShiftRight') || Math.hypot(stick.x, stick.y) > 0.95;
+    if (rag.active) moveDir.set(0, 0, 0);
     resolveCatPhysics(dt, moveDir, sprinting);
     vehicleBumps();
+    deuceAutoBoard();
+    chaosStep(dt, inX !== 0 || inZ !== 0);
   }
   catHolder.rotation.y = catYaw;
+  props.update(dt, world.colliders);
+  driving.tickAbandoned(dt, catHolder.position);
+  if (started) missions.update(dt, elapsed, missionCtx());
+  degen.update(dt);
+  const zoneNow = world.getZoneName(catHolder.position.x, catHolder.position.z);
+  wanted.update(dt, elapsed, catHolder.position, {
+    riding: !!riding && riding.kind === 'deuce',
+    inCar: driving.active,
+    indoors: /Casino|Lounge|Chandelier|ABC Stores|Conservatory|Forum Shops/.test(zoneNow),
+  });
 
   // Animation state
   if (actionLockTimer > 0) actionLockTimer = Math.max(0, actionLockTimer - dt);
   if (puffTimer > 0) puffTimer = Math.max(0, puffTimer - dt);
   const horizSpeed = riding ? 0 : Math.hypot(catVelocity.x, catVelocity.z);
-  if (actionLockTimer > 0) {
-    stateEl.textContent = activeAction === actions.Beg ? 'Hustling' : activeAction === actions.Steal ? 'Swiping!' : S.deviceMode === 'vape' ? 'Ripping Vape' : 'Taking a Drag';
+  if (driving.active) {
+    fadeToAction(actions.Drive ?? actions.Sit ?? actions.Idle, 0.2);
+    stateEl.textContent = `Driving ${Math.round(Math.abs(driving.speed) * 2.237)} mph`;
+  } else if (rag.active) {
+    stateEl.textContent = 'Ragdolling';
+  } else if (actionLockTimer > 0) {
+    stateEl.textContent = activeAction === actions.Pounce || pounceTimer > 0 ? 'POUNCE!' : activeAction === actions.Beg ? 'Hustling' : activeAction === actions.Steal ? 'Swiping!' : S.deviceMode === 'vape' ? 'Ripping Vape' : 'Taking a Drag';
   } else if (riding) {
     fadeToAction(actions.Idle, 0.22);
     stateEl.textContent = `Riding ${riding.label}`;
+  } else if (!isGrounded && actions.Jump && catHolder.position.y > 0.6) {
+    fadeToAction(actions.Jump, 0.12);
+    stateEl.textContent = 'Leaping';
   } else if (horizSpeed > 0.35) {
-    if (actions.Walk) {
+    if (horizSpeed > 6.5 && actions.Run) {
+      actions.Run.timeScale = THREE.MathUtils.clamp(horizSpeed / 8, 0.8, 1.5);
+      fadeToAction(actions.Run, 0.15);
+    } else if (actions.Walk) {
       actions.Walk.timeScale = THREE.MathUtils.clamp(horizSpeed / 3.6, 0.75, 2.2);
       fadeToAction(actions.Walk, 0.15);
     }
@@ -1106,7 +1684,7 @@ function step(now: number, render = true): void {
       if (idleAutoPuffTimer <= 0) triggerSmokeOrVape();
     }
   }
-  if (crowd.anyChasing()) stateEl.textContent = 'ON THE RUN!';
+  if (crowd.anyChasing() || wanted.stars > 0) stateEl.textContent = wanted.stars > 0 ? `WANTED ${'★'.repeat(wanted.stars)}` : 'ON THE RUN!';
   mixer?.update(dt);
 
   // Ember + smoke
@@ -1149,7 +1727,7 @@ function step(now: number, render = true): void {
   mapTimer += dt;
   if (mapTimer > 0.1) {
     mapTimer = 0;
-    const markers: MapMarker[] = [...world.staticMarkers];
+    const markers: MapMarker[] = [...world.staticMarkers, ...missions.markers2D()];
     for (const g of crowd.guards) markers.push({ x: g.mesh.position.x, z: g.mesh.position.z, color: g.mode === 'chase' ? '#ff3030' : '#5a8cff', size: g.mode === 'chase' ? 3.4 : 2.2 });
     for (const bus of world.deuceBuses) markers.push({ x: bus.mesh.position.x, z: bus.mesh.position.z, color: '#ffcc33', shape: 'square', size: 2.6 });
     for (const p of world.cigPickups) if (p.stolenCooldown === 0) markers.push({ x: p.position.x, z: p.position.z, color: '#ff7a3a', size: 1.5 });
@@ -1163,13 +1741,28 @@ function step(now: number, render = true): void {
 
   // Camera
   desiredTarget.set(catHolder.position.x, catHolder.position.y + 0.75, catHolder.position.z);
-  camTarget.lerp(desiredTarget, Math.min(1, (riding ? 6 : 10) * dt));
-  const dist = riding?.kind === 'highroller' || riding?.kind === 'elevator' ? Math.max(camDist, 6) : camDist;
+  camTarget.lerp(desiredTarget, Math.min(1, (riding || driving.active ? 6 : 10) * dt));
+  if (driving.active && !isDragging) {
+    // Chase cam swings in behind the car like GTA
+    let diff = driving.heading + Math.PI - camYaw;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    camYaw += diff * Math.min(1, dt * 2.5);
+    camPitch = THREE.MathUtils.lerp(camPitch, 0.24, dt * 2);
+  }
+  const dist = driving.active ? Math.max(camDist, 8.5) : riding?.kind === 'highroller' || riding?.kind === 'elevator' ? Math.max(camDist, 6) : camDist;
   const horiz = Math.cos(camPitch) * dist;
   camera.position.set(camTarget.x + Math.sin(camYaw) * horiz, Math.max(0.4, camTarget.y + Math.sin(camPitch) * dist), camTarget.z + Math.cos(camYaw) * horiz);
   camera.lookAt(camTarget);
 
-  if (render) renderer.render(scene, camera);
+  if (render) {
+    if (composer && bloom) {
+      bloom.strength = 0.16 + world.getNight() * 0.75;
+      composer.render(dt);
+    } else {
+      renderer.render(scene, camera);
+    }
+  }
 }
 
 updateHUD();
