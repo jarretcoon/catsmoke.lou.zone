@@ -49,6 +49,8 @@ export interface MissionDef {
   steps: Step[];
   reward: { cash: number; points: number };
   after?: string;
+  /** Height of the floating marker (default 3.2 m); lower it where it would cover a sign. */
+  markerY?: number;
 }
 
 export const MISSIONS: MissionDef[] = [
@@ -57,6 +59,7 @@ export const MISSIONS: MissionDef[] = [
     title: 'Welcome to Fabulous Las Vegas',
     giver: 'Elvis (Welcome sign photo line)',
     at: [1.55, 911.8],
+    markerY: 1.9, // below the sign face, so it never covers "Fabulous"
     intro: '“Well hey there, little fella. 3:47 in the morning and you’ve got two cigarettes and no money? Kid, you’re gonna fit right in. Get your picture at the sign, then catch the Deuce up the Strip — the real hustle is at the Bellagio fountains.”',
     outro: '“Now you’re in Vegas, baby. Go find the Elvis at the fountains. Tell him the King sent ya.”',
     steps: [
@@ -255,7 +258,8 @@ export class MissionManager {
       const g = this.makeBeacon(0xffd24d);
       g.position.set(m.at[0], 0, m.at[1]);
       const bang = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), new THREE.MeshBasicMaterial({ color: 0xffd24d }));
-      bang.position.y = 3.2;
+      bang.position.y = m.markerY ?? 3.2;
+      bang.userData.baseY = bang.position.y;
       bang.name = 'bang';
       g.add(bang);
       this.scene.add(g);
@@ -341,7 +345,7 @@ export class MissionManager {
       const bang = g.getObjectByName('bang');
       if (bang) {
         bang.rotation.y = t * 2;
-        bang.position.y = 3.2 + Math.sin(t * 3) * 0.25;
+        bang.position.y = (bang.userData.baseY ?? 3.2) + Math.sin(t * 3) * 0.25;
       }
     }
     if (!this.active) {

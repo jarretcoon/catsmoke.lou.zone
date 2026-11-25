@@ -2799,7 +2799,7 @@ function buildWelcomeSign(b: WorldBuilder): void {
   paving(b, -ISLAND + 0.24, ISLAND - 0.24, zIsl0 + 0.24, zLot0 - 1.3, '#e2d8c4', '#bfb39c', 2, L1);
   ground(b, -ISLAND + 0.24, ISLAND - 0.24, zLot0 - 1.1, zLot1 + 0.4, 0x2e2e33, L1, 0.85);
   ground(b, -ISLAND + 0.24, ISLAND - 0.24, zLot1 + 0.6, zIsl1 - 0.24, 0x5f7d45, L1, 0.95);
-  for (let z = zLot0 + 1; z <= zLot1; z += 6.2) b.floor(-0.2, z, ISLAND * 2 - 0.8, 0.12, basic(0xf2f0ea), L2);
+  for (let z = zLot0 + 1; z <= zLot1; z += 6.2) b.floor(-0.2, z, ISLAND * 2 - 0.8, 0.12, mat(0xdedcd4, 0.85), L2);
   sign(b, 'WELCOME SIGN PARKING', '#0a2a5a', '#ffffff', 3.2, 0.7, 0, 1.4, zLot1 + 1.6, 0, '15 MIN • PHOTO STOP', 0.06);
   mg.beam(mat(0x8c8f94, 0.4, 0.6), v3(0, 0, zLot1 + 1.65), v3(0, 1.05, zLot1 + 1.65), 0.04, 4);
   const parked: Array<[CarKind, number, number]> = [
@@ -2915,7 +2915,8 @@ function buildWelcomeSign(b: WorldBuilder): void {
       else m.color.copy(i === k ? off : on);
     });
   });
-  b.light(0xfff2d8, 26, 20, 0, 1.2, zSign + 4.4, 0);
+  // Ground floods aimed up at the face (low and close, so the photo line is not blown out under bloom)
+  b.light(0xfff2d8, 9, 12, 0, 0.4, zSign + 2.2, 0);
   mg.flush(b);
 
   b.zone('Welcome to Fabulous Las Vegas Sign', -ISLAND - 0.6, ISLAND + 0.6, zIsl0, zLot0 - 1.2);
