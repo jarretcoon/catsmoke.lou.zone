@@ -56,7 +56,7 @@ export const MISSIONS: MissionDef[] = [
     id: 'welcome',
     title: 'Welcome to Fabulous Las Vegas',
     giver: 'Elvis (Welcome sign photo line)',
-    at: [3.2, 922],
+    at: [1.55, 911.8],
     intro: '“Well hey there, little fella. 3:47 in the morning and you’ve got two cigarettes and no money? Kid, you’re gonna fit right in. Get your picture at the sign, then catch the Deuce up the Strip — the real hustle is at the Bellagio fountains.”',
     outro: '“Now you’re in Vegas, baby. Go find the Elvis at the fountains. Tell him the King sent ya.”',
     steps: [

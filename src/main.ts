@@ -93,6 +93,8 @@ let quality: Quality = (() => {
   return window.matchMedia('(pointer: coarse)').matches ? 'low' : 'high';
 })();
 let composer: EffectComposer | null = null;
+/** Scales the distance culling of props, pickups, guards and vehicles (Low graphics = 0.7). */
+let dynCullScale = 1;
 let bloom: UnrealBloomPass | null = null;
 const btnQuality = document.createElement('button');
 btnQuality.type = 'button';
@@ -127,6 +129,8 @@ function applyQuality(): void {
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
   }
+  world.setDrawDistance(quality === 'low' ? 0.6 : quality === 'medium' ? 0.85 : 1);
+  dynCullScale = quality === 'low' ? 0.7 : 1;
   composer?.setPixelRatio(renderer.getPixelRatio());
   composer?.setSize(window.innerWidth, window.innerHeight);
   btnQuality.textContent = `Graphics: ${quality === 'high' ? 'High (bloom)' : quality === 'medium' ? 'Medium' : 'Low (fast)'}`;
@@ -152,6 +156,7 @@ let coyoteTimer = 0;
 let actionLockTimer = 0;
 let puffTimer = 0;
 let idleAutoPuffTimer = 5.5;
+let dynCullTimer = 0;
 /** Seconds Lou has stood still; after a while he sits down like the loaf he is. */
 let idleTime = 0;
 let buzzTimer = 0;
@@ -1813,6 +1818,18 @@ function step(now: number, render = true): void {
   }
   catHolder.rotation.y = catYaw;
   props.update(dt, world.colliders);
+  // Moving things live outside the baked world, so the world's distance culling never sees them.
+  dynCullTimer -= dt;
+  if (dynCullTimer <= 0) {
+    dynCullTimer = 0.25;
+    const cam = camera.position;
+    const k = dynCullScale * dynCullScale;
+    props.cull(cam, 110 * dynCullScale);
+    for (const p of world.cigPickups) if (p.stolenCooldown <= 0) p.mesh.visible = p.position.distanceToSquared(cam) < 160 * 160 * k;
+    for (const gd of crowd.guards) gd.mesh.visible = gd.mesh.position.distanceToSquared(cam) < 150 * 150;
+    for (const c of world.trafficVehicles) c.mesh.visible = c.mesh.position.distanceToSquared(cam) < 300 * 300 * k;
+    for (const bus of world.deuceBuses) bus.mesh.visible = bus.mesh.position.distanceToSquared(cam) < 400 * 400 * k;
+  }
   driving.tickAbandoned(dt, catHolder.position);
   if (started) missions.update(dt, elapsed, missionCtx());
   degen.update(dt);
@@ -1837,7 +1854,7 @@ function step(now: number, render = true): void {
   } else if (rag.active) {
     stateEl.textContent = 'Ragdolling';
   } else if (actionLockTimer > 0) {
-    stateEl.textContent = activeAction === actions.Pounce || pounceTimer > 0 ? 'POUNCE!' : activeAction === actions.Beg ? 'Hustling' : activeAction === actions.Steal ? 'Swiping!' : S.deviceMode === 'vape' ? 'Ripping Vape' : 'Taking a Drag';
+    stateEl.textContent = activeAction === actions.Pounce || pounceTimer > 0 ? 'POUNCE!' : activeAction === actions.Beg ? 'Hustling' : activeAction === actions.Steal ? 'Swiping!' : activeAction === actions.Dance && actions.Dance ? 'Dancing' : S.deviceMode === 'vape' ? 'Ripping Vape' : 'Taking a Drag';
   } else if (riding) {
     fadeToAction(actions.Idle, 0.22);
     stateEl.textContent = `Riding ${riding.label}`;

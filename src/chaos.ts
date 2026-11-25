@@ -430,6 +430,12 @@ export class PropPhysics {
     return kinds;
   }
 
+  /** Hide props far from the camera: hundreds of cans, racks and benches line 1.8 km of Strip. */
+  cull(cam: THREE.Vector3, limit: number): void {
+    const l2 = limit * limit;
+    for (const b of this.bodies) b.obj.visible = b.awake || b.obj.position.distanceToSquared(cam) < l2;
+  }
+
   update(dt: number, colliders: PlatformBox[]): void {
     for (const b of this.bodies) {
       if (b.hitCooldown > 0) b.hitCooldown -= dt;

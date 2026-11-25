@@ -8,6 +8,7 @@ import { buildEastSide } from './world/eastSide';
 import type { RestaurantDef } from './world/food';
 import { buildFoodAndShops } from './world/foodAndShops';
 import { buildNorthStrip } from './world/northStrip';
+import { buildSouthStrip } from './world/southStrip';
 import { SkyDome } from './world/sky';
 import { bakeStatic } from './world/staticBatch';
 import { buildStrip, DeuceState, TrafficCar } from './world/strip';
@@ -53,6 +54,8 @@ export interface VegasWorldContext {
   getNight: () => number;
   getZoneName: (x: number, z: number) => string;
   unlockVip: () => void;
+  /** Scales every distance-cull limit (Low graphics draws less of the far Strip). */
+  setDrawDistance: (scale: number) => void;
   update: (dt: number, elapsed: number, focus: THREE.Vector3, camera: THREE.Camera) => void;
 }
 
@@ -113,11 +116,12 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   buildWestSide(b);
   buildEastSide(b);
   buildNorthStrip(b);
+  buildSouthStrip(b);
   buildFoodAndShops(b);
   buildBackdrop(b);
   const baked = bakeStatic(b.root, 64, new Set<THREE.Material>(b.nightMaterials.map((n) => n.mat)));
   // Distance culling for a 1.8 km Strip: small clutter fades out past ~380 m, towers past ~650 m.
-  const cullables: Array<{ m: THREE.Object3D; c: THREE.Vector3; r: number }> = [];
+  const cullables: Array<{ m: THREE.Object3D; c: THREE.Vector3; r: number; limit: number }> = [];
   b.root.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
@@ -127,9 +131,12 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     const c = bs.center.clone().applyMatrix4(m.matrixWorld);
     const r = bs.radius * m.matrixWorld.getMaxScaleOnAxis();
     if (r > 140) return; // mountains, freeway, ground planes: always drawn
-    cullables.push({ m, c, r });
+    // Street-level clutter goes at ~230 m, the skyline stays out to ~700 m; anything unbaked keeps the old rule.
+    const limit = m.userData.lod === 'small' ? 230 : m.userData.lod === 'big' ? 700 : r > 18 ? 650 : 380;
+    cullables.push({ m, c, r, limit });
   });
   let cullTimer = 0;
+  let drawScale = 1;
 
   // ---- Time of day ----
   let timePreset: TimePreset = 'day';
@@ -200,10 +207,9 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     if (cullTimer <= 0) {
       cullTimer = 0.25;
       const cam = camera.position;
-      const far = night > 0.5 ? 0.85 : 1;
+      const far = (night > 0.5 ? 0.85 : 1) * drawScale;
       for (const k of cullables) {
-        const limit = (k.r > 18 ? 650 : 380) * far;
-        k.m.visible = cam.distanceTo(k.c) - k.r < limit;
+        k.m.visible = cam.distanceTo(k.c) - k.r < k.limit * far;
       }
     }
     for (const fn of b.updaters) fn(dt, elapsed, night);
@@ -235,7 +241,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     deuceBuses: strip.buses,
     deuceStops: DEUCE_STOPS,
     trafficVehicles: strip.cars,
-    spawn: new THREE.Vector3(0, 1, 936),
+    spawn: new THREE.Vector3(1.5, 0.3, 919.6),
     spawnYaw: Math.PI,
     resetPoint: new THREE.Vector3(-15, 0.2, 40),
     sun,
@@ -249,6 +255,10 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     getNight: () => night,
     getZoneName: (x, z) => b.zoneAt(x, z),
     unlockVip,
+    setDrawDistance: (s) => {
+      drawScale = s;
+      cullTimer = 0;
+    },
     update,
   };
 }

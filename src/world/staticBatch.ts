@@ -21,7 +21,8 @@ function vcMaterial(rb: number, mb: number): THREE.MeshStandardMaterial {
  */
 export function bakeStatic(root: THREE.Object3D, cell: number, keepMaterials: Set<THREE.Material>): { before: number; after: number } {
   root.updateMatrixWorld(true);
-  const buckets = new Map<string, { geos: THREE.BufferGeometry[]; material: THREE.Material; cast: boolean; order: number }>();
+  const buckets = new Map<string, { geos: THREE.BufferGeometry[]; material: THREE.Material; cast: boolean; order: number; big: boolean }>();
+  const size = new THREE.Vector3();
   const remove: THREE.Mesh[] = [];
   let before = 0;
   const center = new THREE.Vector3();
@@ -46,7 +47,11 @@ export function bakeStatic(root: THREE.Object3D, cell: number, keepMaterials: Se
     geo.applyMatrix4(m.matrixWorld);
     geo.computeBoundingBox();
     geo.boundingBox!.getCenter(center);
-    const cellKey = `${Math.floor(center.x / cell)}|${Math.floor(center.z / cell)}`;
+    geo.boundingBox!.getSize(size);
+    // Skyline pieces (towers, big signs, freeway) merge apart from street-level clutter so the clutter can be
+    // culled much closer than the skyline: a merged cell no longer drags a bench along with a 150 m tower.
+    const big = Math.max(size.x, size.y, size.z) > 14 || geo.boundingBox!.max.y > 22;
+    const cellKey = `${Math.floor(center.x / cell)}|${Math.floor(center.z / cell)}|${big ? 'B' : 's'}`;
 
     let key: string;
     let material: THREE.Material;
@@ -71,7 +76,7 @@ export function bakeStatic(root: THREE.Object3D, cell: number, keepMaterials: Se
     }
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = { geos: [], material, cast: m.castShadow, order: m.renderOrder };
+      bucket = { geos: [], material, cast: m.castShadow, order: m.renderOrder, big };
       buckets.set(key, bucket);
     }
     bucket.geos.push(geo);
@@ -94,6 +99,7 @@ export function bakeStatic(root: THREE.Object3D, cell: number, keepMaterials: Se
     mesh.castShadow = b.cast;
     mesh.receiveShadow = true;
     mesh.renderOrder = b.order;
+    mesh.userData.lod = b.big ? 'big' : 'small';
     mesh.matrixAutoUpdate = false;
     mesh.updateMatrix();
     root.add(mesh);

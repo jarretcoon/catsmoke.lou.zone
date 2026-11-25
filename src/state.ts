@@ -82,7 +82,7 @@ export function defaultState(): GameState {
     collectibles: [],
     timePreset: 'night',
     // The Welcome to Fabulous Las Vegas sign, 3:47 AM
-    position: [0, 1, 936],
+    position: [1.5, 0.3, 919.6],
     yaw: Math.PI,
     stats: {
       cigsSmoked: 0,
