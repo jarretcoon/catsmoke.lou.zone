@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DRACO_GLTF_CONFIG, DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
@@ -601,8 +602,10 @@ function getTipWorld(preferVape: boolean, out = new THREE.Vector3()): THREE.Vect
   return out.set(0.08, 0.48, 0.44).applyAxisAngle(THREE.Object3D.DEFAULT_UP, catYaw).add(catHolder.position);
 }
 
-new GLTFLoader().load(
-  '/models/tabby_cat.glb',
+// Lou's model is Draco-compressed with WebP textures; three bundles the glTF Draco decoder (hashed, so it caches forever).
+const dracoLoader = new DRACOLoader().setDecoderPath(DRACO_GLTF_CONFIG);
+new GLTFLoader().setDRACOLoader(dracoLoader).load(
+  `${import.meta.env.BASE_URL}models/tabby_cat.glb`,
   (gltf) => {
     const model = gltf.scene;
     model.scale.setScalar(1.35);

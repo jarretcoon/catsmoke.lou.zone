@@ -1,0 +1,10 @@
+# Cloudflare Workers Static Assets headers (catsmoke.lou.zone)
+# Hashed bundles never change; the page itself always revalidates so new builds show up at once.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/models/*
+  Cache-Control: public, max-age=3600
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
