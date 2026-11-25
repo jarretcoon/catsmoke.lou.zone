@@ -1,7 +1,7 @@
 import type { VapeFlavor } from './smoke';
 import type { TimePreset } from './vegasWorld';
 
-export type CosmeticId = 'aviators' | 'fedora' | 'gold-chain' | 'bowtie' | 'top-hat' | 'diamond-collar';
+export type CosmeticId = 'aviators' | 'fedora' | 'gold-chain' | 'bowtie' | 'top-hat' | 'diamond-collar' | 'trucker-hat' | 'lei' | 'cheap-shades' | 'bandana';
 
 export interface GameStats {
   cigsSmoked: number;
@@ -54,6 +54,9 @@ export interface GameState {
   vip: boolean;
   cosmetics: { owned: CosmeticId[]; equipped: CosmeticId[] };
   goalsDone: string[];
+  /** Permanent upgrades + collectibles from ABC Stores. */
+  upgrades: string[];
+  collectibles: string[];
   timePreset: TimePreset;
   position: [number, number, number];
   yaw: number;
@@ -75,10 +78,12 @@ export function defaultState(): GameState {
     vip: false,
     cosmetics: { owned: [], equipped: [] },
     goalsDone: [],
-    timePreset: 'day',
-    // Strip sidewalk in front of the Bellagio fountains, looking south toward Paris
-    position: [-15, 0.2, 40],
-    yaw: 0,
+    upgrades: [],
+    collectibles: [],
+    timePreset: 'night',
+    // The Welcome to Fabulous Las Vegas sign, 3:47 AM
+    position: [0, 1, 936],
+    yaw: Math.PI,
     stats: {
       cigsSmoked: 0,
       vapeRips: 0,
@@ -167,6 +172,8 @@ function migrate(raw: unknown): GameState | null {
     },
     stats: { ...base.stats, ...(r.stats ?? {}) },
     goalsDone: Array.isArray(r.goalsDone) ? r.goalsDone : [],
+    upgrades: Array.isArray(r.upgrades) ? r.upgrades : [],
+    collectibles: Array.isArray(r.collectibles) ? r.collectibles : [],
   };
   if (!Array.isArray(merged.stats.zonesVisited)) merged.stats.zonesVisited = [];
   if (!Array.isArray(merged.stats.missionsDone)) merged.stats.missionsDone = [];

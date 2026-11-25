@@ -1273,3 +1273,64 @@ kbd {
 .mission-dialog small {
   color: #b9b2a8;
 }
+
+/* ---------- ABC Stores catalog + restaurants ---------- */
+.abc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.8rem;
+}
+.abc-tab {
+  appearance: none;
+  border: 1px solid rgba(130, 210, 255, 0.4);
+  background: rgba(14, 24, 48, 0.7);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.abc-tab--on {
+  background: #ffe14d;
+  color: #093c82;
+  border-color: #ffe14d;
+}
+.abc-card {
+  position: relative;
+}
+.abc-tag {
+  position: absolute;
+  top: -0.55rem;
+  right: 0.5rem;
+  background: #d9362b;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+.abc-dialog {
+  width: min(44rem, 96dvw);
+  max-height: 90dvh;
+  overflow: auto;
+}
+.food-dialog {
+  border-color: #ffc72c;
+  background: radial-gradient(circle at top, #5a0d12, #160607 75%);
+}
+.food-dialog h1 {
+  color: #ffc72c !important;
+  font-style: italic;
+  font-family: Georgia, serif;
+}
+.food-dialog--wb {
+  border-color: #c27a3a;
+  background: radial-gradient(circle at top, #3a2a1a, #121008 75%);
+}
+.food-dialog--wb h1 {
+  color: #e8873a !important;
+  font-style: normal;
+  font-family: system-ui, sans-serif;
+}

@@ -3,6 +3,8 @@ import type { WorldBuilder } from './builder';
 import { stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
 import { LedBoard, makeBalloonTexture, makePaverTexture } from './textures';
+import { buildAbcStore } from './abcStore';
+import { buildInNOut } from './food';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 
 /**
@@ -63,36 +65,8 @@ function buildPlanetHollywood(b: WorldBuilder): void {
   });
   b.add(neonSign('PLANET HOLLYWOOD', '#06060a', '#ffffff', 16, 2.8, 'RESORT & CASINO'), 20.8, 16, 158, -Math.PI / 2);
 
-  // Walk-in ABC Stores at the Miracle Mile front (real: ABC Stores, Miracle Mile Shops)
-  const blue = mat(0x0b4ea2, 0.45);
-  const minX = 21;
-  const maxX = 40;
-  const minZ = 144;
-  const maxZ = 172;
-  b.floor(30.5, 158, maxX - minX, maxZ - minZ, mat(0xe6dfd0, 0.65), 0.03);
-  b.box(minX, 0, minZ + 5.5, 1, 7, 11, blue, true);
-  b.box(minX, 0, maxZ - 5.5, 1, 7, 11, blue, true);
-  b.box(minX, 4.2, 158, 1, 2.8, 6, blue, true);
-  b.add(neonSign('ABC STORES', '#093c82', '#ffe14d', 10, 1.8, 'SNACKS • SMOKES • VAPES • SOUVENIRS'), 20.3, 5.5, 158, -Math.PI / 2);
-  const wood = mat(0x9b6432, 0.72);
-  for (let i = 0; i < 16; i++) b.add(mesh(new THREE.BoxGeometry(0.18, 0.5, 26), wood, 23 + i * 1.1, 5.6 + Math.sin(i * 0.55) * 0.4, 158));
-  const shelf = mat(0xf4f1e8, 0.6);
-  for (const az of [150, 166]) {
-    b.box(28, 0, az, 7, 1.8, 1.2, shelf, true);
-    for (let i = 0; i < 6; i++) b.add(mesh(new THREE.BoxGeometry(0.65, 0.5, 0.7), mat([0xff5978, 0x35d0ff, 0xffd23f, 0x52e07a][i % 4], 0.5), 25.2 + i * 1.1, 2.05, az));
-  }
-  b.box(36.5, 0, 158, 1.5, 1.1, 9, blue, true);
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 6; col++) {
-      b.add(mesh(new THREE.BoxGeometry(0.32, 0.48, 0.88), mat([0xd9362b, 0x1e8855, 0x2a66cc, 0xf2b830][col % 4], 0.45), 39.1, 1.5 + row * 0.6, 154 + col * 1.4));
-    }
-  }
-  b.add(mesh(new THREE.BoxGeometry(0.75, 0.75, 1.8), basic(0x5cf2ff, { transparent: true, opacity: 0.55 }), 36.5, 1.48, 155));
-  b.light(0xfff5e0, 14, 22, 30, 5, 158, 0.6);
-  b.shopSpots.push({ kind: 'abc', position: new THREE.Vector3(34.8, 0, 158), radius: 3.6, label: 'ABC Stores' });
-  b.pickup(36.6, 1.6, 161, 4, 'ABC Counter Loose Pack!', false);
-  b.zone('ABC Stores (Miracle Mile Shops)', minX, maxX, minZ, maxZ);
-  b.staticMarkers.push({ x: 30, z: 158, color: '#5ab4ff', glyph: 'ABC', size: 2 });
+  // ABC Stores #103 at the Miracle Mile front (real: Miracle Mile Shops)
+  buildAbcStore(b, 30.5, 158, -Math.PI / 2, { label: 'ABC Stores #103 (Miracle Mile)', w: 26, d: 18 });
 
   const phSkin = { wall: '#1b1d24', mullion: '#3a3d48', glass: '#2c3a4a', lit: '#ffeacc', cols: 10, rows: 22, style: 1 as const, seed: 61 };
   tower(b, { x: 95, z: 153, w: 18, d: 46, h: 37, facade: phSkin });
@@ -518,11 +492,11 @@ function buildLinq(b: WorldBuilder): void {
     [64, "O'SHEAS", '#4dff7a'],
     [76, 'BURGERS', '#ffcc33'],
     [88, 'SPORTS BAR', '#3ab0ff'],
-    [100, 'GELATO', '#ff9ad8'],
-    [112, 'BOWLING', '#ff5a3a'],
     [124, 'KARAOKE', '#c77dff'],
   ];
   for (const [x, name, col] of north) storefront(b, x, -113.5, 10, 5, 6, 0x2c2f3a, name, col, '#0d0e14', 0);
+  // The LINQ Promenade In-N-Out (3545 S LVB, Ste L24) — famous for its line
+  b.restaurants.push(buildInNOut(b, 104, -121.5, 0, { name: 'In-N-Out (LINQ Promenade)', standalone: false, w: 16, d: 10, patio: false }));
   b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(72, 0, -98.6), radius: 3, label: 'Breeze Daiquiri Bar' });
   b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(64, 0, -109.8), radius: 3, label: "O'Sheas" });
 

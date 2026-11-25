@@ -28,8 +28,10 @@ import {
  * Street cross-section, cars and people stay life-size.
  */
 export const STRIP = {
-  north: -405,
-  south: 312,
+  north: -800,
+  south: 960,
+  /** Tropicana Ave (real s −1542) — the second big intersection, also a skybridge ring. */
+  tropicanaZ: 442.7,
   medianHalf: 1.4,
   laneCenters: [3.1, 6.5, 9.9],
   curb: 11.6,
@@ -44,8 +46,18 @@ export const STRIP = {
 };
 
 /** Real signalised mid-block crossings of the Strip (real meters north of Flamingo / -3.2). */
-export const CROSSWALKS: Array<{ z: number; name: string; offset: number }> = [
+export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both' }> = [
+  { z: -735.3, name: 'Circus Circus Dr', offset: 6, road: 'west' },
+  { z: -669.8, name: 'Resorts World Ave', offset: 12 },
+  { z: -615.3, name: 'Convention Center Dr', offset: 2, road: 'east' },
+  { z: -573.1, name: 'Genting Blvd', offset: 8 },
+  { z: -475.3, name: 'Fashion Show Dr', offset: 4 },
+  { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both' },
   { z: 206, name: 'Harmon Ave', offset: 3 },
+  { z: 529.6, name: 'Reno Ave', offset: 7 },
+  { z: 621.1, name: 'Mandalay Bay Rd / Hacienda', offset: 13 },
+  { z: 716.2, name: 'Four Seasons Dr', offset: 5 },
+  { z: 806.7, name: 'Russell Rd', offset: 9, road: 'both' },
   { z: 100, name: 'Bellagio Dr / Paris', offset: 9 },
   { z: -94, name: 'Caesars / LINQ', offset: 14 },
   { z: -181, name: "Harrah's / Hard Rock", offset: 5 },
@@ -100,6 +112,13 @@ function flamingoPhase(t: number): { ns: Phase; ew: Phase } {
   if (c < 31) return { ns: 'stop', ew: 'go' };
   return { ns: 'stop', ew: 'yellow' };
 }
+/** Tropicana runs the same plan, half a cycle out of step with Flamingo. */
+function tropicanaPhase(t: number): { ns: Phase; ew: Phase } {
+  return flamingoPhase(t + FLAMINGO_CYCLE / 2);
+}
+function crossPhase(z: number, t: number): { ns: Phase; ew: Phase } {
+  return Math.abs(z - STRIP.tropicanaZ) < 40 ? tropicanaPhase(t) : flamingoPhase(t);
+}
 function crosswalkPhase(t: number, offset: number): Phase {
   const c = (t + offset) % CROSSWALK_CYCLE;
   if (c < 19) return 'go';
@@ -134,14 +153,20 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   for (const s of [-1, 1]) {
     for (const [z0, z1] of [
       [STRIP.north, -STRIP.flamingoHalf],
-      [STRIP.flamingoHalf, STRIP.south],
+      [STRIP.flamingoHalf, STRIP.tropicanaZ - STRIP.flamingoHalf],
+      [STRIP.tropicanaZ + STRIP.flamingoHalf, STRIP.south],
     ]) {
       b.add(mesh(new THREE.BoxGeometry(0.3, 0.16, z1 - z0), curbMat, s * (half + 0.15), 0.08, (z0 + z1) / 2));
     }
   }
 
   // --- Raised median with palms, cut for the intersection and every crosswalk ---
-  const cuts = [{ z0: -28, z1: 28 }, ...CROSSWALKS.map((c) => ({ z0: c.z - 5, z1: c.z + 5 }))].sort((a, c) => a.z0 - c.z0);
+  const cuts = [
+    { z0: -28, z1: 28 },
+    { z0: STRIP.tropicanaZ - 28, z1: STRIP.tropicanaZ + 28 },
+    { z0: 890, z1: 952 }, // Welcome sign island (built by the south district)
+    ...CROSSWALKS.map((c) => ({ z0: c.z - 5, z1: c.z + 5 })),
+  ].sort((a, c) => a.z0 - c.z0);
   const medianRuns: Array<[number, number]> = [];
   let cursor = STRIP.north + 4;
   for (const cut of cuts) {
@@ -169,6 +194,28 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.add(cross);
   b.feature({ kind: 'road', x: crossMid, z: 0, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40' });
   b.zone('Flamingo Rd & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, -STRIP.flamingoWalk, STRIP.flamingoWalk);
+  const trop = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 }));
+  trop.rotation.x = -Math.PI / 2;
+  trop.position.set(crossMid, 0.035, STRIP.tropicanaZ);
+  trop.receiveShadow = true;
+  b.add(trop);
+  b.feature({ kind: 'road', x: crossMid, z: STRIP.tropicanaZ, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40', label: 'Tropicana Ave' });
+  b.zone('Tropicana Ave & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, STRIP.tropicanaZ - STRIP.flamingoWalk, STRIP.tropicanaZ + STRIP.flamingoWalk);
+  // Side-street stubs (two lanes each way) at the real cross streets
+  const sideTex = makeCrossStreetTexture(160);
+  for (const cw of CROSSWALKS) {
+    if (!cw.road) continue;
+    const spans: Array<[number, number]> = cw.road === 'both' ? [[STRIP.flamingoWest, -half], [half, STRIP.flamingoEast]] : cw.road === 'west' ? [[STRIP.flamingoWest, -half]] : [[half, STRIP.flamingoEast]];
+    for (const [a, c] of spans) {
+      const w = c - a;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 14), new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.82 }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set((a + c) / 2, 0.034, cw.z);
+      m.receiveShadow = true;
+      b.add(m);
+      b.feature({ kind: 'road', x: (a + c) / 2, z: cw.z, w, d: 14, color: '#3b3a40' });
+    }
+  }
 
   const white = basic(0xf2f0ea);
   for (const s of [-1, 1]) {
@@ -190,6 +237,16 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     b.add(sig.group, x, 0, z, rot);
     b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, 7, true);
     signals.push({ sig, read: () => flamingoPhase(clock())[axis] });
+    const tz = z + STRIP.tropicanaZ;
+    const sig2 = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1);
+    b.add(sig2.group, x, 0, tz, rot);
+    b.collider(x - 0.25, x + 0.25, tz - 0.25, tz + 0.25, 0, 7, true);
+    signals.push({ sig: sig2, read: () => tropicanaPhase(clock())[axis] });
+  }
+  for (const s2 of [-1, 1]) {
+    const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.5), white, s2 * ((half + STRIP.medianHalf) / 2), 0.055, STRIP.tropicanaZ - s2 * (STRIP.flamingoHalf + 1.2));
+    bar.rotation.x = -Math.PI / 2;
+    b.add(bar);
   }
 
   // --- Mid-block signalised crosswalks ---
@@ -227,12 +284,13 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   });
 
   // --- Four-corner pedestrian skybridge ring ---
-  buildSkybridges(b);
+  buildSkybridges(b, 0, ['CAESARS PALACE  •  THE VANDERPUMP', 'BELLAGIO  •  HORSESHOE', 'FLAMINGO RD  •  BELLAGIO ↔ CAESARS', 'FLAMINGO RD  •  HORSESHOE ↔ VANDERPUMP'], 'FLAMINGO RD', 'Flamingo Skybridge');
+  buildSkybridges(b, STRIP.tropicanaZ, ['NEW YORK-NEW YORK  •  MGM GRAND', 'EXCALIBUR  •  BALLPARK SITE', 'TROPICANA AVE  •  NYNY ↔ EXCALIBUR', 'TROPICANA AVE  •  MGM ↔ BALLPARK'], 'TROPICANA AVE', 'Tropicana Skybridge');
 
   // --- Street furniture along both sidewalks ---
   const glowMat = new THREE.MeshBasicMaterial({ map: makeGlowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   let poleIdx = 0;
-  const nearCrossing = (z: number, r: number) => Math.abs(z) < 30 || CROSSWALKS.some((c) => Math.abs(c.z - z) < r);
+  const nearCrossing = (z: number, r: number) => Math.abs(z) < 30 || Math.abs(z - STRIP.tropicanaZ) < 30 || (z > 885 && z < 955) || CROSSWALKS.some((c) => Math.abs(c.z - z) < r + (c.road ? 6 : 0));
   for (const s of [-1, 1]) {
     for (let z = STRIP.north + 10; z < STRIP.south - 5; z += 24) {
       if (nearCrossing(z, 7)) continue;
@@ -284,6 +342,10 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     { x: STRIP.laneCenters[2], dir: -1, z: 70 },
     { x: -STRIP.laneCenters[2], dir: 1, z: 180 },
     { x: STRIP.laneCenters[2], dir: -1, z: -260 },
+    { x: -STRIP.laneCenters[2], dir: 1, z: 600 },
+    { x: STRIP.laneCenters[2], dir: -1, z: 820 },
+    { x: -STRIP.laneCenters[2], dir: 1, z: -560 },
+    { x: STRIP.laneCenters[2], dir: -1, z: -700 },
   ];
   for (const def of busDefs) {
     const built = deuceBus(DEUCE_LIVERY);
@@ -301,6 +363,9 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     ['sport', 0xc4161c], ['sedan', 0x2d4f8c], ['taxi', 0x2a2a2a], ['suv', 0xf2f2f0],
     ['sedan', 0x6b6f76], ['limo', 0xf4f4f4], ['sport', 0x1e8c5a], ['taxi', 0xf4c430],
     ['suv', 0x8a1c1c], ['sedan', 0x111111], ['taxi', 0xf4c430], ['sport', 0xf2a516],
+    ['taxi', 0xf4c430], ['sedan', 0x3a5a3a], ['limo', 0x111111], ['suv', 0xd9d9d9],
+    ['sport', 0x2a66cc], ['sedan', 0x8a6a4a], ['taxi', 0x2a2a2a], ['suv', 0x1d1f24],
+    ['sedan', 0xf2f2f0], ['taxi', 0xf4c430], ['sport', 0x6b1fa8], ['sedan', 0x4a4a52],
   ];
   palette.forEach(([kind, color], i) => {
     const dir: 1 | -1 = i % 2 === 0 ? 1 : -1;
@@ -315,10 +380,10 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     cars.push({ mesh: c.group, laneX: x, dir, speed: cruise, cruise, halfLen: c.length / 2 + 0.3, axis: 'z' });
   });
   const crossPalette: Array<[CarKind, number]> = [['sedan', 0x8a1c1c], ['taxi', 0xf4c430], ['suv', 0x23262c], ['sedan', 0xd9d9d9]];
-  crossPalette.forEach(([kind, color], i) => {
+  [...crossPalette, ...crossPalette].forEach(([kind, color], i) => {
     const dir: 1 | -1 = i % 2 === 0 ? 1 : -1; // +1 = eastbound (drives on the south half)
-    const lane = i < 2 ? 3.1 : 6.5;
-    const z = dir === 1 ? lane : -lane;
+    const lane = i % 4 < 2 ? 3.1 : 6.5;
+    const z = (i >= 4 ? STRIP.tropicanaZ : 0) + (dir === 1 ? lane : -lane);
     const c = car(kind, color);
     bakeGroup(c.group);
     b.scene.add(c.group);
@@ -337,6 +402,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       if (d > 0 && d < best) best = d;
     };
     consider(-dir * (STRIP.flamingoHalf + 2.2), flamingoPhase(t).ns);
+    consider(STRIP.tropicanaZ - dir * (STRIP.flamingoHalf + 2.2), tropicanaPhase(t).ns);
     for (const cw of CROSSWALKS) consider(cw.z - dir * 4.6, crosswalkPhase(t, cw.offset));
     return best;
   };
@@ -350,7 +416,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       if (c.axis === 'z') {
         const d = nextStop(pos, c.dir);
         if (d < 28) target = Math.min(target, Math.max(0, (d - c.halfLen) * 0.9));
-      } else if (flamingoPhase(t).ew !== 'go') {
+      } else if (crossPhase(c.laneX, t).ew !== 'go') {
         const line = -c.dir * (STRIP.curb + 2.2);
         const d = (line - pos) * c.dir;
         if (d > 0 && d < 26) target = Math.min(target, Math.max(0, (d - c.halfLen) * 0.9));
@@ -437,7 +503,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   return { buses, cars };
 }
 
-function buildSkybridges(b: WorldBuilder): void {
+function buildSkybridges(b: WorldBuilder, zc: number, labels: [string, string, string, string] | string[], sideName: string, zoneName: string): void {
   const y = STRIP.bridgeY;
   const deck = mat(0xb8b2a8, 0.7, 0.15);
   const glass = new THREE.MeshStandardMaterial({ color: 0x9fe3ff, transparent: true, opacity: 0.32, roughness: 0.08 });
@@ -447,29 +513,29 @@ function buildSkybridges(b: WorldBuilder): void {
   const wDeck = 4;
 
   for (const [sz, label] of [
-    [-Z, 'CAESARS PALACE  •  THE VANDERPUMP'],
-    [Z, 'BELLAGIO  •  HORSESHOE'],
+    [-Z, labels[0]],
+    [Z, labels[1]],
   ] as const) {
-    b.box(0, y, sz, X * 2 - wDeck, 0.4, wDeck, deck);
-    for (const e of [-1, 1]) b.box(0, y + 0.4, sz + e * (wDeck / 2 - 0.1), X * 2 - wDeck * 2, 1.15, 0.12, glass, true, false);
-    b.add(mesh(new THREE.BoxGeometry(X * 2, 0.2, wDeck + 0.6), steel, 0, y + 3.6, sz));
+    b.box(0, y, zc + sz, X * 2 - wDeck, 0.4, wDeck, deck);
+    for (const e of [-1, 1]) b.box(0, y + 0.4, zc + sz + e * (wDeck / 2 - 0.1), X * 2 - wDeck * 2, 1.15, 0.12, glass, true, false);
+    b.add(mesh(new THREE.BoxGeometry(X * 2, 0.2, wDeck + 0.6), steel, 0, y + 3.6, zc + sz));
     const sign = neonSign('LAS VEGAS BLVD', '#0f1d14', '#7dffb0', 9, 1.1, label, 0.1);
-    b.add(sign, 0, y - 0.7, sz + (sz < 0 ? -1 : 1) * (wDeck / 2 + 0.06), sz < 0 ? Math.PI : 0);
+    b.add(sign, 0, y - 0.7, zc + sz + (sz < 0 ? -1 : 1) * (wDeck / 2 + 0.06), sz < 0 ? Math.PI : 0);
   }
   for (const [sx, label] of [
-    [-X, 'FLAMINGO RD  •  BELLAGIO ↔ CAESARS'],
-    [X, 'FLAMINGO RD  •  HORSESHOE ↔ VANDERPUMP'],
+    [-X, labels[2]],
+    [X, labels[3]],
   ] as const) {
-    b.box(sx, y, 0, wDeck, 0.4, Z * 2 - wDeck, deck);
-    for (const e of [-1, 1]) b.box(sx + e * (wDeck / 2 - 0.1), y + 0.4, 0, 0.12, 1.15, Z * 2 - wDeck * 2, glass, true, false);
-    b.add(mesh(new THREE.BoxGeometry(wDeck + 0.6, 0.2, Z * 2), steel, sx, y + 3.6, 0));
-    const sign = neonSign('FLAMINGO RD', '#1b0b18', '#ff8ad8', 6, 0.9, label, 0.1);
-    b.add(sign, sx + (sx < 0 ? -1 : 1) * (wDeck / 2 + 0.06), y - 0.6, 0, sx < 0 ? -Math.PI / 2 : Math.PI / 2);
+    b.box(sx, y, zc, wDeck, 0.4, Z * 2 - wDeck, deck);
+    for (const e of [-1, 1]) b.box(sx + e * (wDeck / 2 - 0.1), y + 0.4, zc, 0.12, 1.15, Z * 2 - wDeck * 2, glass, true, false);
+    b.add(mesh(new THREE.BoxGeometry(wDeck + 0.6, 0.2, Z * 2), steel, sx, y + 3.6, zc));
+    const sign = neonSign(sideName, '#1b0b18', '#ff8ad8', 6, 0.9, label, 0.1);
+    b.add(sign, sx + (sx < 0 ? -1 : 1) * (wDeck / 2 + 0.06), y - 0.6, zc, sx < 0 ? -Math.PI / 2 : Math.PI / 2);
   }
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       const cx = sx * X;
-      const cz = sz * Z;
+      const cz = zc + sz * Z;
       b.box(cx, y, cz, wDeck, 0.4, wDeck, deck);
       for (const [px, pz] of [
         [-1.8, -1.8],
@@ -491,12 +557,29 @@ function buildSkybridges(b: WorldBuilder): void {
       }
     }
   }
-  b.zone('Flamingo Skybridge', -X - 2, X + 2, -Z - 2, -Z + 2);
-  b.zone('Flamingo Skybridge', -X - 2, X + 2, Z - 2, Z + 2);
-  b.zone('Flamingo Skybridge', -X - 2, -X + 2, -Z, Z);
-  b.zone('Flamingo Skybridge', X - 2, X + 2, -Z, Z);
-  b.feature({ kind: 'plaza', x: 0, z: -Z, w: X * 2, d: wDeck, color: '#d8d0c0' });
-  b.feature({ kind: 'plaza', x: 0, z: Z, w: X * 2, d: wDeck, color: '#d8d0c0' });
-  b.feature({ kind: 'plaza', x: -X, z: 0, w: wDeck, d: Z * 2, color: '#d8d0c0' });
-  b.feature({ kind: 'plaza', x: X, z: 0, w: wDeck, d: Z * 2, color: '#d8d0c0' });
+  b.zone(zoneName, -X - 2, X + 2, zc - Z - 2, zc - Z + 2);
+  b.zone(zoneName, -X - 2, X + 2, zc + Z - 2, zc + Z + 2);
+  b.zone(zoneName, -X - 2, -X + 2, zc - Z, zc + Z);
+  b.zone(zoneName, X - 2, X + 2, zc - Z, zc + Z);
+  b.feature({ kind: 'plaza', x: 0, z: zc - Z, w: X * 2, d: wDeck, color: '#d8d0c0' });
+  b.feature({ kind: 'plaza', x: 0, z: zc + Z, w: X * 2, d: wDeck, color: '#d8d0c0' });
+  b.feature({ kind: 'plaza', x: -X, z: zc, w: wDeck, d: Z * 2, color: '#d8d0c0' });
+  b.feature({ kind: 'plaza', x: X, z: zc, w: wDeck, d: Z * 2, color: '#d8d0c0' });
+}
+
+/**
+ * Real Strip position → game z. `s` = real meters NORTH of Flamingo along the Blvd.
+ * Core (Park MGM → TI) is compressed 1:3.2; the far south (to the Welcome sign) and the far
+ * north (to Circus Circus) are compressed 1:4.5 so the whole Strip stays explorable.
+ */
+export function zFromS(s: number): number {
+  if (s >= 1265) return -(412 + (s - 1265) / 4.5);
+  if (s <= -1100) return 344 + (-1100 - s) / 4.5;
+  return -s / 3.2;
+}
+
+/** Real lateral offset (meters east of the Blvd centreline) → game x for the extension districts. */
+export function xFromO(o: number): number {
+  const a = Math.abs(o);
+  return Math.sign(o) * (a <= 19 ? a : 19 + (a - 19) / 4.5);
 }

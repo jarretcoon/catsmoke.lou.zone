@@ -15,7 +15,7 @@ export interface CasinoCallbacks {
   setCash: (amount: number) => void;
   onOutcome: (msg: string) => void;
   /** net > 0 = player won that much on top of the stake; net < 0 = lost. */
-  recordResult: (game: GameKind, net: number, vipTable: boolean) => void;
+  recordResult: (game: GameKind, net: number, vipTable: boolean, casinoName: string) => void;
   isVip: () => boolean;
 }
 
@@ -125,11 +125,11 @@ export class CasinoController {
       // Walking away mid-hand forfeits like a real table would.
       if (this.bjActive) {
         this.bjActive = false;
-        this.callbacks.recordResult('blackjack', -this.bjBet, false);
+        this.callbacks.recordResult('blackjack', -this.bjBet, false, this.spot?.casinoName ?? '');
         this.callbacks.onOutcome(`Walked away mid-hand — dealer keeps your $${this.bjBet}.`);
       }
       if (this.crapsPoint !== null) {
-        this.callbacks.recordResult('craps', -this.crapsBet, false);
+        this.callbacks.recordResult('craps', -this.crapsBet, false, this.spot?.casinoName ?? '');
         this.callbacks.onOutcome(`Left the craps table with a point on — $${this.crapsBet} stays on the felt.`);
         this.crapsPoint = null;
       }
@@ -225,7 +225,7 @@ export class CasinoController {
   private pay(game: GameKind, stake: number, totalReturn: number, msg: string): void {
     const net = totalReturn - stake;
     this.callbacks.setCash(this.callbacks.getCash() + totalReturn);
-    this.callbacks.recordResult(game, net, !!this.spot?.vipOnly);
+    this.callbacks.recordResult(game, net, !!this.spot?.vipOnly, this.spot?.casinoName ?? '');
     if (net > 0) {
       this.sfx.playJackpot();
       this.callbacks.onOutcome(msg);

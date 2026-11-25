@@ -34,6 +34,7 @@ export interface KnockState {
   vx: number;
   vz: number;
   yaw: number;
+  y0: number;
 }
 
 export interface Rig {
@@ -497,7 +498,7 @@ export class StripCrowdSystem {
     holder.speechTimer = duration;
   }
 
-  private tickSpeech(holder: { mesh: THREE.Group; speechSprite: THREE.Sprite | null; speechTimer: number }, dt: number): void {
+  public tickSpeech(holder: { mesh: THREE.Group; speechSprite: THREE.Sprite | null; speechTimer: number }, dt: number): void {
     if (holder.speechTimer <= 0) return;
     holder.speechTimer -= dt;
     if (holder.speechTimer <= 0 && holder.speechSprite) {
@@ -605,7 +606,7 @@ export class StripCrowdSystem {
     dx /= len;
     dz /= len;
     npc.mesh.rotation.y = Math.atan2(-dx, -dz);
-    npc.knock = { t: 0, vx: dx * power, vz: dz * power, yaw: npc.mesh.rotation.y };
+    npc.knock = { t: 0, vx: dx * power, vz: dz * power, yaw: npc.mesh.rotation.y, y0: Math.max(0, npc.mesh.position.y) };
   }
 
   public say(npc: { mesh: THREE.Group; speechSprite: THREE.Sprite | null; speechTimer: number }, text: string, duration = 2.6, accent?: string): void {
@@ -613,7 +614,7 @@ export class StripCrowdSystem {
   }
 
   /** Returns true while the person is down (callers skip their normal behaviour). */
-  private tickKnock(npc: Rig & { mesh: THREE.Group }, dt: number): boolean {
+  public tickKnock(npc: Rig & { mesh: THREE.Group }, dt: number): boolean {
     const k = npc.knock;
     if (!k) return false;
     k.t += dt;
@@ -624,7 +625,7 @@ export class StripCrowdSystem {
     else if (k.t < 3.8) m.rotation.x = (-Math.PI / 2) * (1 - (k.t - 3.2) / 0.6);
     else {
       m.rotation.x = 0;
-      m.position.y = 0;
+      m.position.y = k.y0 < 0.2 ? 0 : k.y0;
       npc.knock = null;
       return false;
     }
@@ -633,7 +634,7 @@ export class StripCrowdSystem {
     const damp = Math.max(0, 1 - dt * 3.5);
     k.vx *= damp;
     k.vz *= damp;
-    m.position.y = k.t < 0.3 ? Math.sin((k.t / 0.3) * Math.PI) * 0.35 : 0.05;
+    m.position.y = k.y0 + (k.t < 0.3 ? Math.sin((k.t / 0.3) * Math.PI) * 0.35 : 0.05);
     const flail = k.t < 3.2 ? Math.sin(k.t * 18) * (k.t < 0.8 ? 1.2 : 0.25) : 0;
     npc.leftArm.rotation.x = -1.4 + flail;
     npc.rightArm.rotation.x = -1.4 - flail;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type RideKind = 'deuce' | 'highroller' | 'gondola' | 'elevator';
+export type RideKind = 'deuce' | 'highroller' | 'gondola' | 'elevator' | 'tram' | 'monorail' | 'coaster';
 
 /** Anything the cat can hop on with [G]. */
 export interface Rideable {

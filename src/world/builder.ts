@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { MapFeature, MapMarker } from '../minimap';
 import type { CrowdConfig } from '../npcs';
 import type { Rideable } from '../rides';
+import type { RestaurantDef } from './food';
 import { bakeGroup } from '../meshBake';
 import { cigPack, mesh } from './props';
 
@@ -82,6 +83,8 @@ export class WorldBuilder {
   readonly crowd: CrowdConfig = { tourists: [], performers: [], guards: [] };
   /** Water the cat refuses to swim in (it gets bounced back to the edge with a splash). */
   readonly waterZones: Array<{ name: string; minX: number; maxX: number; minZ: number; maxZ: number; y: number }> = [];
+  /** In-N-Outs and the Whataburger (restaurant gameplay). */
+  readonly restaurants: RestaurantDef[] = [];
   /** Knockable street props (trash cans, urns, newsracks, cones…) simulated by PropPhysics. */
   readonly props: Array<{ obj: THREE.Object3D; r: number; h: number; kind: string }> = [];
   /** Colliders that disappear when the player earns VIP. */

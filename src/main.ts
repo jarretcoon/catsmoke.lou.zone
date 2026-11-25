@@ -4,20 +4,21 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { AbcShopController } from './abcShop';
+import { AbcItem, AbcShopController } from './abcShop';
 import { SoundFX } from './audio';
 import { CasinoController } from './casino';
 import { DegenScore, PropPhysics, WantedSystem } from './chaos';
 import { IntroComic } from './intro';
 import { MissionCtx, MissionEvent, MissionManager } from './missions';
 import { PlayerDriving } from './driving';
-import { BoutiqueController, CatWardrobe, swagFor } from './cosmetics';
+import { RestaurantSystem } from './restaurants';
+import { BoutiqueController, CatWardrobe, cosmeticById, swagFor } from './cosmetics';
 import { GoalTracker } from './goals';
 import { MapMarker, Minimap } from './minimap';
 import { GuardNPC, StripCrowdSystem } from './npcs';
 import type { Rideable } from './rides';
 import { SmokeSystem, VapeTrick } from './smoke';
-import { defaultState, GameState, localSaveBackend } from './state';
+import { CosmeticId, defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
 import { STRIP } from './world/strip';
 
@@ -172,13 +173,14 @@ world.setTimePreset(S.timePreset);
 if (S.vip) world.unlockVip();
 
 const swag = () => swagFor(S.cosmetics.equipped);
-const tipMultiplier = (nearPerformer: boolean) => (1 + swag() * 0.18) * (buzzTimer > 0 ? 1.5 : 1) * (nearPerformer ? 1.3 : 1);
+const buff = { tip: 1, speed: 1, t: 0, label: '' };
+const tipMultiplier = (nearPerformer: boolean) => (1 + swag() * 0.18) * (buzzTimer > 0 ? 1.5 : 1) * (nearPerformer ? 1.3 : 1) * (buff.t > 0 ? buff.tip : 1);
 
 // ---------------------------------------------------------------- HUD
 function updateHUD(): void {
   cashEl.textContent = `$${S.cash.toLocaleString()}`;
   stashEl.textContent = String(S.cigStash);
-  swagEl.textContent = buzzTimer > 0 ? `${swag()} 🍹` : String(swag());
+  swagEl.textContent = `${swag()}${buzzTimer > 0 ? ' 🍹' : ''}${buff.t > 0 ? ` ${buff.label}${Math.ceil(buff.t)}s` : ''}`;
   if (S.deviceMode === 'cig') {
     deviceLabelEl.textContent = 'Cig Lit';
     deviceValueEl.textContent = S.isLit ? `${Math.ceil(S.cigBurn)}%` : 'OUT';
@@ -224,7 +226,8 @@ const casino = new CasinoController(sfx, {
     updateHUD();
   },
   onOutcome: (msg) => showToast(msg),
-  recordResult: (game, net, vipTable) => {
+  recordResult: (game, net, vipTable, casinoName) => {
+    if (game === 'slots') emit('slots-spin', { casino: casinoName });
     if (net > 0) {
       emit('casino-win', { amount: net, vip: vipTable, game });
       if (game === 'blackjack') emit('blackjack-win', {});
@@ -241,43 +244,113 @@ const casino = new CasinoController(sfx, {
   isVip: () => S.vip,
 });
 
+const WEARABLES = new Set(['trucker-hat', 'lei', 'cheap-shades', 'bandana']);
+const COLLECTIBLES = new Set(['shot-glass', 'snow-globe', 'magnet', 'cards']);
+function addCigs(count: number): void {
+  S.cigStash += count;
+  if (!S.isLit && S.cigStash > 0) {
+    S.cigStash -= 1;
+    S.isLit = true;
+    S.cigBurn = 100;
+  }
+}
+function applyAbcItem(item: AbcItem): { ok: boolean; msg: string } {
+  const id = item.id;
+  if (id === 'pack' || id === 'carton' || id === 'cigarillo') {
+    addCigs(id === 'pack' ? 20 : id === 'carton' ? 200 : 5);
+    if (id === 'carton') S.stats.cartonsBought += 1;
+    S.deviceMode = 'cig';
+    emit('abc-buy', { id });
+    return { ok: true, msg: id === 'carton' ? 'A whole carton. Lou cradles it like a newborn. (+200)' : id === 'pack' ? 'Pack secured. (+20 smokes)' : 'Cigarillos. Fancy. (+5)' };
+  }
+  if (id === 'lighter') return { ok: true, msg: 'Lighter #7 acquired. Lou now has a lighter for every day of the week.' };
+  if (id === 'mod') {
+    if (S.hasVapeMod) return { ok: false, msg: 'Lou already has the Neon Mod. Grab pods instead.' };
+    S.hasVapeMod = true;
+    S.vapeJuice = 100;
+    S.deviceMode = 'vape';
+    emit('abc-buy', { id });
+    return { ok: true, msg: 'Neon Sub-Ohm Mod! Hold [E] for huge clouds, [1–4] for tricks.' };
+  }
+  if (id.startsWith('pod:') || id === 'disposable') {
+    if (!S.hasVapeMod && id !== 'disposable') return { ok: false, msg: 'Pods need the Neon Mod first ($35).' };
+    S.hasVapeMod = true;
+    S.vapeFlavor = id === 'disposable' ? 'Watermelon Ice' : (id.slice(4) as GameState['vapeFlavor']);
+    S.vapeJuice = 100;
+    S.deviceMode = 'vape';
+    emit('abc-buy', { id });
+    return { ok: true, msg: `${S.vapeFlavor} loaded. Juice 100%.` };
+  }
+  if (id === 'coil') {
+    if (S.upgrades.includes('coil')) return { ok: false, msg: 'The Cloud Beast Coil is already installed.' };
+    S.upgrades.push('coil');
+    return { ok: true, msg: 'Cloud Beast Coil installed. Every rip is ~35% bigger. The fire marshal has been notified.' };
+  }
+  if (id === 'nuts') {
+    buff.speed = Math.max(buff.speed, 1.2);
+    buff.t = Math.max(buff.t, 90);
+    buff.label = '🥜';
+    return { ok: true, msg: 'Macadamia power. Sprint +20% for 90 s.' };
+  }
+  if (id === 'energy') {
+    buff.speed = 1.3;
+    buff.t = Math.max(buff.t, 60);
+    buff.label = '⚡';
+    return { ok: true, msg: 'ZOOMIES. +30% speed for 60 s.' };
+  }
+  if (id === 'musubi') {
+    buff.tip = Math.max(buff.tip, 1.15);
+    buff.t = Math.max(buff.t, 90);
+    buff.label = '🍙';
+    return { ok: true, msg: 'Spam musubi. Tourists find Lou 15% more charming for 90 s.' };
+  }
+  if (id === 'beer') {
+    buzzTimer = 60;
+    return { ok: true, msg: '24 oz of liquid courage. Tips +50% for 60 s.' };
+  }
+  if (id === 'cheetos') {
+    degen.add(15, 'Orange Paws');
+    return { ok: true, msg: 'Lou’s paws are now permanently orange. Worth it.' };
+  }
+  if (id === 'water') return { ok: true, msg: 'Lou stares at the water. The water stares back. He does not drink it.' };
+  if (WEARABLES.has(id)) {
+    const cid = id as CosmeticId;
+    const owned = S.cosmetics.owned.includes(cid);
+    let equipped = S.cosmetics.equipped.filter((e) => e !== cid);
+    const def = cosmeticById(cid);
+    if (!S.cosmetics.equipped.includes(cid)) {
+      equipped = equipped.filter((e) => cosmeticById(e).slot !== def.slot);
+      equipped.push(cid);
+    }
+    S.cosmetics = { owned: owned ? S.cosmetics.owned : [...S.cosmetics.owned, cid], equipped };
+    wardrobe?.apply(equipped);
+    goals.check(S);
+    return { ok: true, msg: equipped.includes(cid) ? `Wearing the ${def.name}. Swag ${swag()}.` : `Took off the ${def.name}.` };
+  }
+  if (COLLECTIBLES.has(id)) {
+    S.collectibles.push(id);
+    degen.add(10, 'Souvenir Hoarder');
+    return { ok: true, msg: `${item.name} added to the collection (${S.collectibles.length} souvenirs).` };
+  }
+  if (id === 'charger') {
+    degen.add(40, 'Peak Degen Purchase');
+    return { ok: true, msg: 'Lou bought a phone charger. Lou does not own a phone.' };
+  }
+  return { ok: true, msg: `${item.name}: ${item.desc}` };
+}
 const abcShop = new AbcShopController(sfx, {
   getCash: () => S.cash,
   setCash: (n) => {
     S.cash = n;
     updateHUD();
-  },
-  addCigs: (count, boughtCarton) => {
-    S.cigStash += count;
-    emit('abc-buy', { count });
-    if (!S.isLit && S.cigStash > 0) {
-      S.cigStash -= 1;
-      S.isLit = true;
-      S.cigBurn = 100;
-    }
-    if (boughtCarton) {
-      S.deviceMode = 'cig';
-      S.stats.cartonsBought += 1;
-    }
-    goals.check(S);
-    updateHUD();
     save();
   },
-  buyVapeMod: () => {
-    S.hasVapeMod = true;
-    S.vapeJuice = 100;
-    S.deviceMode = 'vape';
+  apply: (item) => {
+    const r = applyAbcItem(item);
     updateHUD();
-    save();
+    return r;
   },
-  buyVapePod: (flavor) => {
-    S.vapeFlavor = flavor;
-    S.vapeJuice = 100;
-    S.deviceMode = 'vape';
-    updateHUD();
-    save();
-  },
-  hasVapeMod: () => S.hasVapeMod,
+  owns: (id) => (WEARABLES.has(id) && S.cosmetics.owned.includes(id as CosmeticId)) || (id === 'coil' && S.upgrades.includes('coil')) || (id === 'mod' && S.hasVapeMod),
   onOutcome: (msg) => showToast(msg),
 });
 
@@ -303,7 +376,46 @@ const boutique = new BoutiqueController(sfx, {
   onOutcome: (msg) => showToast(msg),
 });
 
-const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen();
+const restaurants = new RestaurantSystem(scene, crowd, world.restaurants, {
+  getCash: () => S.cash,
+  spend: (n) => {
+    S.cash -= n;
+    updateHUD();
+  },
+  toast: (msg, ms) => showToast(msg, ms),
+  onAte: (place, item) => {
+    S.stats.burgersEaten += 1;
+    buff.tip = item.tipBoost;
+    buff.speed = item.speedBoost;
+    buff.t = item.minutes * 60;
+    buff.label = place.kind === 'innout' ? '🍔' : '🟠';
+    emit('burger-eaten', { kind: place.kind });
+    if (place.kind === 'innout') {
+      degen.add(100, 'Double-Double Down');
+      sfx.playJackpot();
+      showToast(`Lou demolished the ${item.name}. Burger buff: tips ×${item.tipBoost}, sprint +${Math.round((item.speedBoost - 1) * 100)}% for ${item.minutes} min.`, 4200);
+    } else {
+      degen.add(20, 'Whataburger… Done');
+      showToast(`Lou ate the ${item.name}. It was… fine. Tips ×${item.tipBoost} for ${item.minutes} min.`, 4000);
+    }
+    goals.check(S);
+    updateHUD();
+    save();
+  },
+  onKicked: () => {
+    S.stats.tablesLost += 1;
+    degen.add(30, 'Booted From In-N-Out');
+    sfx.playBusted();
+    startRagdoll(new THREE.Vector3(Math.sin(catYaw + Math.PI) * 4, 4.5, Math.cos(catYaw + Math.PI) * 4));
+  },
+  onTableWon: () => {
+    degen.add(75, 'Table Secured');
+    emit('table-won', {});
+  },
+  sfxCash: () => sfx.playCash(),
+  sfxBad: () => sfx.playBusted(),
+});
+const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen();
 
 // ---------------------------------------------------------------- chaos: score + wanted level
 const degen = new DegenScore(
@@ -369,7 +481,7 @@ function impound(kind: 'ac' | 'cop'): void {
   if (riding) exitRide();
   if (driving.active) exitCar();
   endRagdoll();
-  catHolder.position.copy(world.spawn);
+  catHolder.position.copy(world.resetPoint);
   catVelocity.set(0, 0, 0);
   sfx.playBusted();
   showToast(
@@ -509,6 +621,8 @@ new GLTFLoader().load(
     });
     catHolder.add(model);
     catModel = model;
+    restaurants.burger.position.set(0, 0.68, 0.58);
+    catHolder.add(restaurants.burger);
     wardrobe = new CatWardrobe(model);
     wardrobe.apply(S.cosmetics.equipped);
     if (gltf.animations.length) {
@@ -548,8 +662,11 @@ function startGame(fresh: boolean): void {
     S = defaultState();
     catHolder.position.copy(world.spawn);
     catYaw = world.spawnYaw;
-    camYaw = Math.PI;
-    world.setTimePreset('day');
+    camYaw = 0;
+    world.setTimePreset('night');
+    S.timePreset = 'night';
+    S.position = [world.spawn.x, world.spawn.y, world.spawn.z];
+    S.yaw = world.spawnYaw;
     wardrobe?.apply([]);
     goals.render(S);
   }
@@ -650,6 +767,7 @@ function triggerSmokeOrVape(power = 1): void {
     playOneShot(actions.VapeRip ?? actions.Puff, 1.3);
     const tip = getTipWorld(true);
     const forward = new THREE.Vector3(Math.sin(catYaw), 0.16, Math.cos(catYaw)).normalize();
+    if (S.upgrades.includes('coil')) power *= 1.35;
     smokeSystem.spawnVapeCloud(tip, forward, S.vapeFlavor, catVelocity, power);
     // Thick clouds are a smoke screen: Animal Control loses sight of Lou inside
     wanted.addCloud(catHolder.position.x + forward.x * 1.2, catHolder.position.z + forward.z * 1.2, 1.4 + power * 1.7, 3 + power * 2.5);
@@ -712,6 +830,14 @@ function finishCig(): void {
 function triggerBeg(): void {
   sfx.playMeow();
   playOneShot(actions.Beg, 1.35);
+  if (/Welcome to Fabulous/.test(world.getZoneName(catHolder.position.x, catHolder.position.z))) {
+    emit('photo-sign', {});
+    if (!S.collectibles.includes('welcome-photo')) {
+      S.collectibles.push('welcome-photo');
+      degen.add(100, 'Welcome Sign Selfie');
+      showToast('📸 Lou poses in front of the Welcome to Fabulous Las Vegas sign. Iconic.');
+    }
+  }
   S.stats.begs += 1;
   const performer = crowd.nearestPerformer(catHolder.position, 9);
   const mult = tipMultiplier(!!performer);
@@ -938,6 +1064,7 @@ function exitCar(): void {
 }
 
 function toggleRide(): void {
+  if (restaurants.cat.state === 'eating') return restaurants.getUp();
   if (driving.active) return exitCar();
   if (riding) return exitRide();
   if (!nearestRideable()) {
@@ -994,9 +1121,10 @@ function triggerInteract(): void {
     sfx.playBusBell();
     return;
   }
+  if (restaurants.interact(catHolder.position)) return;
   const shop = nearestShop();
   if (shop) {
-    if (shop.kind === 'abc') return abcShop.open();
+    if (shop.kind === 'abc') return abcShop.open(shop.label);
     if (shop.kind === 'boutique') return boutique.open();
     if (shop.kind === 'vip-host') {
       if (S.vip) return showToast('VIP Host: "Welcome back, high roller. Your tables are waiting."');
@@ -1227,7 +1355,8 @@ function cycleTimePreset(): void {
 
 function resetCat(): void {
   if (riding) exitRide();
-  catHolder.position.copy(world.spawn);
+  if (driving.active) exitCar();
+  catHolder.position.copy(world.resetPoint);
   catVelocity.set(0, 0, 0);
   showToast('Back at the Bellagio Fountains');
 }
@@ -1262,7 +1391,7 @@ document.addEventListener('visibilitychange', () => {
 const overlapsXZ = (x: number, z: number, r: number, b: PlatformBox) => x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ;
 
 function resolveCatPhysics(dt: number, moveDir: THREE.Vector3, sprinting: boolean): void {
-  const maxSpeed = sprinting ? 9.0 : 5.2;
+  const maxSpeed = (sprinting ? 9.0 : 5.2) * (buff.t > 0 ? buff.speed : 1);
   const accel = isGrounded ? 24 : 10;
   const steering = pounceTimer <= 0 && !rag.active;
   if (!steering) {
@@ -1454,7 +1583,9 @@ function chaosStep(dt: number, moving: boolean): void {
 // ---------------------------------------------------------------- context prompt + zones
 function updatePrompt(): void {
   let text = '';
-  if (driving.active) text = 'Driving a stolen car — W/S gas/brake, A/D steer, Space handbrake, H honk, G to bail';
+  const foodPrompt = restaurants.promptFor(catHolder.position);
+  if (foodPrompt && !driving.active && !riding) text = foodPrompt;
+  else if (driving.active) text = 'Driving a stolen car — W/S gas/brake, A/D steer, Space handbrake, H honk, G to bail';
   else if (riding) text = riding.status ? `${riding.ridingPrompt} • ${riding.status()}` : riding.ridingPrompt;
   else if (waitingStop) text = `Waiting for THE DEUCE at ${waitingStop.name} — ${deuceEta(waitingStop)}`;
   else if (missions.nearbyOffer(catHolder.position)) text = `Press [F] — start mission: ${missions.nearbyOffer(catHolder.position)!.title}`;
@@ -1557,6 +1688,7 @@ function step(now: number, render = true): void {
 
   if (started) {
     if (trickCooldown > 0) trickCooldown -= dt;
+    if (buff.t > 0) buff.t = Math.max(0, buff.t - dt);
     if (vapeChargeStart >= 0) {
       const held = elapsed - vapeChargeStart;
       stateEl.textContent = held > 3.2 ? 'TOO MUCH!' : `Charging ${'▮'.repeat(Math.min(8, Math.ceil(held * 3)))}`;
@@ -1573,7 +1705,14 @@ function step(now: number, render = true): void {
   world.update(dt, elapsed, catHolder.position, camera);
   crowd.update(dt, elapsed, catHolder.position, { onCaught, onEscaped });
 
-  if (driving.active) {
+  const seatAt = restaurants.update(dt, elapsed, catHolder.position);
+  if (seatAt && started) {
+    const moving = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((k) => keys.has(k));
+    if (moving) restaurants.getUp();
+    catHolder.position.copy(seatAt.pos);
+    catYaw = seatAt.yaw;
+    catVelocity.set(0, 0, 0);
+  } else if (driving.active) {
     const throttle = started && !anyDialogOpen() ? (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - stick.y : 0;
     const steer = started && !anyDialogOpen() ? (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) - (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - stick.x : 0;
     const res = driving.update(dt, { throttle: THREE.MathUtils.clamp(throttle, -1, 1), steer: THREE.MathUtils.clamp(steer, -1, 1), handbrake: keys.has('Space') }, world.colliders, world.trafficVehicles);
@@ -1654,7 +1793,10 @@ function step(now: number, render = true): void {
   if (actionLockTimer > 0) actionLockTimer = Math.max(0, actionLockTimer - dt);
   if (puffTimer > 0) puffTimer = Math.max(0, puffTimer - dt);
   const horizSpeed = riding ? 0 : Math.hypot(catVelocity.x, catVelocity.z);
-  if (driving.active) {
+  if (restaurants.cat.state === 'eating') {
+    fadeToAction(actions.Eat ?? actions.Sit ?? actions.Idle, 0.2);
+    stateEl.textContent = 'Eating';
+  } else if (driving.active) {
     fadeToAction(actions.Drive ?? actions.Sit ?? actions.Idle, 0.2);
     stateEl.textContent = `Driving ${Math.round(Math.abs(driving.speed) * 2.237)} mph`;
   } else if (rag.active) {

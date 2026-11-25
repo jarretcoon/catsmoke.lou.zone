@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SoundFX } from './audio';
 import type { CosmeticId } from './state';
+import { mat } from './world/props';
 
 type Slot = 'eyes' | 'head' | 'neck' | 'chest' | 'collar';
 
@@ -12,6 +13,7 @@ export interface CosmeticDef {
   swag: number;
   slot: Slot;
   bone: 'Head' | 'Neck';
+  shop?: 'boutique' | 'abc';
 }
 
 export const COSMETICS: CosmeticDef[] = [
@@ -21,6 +23,10 @@ export const COSMETICS: CosmeticDef[] = [
   { id: 'gold-chain', name: 'Dice Gold Chain', blurb: 'Snake eyes pendant', price: 250, swag: 2, slot: 'chest', bone: 'Neck' },
   { id: 'top-hat', name: 'Showman Top Hat', blurb: 'Headliner energy', price: 400, swag: 3, slot: 'head', bone: 'Head' },
   { id: 'diamond-collar', name: 'Diamond Collar', blurb: 'High-roller bling', price: 750, swag: 4, slot: 'collar', bone: 'Neck' },
+  { id: 'trucker-hat', name: 'VEGAS Trucker Hat', blurb: 'ABC Stores special', price: 15, swag: 1, slot: 'head', bone: 'Head', shop: 'abc' },
+  { id: 'lei', name: 'Shell Lei', blurb: 'Aloha from the Strip', price: 9, swag: 1, slot: 'neck', bone: 'Neck', shop: 'abc' },
+  { id: 'cheap-shades', name: 'Neon Plastic Shades', blurb: '$10 of pure confidence', price: 10, swag: 1, slot: 'eyes', bone: 'Head', shop: 'abc' },
+  { id: 'bandana', name: 'I ♥ VEGAS Bandana', blurb: 'Tourist chic', price: 12, swag: 1, slot: 'chest', bone: 'Neck', shop: 'abc' },
 ];
 
 export const cosmeticById = (id: CosmeticId) => COSMETICS.find((c) => c.id === id)!;
@@ -113,6 +119,53 @@ function buildCosmetic(id: CosmeticId): THREE.Group {
       dot.position.set(dx, 0.33, 0.328);
       g.add(dot);
     }
+  } else if (id === 'trucker-hat') {
+    const red = mat(0xd81e2a, 0.7);
+    const mesh2 = mat(0xf4f4f4, 0.8);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mesh2);
+    dome.position.set(0, 0.64, 0.25);
+    dome.scale.set(1, 0.8, 1.05);
+    g.add(dome);
+    const front = new THREE.Mesh(new THREE.SphereGeometry(0.112, 16, 10, -Math.PI / 2, Math.PI, 0, Math.PI / 2), red);
+    front.position.copy(dome.position);
+    front.scale.copy(dome.scale);
+    g.add(front);
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.012, 0.13), red);
+    brim.position.set(0, 0.645, 0.37);
+    brim.rotation.x = 0.12;
+    g.add(brim);
+    g.rotation.z = 0.08;
+  } else if (id === 'cheap-shades') {
+    const pink = mat(0xff3ea5, 0.3, 0, { emissive: 0xff3ea5, emissiveIntensity: 0.3 });
+    const dark = mat(0x111111, 0.1, 0.4);
+    const at = (m: THREE.Mesh, x: number, y: number, z: number) => {
+      m.position.set(x, y, z);
+      g.add(m);
+    };
+    for (const s of [-1, 1]) {
+      at(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.012), dark), s * 0.054, 0.558, 0.378);
+      at(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.008), pink), s * 0.054, 0.558, 0.372);
+    }
+    at(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.012, 0.01), pink), 0, 0.578, 0.375);
+  } else if (id === 'lei') {
+    const cols = [0xff5978, 0xffd23f, 0xb874ff, 0xf2f2f2];
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 5), mat(cols[i % 4], 0.6));
+      f.position.set(Math.cos(a) * 0.1, 0.4 - Math.max(0, Math.sin(a)) * 0.05, 0.22 + Math.sin(a) * 0.1);
+      g.add(f);
+    }
+  } else if (id === 'bandana') {
+    const cloth = mat(0xd81e2a, 0.8, 0, { side: THREE.DoubleSide });
+    const tri = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.12, 3), cloth);
+    tri.rotation.set(Math.PI, 0, 0);
+    tri.scale.set(1.2, 1, 0.35);
+    tri.position.set(0, 0.36, 0.3);
+    g.add(tri);
+    const knot = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.012, 6, 24), cloth);
+    knot.rotation.x = Math.PI / 2;
+    knot.position.set(0, 0.405, 0.22);
+    g.add(knot);
   } else if (id === 'diamond-collar') {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.089, 0.012, 8, 36), gold);
     ring.rotation.x = Math.PI / 2;
@@ -188,7 +241,7 @@ export class BoutiqueController {
     const owned = this.cb.getOwned();
     const equipped = this.cb.getEquipped();
     this.grid.replaceChildren(
-      ...COSMETICS.map((def) => {
+      ...COSMETICS.filter((def) => def.shop !== 'abc' || this.cb.getOwned().includes(def.id)).map((def) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'abc-card';

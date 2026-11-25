@@ -5,6 +5,8 @@ import type { Rideable } from './rides';
 import { buildBackdrop } from './world/backdrop';
 import { CigPickup, GamblingSpot, PlatformBox, ShopSpot, WorldBuilder } from './world/builder';
 import { buildEastSide } from './world/eastSide';
+import type { RestaurantDef } from './world/food';
+import { buildFoodAndShops } from './world/foodAndShops';
 import { SkyDome } from './world/sky';
 import { bakeStatic } from './world/staticBatch';
 import { buildStrip, DeuceState, TrafficCar } from './world/strip';
@@ -33,11 +35,15 @@ export interface VegasWorldContext {
   staticMarkers: MapMarker[];
   crowd: CrowdConfig;
   props: Array<{ obj: THREE.Object3D; r: number; h: number; kind: string }>;
+  restaurants: RestaurantDef[];
   deuceBuses: DeuceState[];
   deuceStops: Array<{ z: number; side: 1 | -1; name: string }>;
   trafficVehicles: TrafficCar[];
+  /** New games start at the Welcome sign (3:47 AM). */
   spawn: THREE.Vector3;
   spawnYaw: number;
+  /** [R] puts Lou back at the Bellagio fountains. */
+  resetPoint: THREE.Vector3;
   sun: THREE.DirectionalLight;
   stats: { meshesBefore: number; meshesAfter: number };
   setTimePreset: (preset: TimePreset) => void;
@@ -51,14 +57,30 @@ export interface VegasWorldContext {
 
 /** Real Deuce stops on this stretch (+ the two ends of the map). side −1 = west curb (southbound). */
 const DEUCE_STOPS: Array<{ z: number; side: 1 | -1; name: string }> = [
+  // southbound (west curb)
+  { z: -722, side: -1, name: 'CIRCUS CIRCUS' },
+  { z: -640, side: -1, name: 'RESORTS WORLD' },
+  { z: -455, side: -1, name: 'FASHION SHOW' },
   { z: -360, side: -1, name: 'TREASURE ISLAND' },
   { z: -194, side: -1, name: 'HARD ROCK (MIRAGE)' },
   { z: -108, side: -1, name: 'CAESARS PALACE' },
   { z: 186, side: -1, name: 'COSMOPOLITAN' },
+  { z: 495, side: -1, name: 'EXCALIBUR' },
+  { z: 575, side: -1, name: 'LUXOR' },
+  { z: 665, side: -1, name: 'MANDALAY BAY' },
+  { z: 872, side: -1, name: 'WELCOME SIGN • SOUTH STRIP' },
+  // northbound (east curb)
+  { z: 880, side: 1, name: 'WELCOME SIGN • SOUTH STRIP' },
+  { z: 690, side: 1, name: 'MANDALAY BAY RD' },
+  { z: 515, side: 1, name: 'BALLPARK SITE' },
+  { z: 405, side: 1, name: 'MGM GRAND' },
   { z: 175, side: 1, name: 'PLANET HOLLYWOOD' },
   { z: 94, side: 1, name: 'PARIS' },
   { z: -156, side: 1, name: "HARRAH'S" },
   { z: -238, side: 1, name: 'VENETIAN' },
+  { z: -470, side: 1, name: 'WYNN' },
+  { z: -680, side: 1, name: 'PEPPERMILL • RIVIERA' },
+  { z: -770, side: 1, name: 'FONTAINEBLEAU' },
 ];
 
 export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
@@ -89,8 +111,23 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   const strip = buildStrip(b, DEUCE_STOPS);
   buildWestSide(b);
   buildEastSide(b);
+  buildFoodAndShops(b);
   buildBackdrop(b);
   const baked = bakeStatic(b.root, 64, new Set<THREE.Material>(b.nightMaterials.map((n) => n.mat)));
+  // Distance culling for a 1.8 km Strip: small clutter fades out past ~380 m, towers past ~650 m.
+  const cullables: Array<{ m: THREE.Object3D; c: THREE.Vector3; r: number }> = [];
+  b.root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.updateWorldMatrix(true, false);
+    if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+    const bs = m.geometry.boundingSphere!;
+    const c = bs.center.clone().applyMatrix4(m.matrixWorld);
+    const r = bs.radius * m.matrixWorld.getMaxScaleOnAxis();
+    if (r > 140) return; // mountains, freeway, ground planes: always drawn
+    cullables.push({ m, c, r });
+  });
+  let cullTimer = 0;
 
   // ---- Time of day ----
   let timePreset: TimePreset = 'day';
@@ -157,6 +194,16 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     if (timePreset === 'auto') phase = (phase + dt * 0.006) % 1; // ~2.8 min per full day
     applyAtmosphere(focus, elapsed);
     sky.follow(camera);
+    cullTimer -= dt;
+    if (cullTimer <= 0) {
+      cullTimer = 0.25;
+      const cam = camera.position;
+      const far = night > 0.5 ? 0.85 : 1;
+      for (const k of cullables) {
+        const limit = (k.r > 18 ? 650 : 380) * far;
+        k.m.visible = cam.distanceTo(k.c) - k.r < limit;
+      }
+    }
     for (const fn of b.updaters) fn(dt, elapsed, night);
     for (const p of b.cigPickups) {
       if (p.stolenCooldown > 0) {
@@ -182,11 +229,13 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     staticMarkers: b.staticMarkers,
     crowd: b.crowd,
     props: b.props,
+    restaurants: b.restaurants,
     deuceBuses: strip.buses,
     deuceStops: DEUCE_STOPS,
     trafficVehicles: strip.cars,
-    spawn: new THREE.Vector3(-15, 0.2, 40),
-    spawnYaw: 0,
+    spawn: new THREE.Vector3(0, 1, 936),
+    spawnYaw: Math.PI,
+    resetPoint: new THREE.Vector3(-15, 0.2, 40),
     sun,
     stats: { meshesBefore: baked.before, meshesAfter: baked.after },
     setTimePreset: (p) => {
