@@ -46,6 +46,7 @@ const btnPuff = $<HTMLButtonElement>('btn-puff');
 const btnDevice = $<HTMLButtonElement>('btn-device');
 const btnBeg = $<HTMLButtonElement>('btn-beg');
 const btnSteal = $<HTMLButtonElement>('btn-steal');
+const btnDance = $<HTMLButtonElement>('btn-dance');
 const btnBus = $<HTMLButtonElement>('btn-bus');
 const btnInteract = $<HTMLButtonElement>('btn-interact');
 const btnSound = $<HTMLButtonElement>('btn-sound');
@@ -151,6 +152,8 @@ let coyoteTimer = 0;
 let actionLockTimer = 0;
 let puffTimer = 0;
 let idleAutoPuffTimer = 5.5;
+/** Seconds Lou has stood still; after a while he sits down like the loaf he is. */
+let idleTime = 0;
 let buzzTimer = 0;
 let performerTipCooldown = 0;
 let toastTimeout: number | undefined;
@@ -830,6 +833,30 @@ function finishCig(): void {
   goals.check(S);
 }
 
+let danceCooldown = 0;
+function triggerDance(): void {
+  if (riding || driving.active || rag.active || restaurants.cat.state === 'eating') return;
+  idleTime = 0;
+  playOneShot(actions.Dance ?? actions.Beg, 3);
+  if (actions.Dance) {
+    actions.Dance.setLoop(THREE.LoopRepeat, 3);
+    actions.Dance.timeScale = 1.1;
+  }
+  sfx.playMeow();
+  if (danceCooldown > 0) return;
+  danceCooldown = 4;
+  const reaction = crowd.reactToDance(catHolder.position, tipMultiplier(false));
+  degen.add(reaction.cheers ? 20 + reaction.cheers * 10 : 5, reaction.cheers ? 'Sidewalk Showcat' : 'Dancing Alone');
+  if (reaction.tips > 0) {
+    S.cash += reaction.tips;
+    S.stats.tipsEarned += reaction.tips;
+    sfx.playCash();
+    showToast(`Lou busts a move. The crowd tipped $${reaction.tips}.`);
+  } else showToast(reaction.cheers ? 'Lou busts a move.' : 'Lou dances for nobody. Pure art.');
+  goals.check(S);
+  updateHUD();
+}
+
 function triggerBeg(): void {
   sfx.playMeow();
   playOneShot(actions.Beg, 1.35);
@@ -1218,6 +1245,9 @@ window.addEventListener('keydown', (e) => {
     case 'KeyQ':
       triggerSteal();
       break;
+    case 'KeyX':
+      triggerDance();
+      break;
     case 'KeyG':
       toggleRide();
       break;
@@ -1371,6 +1401,7 @@ btnPuff.addEventListener('click', guard(() => triggerSmokeOrVape(1.2)));
 btnDevice.addEventListener('click', guard(toggleDevice));
 btnBeg.addEventListener('click', guard(triggerBeg));
 btnSteal.addEventListener('click', guard(triggerSteal));
+btnDance.addEventListener('click', guard(triggerDance));
 btnBus.addEventListener('click', guard(toggleRide));
 btnInteract.addEventListener('click', guard(triggerInteract));
 btnMood.addEventListener('click', guard(cycleTimePreset));
@@ -1794,6 +1825,7 @@ function step(now: number, render = true): void {
 
   // Animation state
   if (actionLockTimer > 0) actionLockTimer = Math.max(0, actionLockTimer - dt);
+  if (danceCooldown > 0) danceCooldown -= dt;
   if (puffTimer > 0) puffTimer = Math.max(0, puffTimer - dt);
   const horizSpeed = riding ? 0 : Math.hypot(catVelocity.x, catVelocity.z);
   if (restaurants.cat.state === 'eating') {
@@ -1813,6 +1845,7 @@ function step(now: number, render = true): void {
     fadeToAction(actions.Jump, 0.12);
     stateEl.textContent = 'Leaping';
   } else if (horizSpeed > 0.35) {
+    idleTime = 0;
     if (horizSpeed > 6.5 && actions.Run) {
       actions.Run.timeScale = THREE.MathUtils.clamp(horizSpeed / 8, 0.8, 1.5);
       fadeToAction(actions.Run, 0.15);
@@ -1822,8 +1855,10 @@ function step(now: number, render = true): void {
     }
     stateEl.textContent = !isGrounded ? 'Leaping' : horizSpeed > 6.5 ? 'Sprinting' : 'Prowling';
   } else {
-    fadeToAction(actions.Idle, 0.22);
-    stateEl.textContent = !isGrounded ? 'Leaping' : S.deviceMode === 'vape' ? 'Vaping' : S.isLit ? 'Smoking' : 'Craving';
+    idleTime += dt;
+    const loaf = idleTime > 9 && isGrounded && actions.Sit;
+    fadeToAction(loaf ? actions.Sit : actions.Idle, loaf ? 0.6 : 0.22);
+    stateEl.textContent = !isGrounded ? 'Leaping' : loaf ? 'Loafing' : S.deviceMode === 'vape' ? 'Vaping' : S.isLit ? 'Smoking' : 'Craving';
     if (started && ((S.deviceMode === 'cig' && S.isLit) || (S.deviceMode === 'vape' && S.vapeJuice > 0))) {
       idleAutoPuffTimer -= dt;
       if (idleAutoPuffTimer <= 0) triggerSmokeOrVape();
@@ -1838,9 +1873,11 @@ function step(now: number, render = true): void {
   const isPuffing = puffTimer > 0.2;
   const flicker = 0.85 + Math.sin(elapsed * 19) * 0.12 + Math.cos(elapsed * 31) * 0.08;
   const cigActive = S.deviceMode === 'cig' && S.isLit;
-  emberLight.position.copy(tipPos);
+  // The glow sits ~30 cm out in front of the tip: right at the tip it was 5 cm from Lou's white chest and
+  // washed his whole face orange. Out here it still paints the sidewalk and passers-by at night.
+  emberLight.position.set(Math.sin(catYaw) * 0.3, 0.06, Math.cos(catYaw) * 0.3).add(tipPos);
   emberLight.color.setHex(useVape ? 0x35e6ff : 0xff6b1a);
-  emberLight.intensity = cigActive ? 1.25 * flicker * (isPuffing ? 2.4 : 1) : useVape && isPuffing ? 2.2 : 0;
+  emberLight.intensity = cigActive ? 0.5 * flicker * (isPuffing ? 2.2 : 1) : useVape && isPuffing ? 1.2 : 0;
   if (cigEmberMat) cigEmberMat.emissiveIntensity = cigActive ? 5 * flicker * (isPuffing ? 2.4 : 1) : 0;
   smokeSystem.update(dt, tipPos, catVelocity, cigActive, isPuffing);
   if (Math.random() < dt * 4.5) {

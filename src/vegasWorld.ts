@@ -7,6 +7,7 @@ import { CigPickup, GamblingSpot, PlatformBox, ShopSpot, WorldBuilder } from './
 import { buildEastSide } from './world/eastSide';
 import type { RestaurantDef } from './world/food';
 import { buildFoodAndShops } from './world/foodAndShops';
+import { buildNorthStrip } from './world/northStrip';
 import { SkyDome } from './world/sky';
 import { bakeStatic } from './world/staticBatch';
 import { buildStrip, DeuceState, TrafficCar } from './world/strip';
@@ -111,6 +112,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   const strip = buildStrip(b, DEUCE_STOPS);
   buildWestSide(b);
   buildEastSide(b);
+  buildNorthStrip(b);
   buildFoodAndShops(b);
   buildBackdrop(b);
   const baked = bakeStatic(b.root, 64, new Set<THREE.Material>(b.nightMaterials.map((n) => n.mat)));

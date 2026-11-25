@@ -103,20 +103,18 @@ function buildCosmetic(id: CosmeticId): THREE.Group {
     knot.position.set(0, 0.39, 0.314);
     g.add(knot);
   } else if (id === 'gold-chain') {
-    const chain = new THREE.Mesh(new THREE.TorusGeometry(0.098, 0.007, 8, 40), gold);
-    chain.rotation.x = Math.PI / 2 - 0.45;
-    chain.position.set(0, 0.385, 0.236);
+    // Lies just outside Lou's collar (ring ≈ y 0.386–0.445, x ±0.088, z 0.13–0.306) and dips onto his chest.
+    const chain = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.0065, 8, 48), gold);
+    chain.rotation.x = Math.PI / 2 - 0.3;
+    chain.position.set(0, 0.398, 0.222);
     g.add(chain);
-    for (const [dx, pip] of [
-      [-0.016, 1],
-      [0.016, 1],
-    ] as const) {
-      const die = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.024, 0.024), white);
-      die.position.set(dx, 0.33, 0.315);
-      die.rotation.set(0.3, 0.4 * Math.sign(dx), 0.2);
+    for (const dx of [-0.026, 0.026]) {
+      const die = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.022), white);
+      die.position.set(dx, 0.352, 0.326);
+      die.rotation.set(0.25, 0.35 * Math.sign(dx), 0.2);
       g.add(die);
-      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0045 * pip, 6, 6), band);
-      dot.position.set(dx, 0.33, 0.328);
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.004, 6, 6), band);
+      dot.position.set(dx, 0.352, 0.338);
       g.add(dot);
     }
   } else if (id === 'trucker-hat') {

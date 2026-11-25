@@ -691,6 +691,30 @@ export class StripCrowdSystem {
     return { cheers, tips, coughs };
   }
 
+  /** Tourists near a dancing cat film it, cheer, and sometimes tip. Elvises take it personally. */
+  public reactToDance(origin: THREE.Vector3, tipMult: number): { cheers: number; tips: number } {
+    let cheers = 0;
+    let tips = 0;
+    for (const t of this.tourists) {
+      if (t.reactCooldown > 0 || t.knock) continue;
+      if (t.mesh.position.distanceTo(origin) > 9) continue;
+      t.reactCooldown = 18;
+      t.lookAtCat = 3.2;
+      if (Math.random() < 0.38 + Math.min(0.2, tipMult * 0.04)) {
+        const tip = Math.max(1, Math.round((1 + Math.floor(Math.random() * 5)) * tipMult));
+        tips += tip;
+        cheers += 1;
+        this.setSpeech(t, [`IT'S DANCING +$${tip}`, `Get it, kitty! +$${tip}`, `Main character energy +$${tip}`, `Vegas has everything +$${tip}`][Math.floor(Math.random() * 4)], 2.8);
+      } else {
+        this.setSpeech(t, ['📱 recording', 'Is this a show?', 'Somebody call Cirque', 'He has better moves than my husband'][Math.floor(Math.random() * 4)], 2.4);
+      }
+    }
+    for (const p of this.performers) {
+      if (p.mesh.position.distanceTo(origin) < 10 && Math.random() < 0.6) this.say(p, 'Thank you. Thank you very much.', 2.6);
+    }
+    return { cheers, tips };
+  }
+
   /** Guards in the casino the cat is standing in, who can see it, start chasing. */
   public alertGuards(catPos: THREE.Vector3, radius: number): GuardNPC[] {
     const alerted: GuardNPC[] = [];
