@@ -1,40 +1,85 @@
 import * as THREE from 'three';
+import { bakeGroup } from './meshBake';
 
 export type TouristProp = 'yard-drink' | 'camera' | 'cig' | 'bag' | 'none';
+export type Outfit = 'tourist' | 'guard' | 'elvis' | 'showgirl' | 'slapper';
+export type PerformerKind = 'elvis' | 'showgirl' | 'slapper';
 
-export interface TouristNPC {
-  id: number;
-  mesh: THREE.Group;
+export interface TouristRoute {
+  pts: Array<[number, number]>;
+  prop: TouristProp;
+}
+export interface PerformerSpot {
+  kind: PerformerKind;
+  x: number;
+  z: number;
+  facing: number;
+}
+export interface GuardRoute {
+  name: string;
+  pts: Array<[number, number]>;
+  kick: [number, number];
+  /** Casino floor rectangle the guard protects (chases end when the cat leaves it). */
+  zone: { minX: number; maxX: number; minZ: number; maxZ: number };
+}
+export interface CrowdConfig {
+  tourists: TouristRoute[];
+  performers: PerformerSpot[];
+  guards: GuardRoute[];
+}
+
+interface Rig {
+  group: THREE.Group;
   leftArm: THREE.Group;
   rightArm: THREE.Group;
   leftLeg: THREE.Group;
   rightLeg: THREE.Group;
   head: THREE.Group;
+  cigMesh: THREE.Object3D | null;
+}
+
+export interface TouristNPC extends Rig {
+  id: number;
+  mesh: THREE.Group;
   waypoints: THREE.Vector3[];
   wpIndex: number;
   speed: number;
   pauseTimer: number;
   begCooldown: number;
+  reactCooldown: number;
   hasCig: boolean;
+  hasCamera: boolean;
   cigStolen: boolean;
-  cigMesh: THREE.Object3D | null;
   speechSprite: THREE.Sprite | null;
   speechTimer: number;
   walkPhase: number;
+  lookAtCat: number;
 }
 
-export interface GuardNPC {
+export interface PerformerNPC extends Rig {
+  id: number;
+  kind: PerformerKind;
+  mesh: THREE.Group;
+  begCooldown: number;
+  speechSprite: THREE.Sprite | null;
+  speechTimer: number;
+  chatterTimer: number;
+}
+
+export interface GuardNPC extends Rig {
   id: number;
   mesh: THREE.Group;
-  leftArm: THREE.Group;
-  rightArm: THREE.Group;
-  leftLeg: THREE.Group;
-  rightLeg: THREE.Group;
   waypoints: THREE.Vector3[];
   wpIndex: number;
   casinoName: string;
   kickPoint: THREE.Vector3;
+  zone: GuardRoute['zone'];
   walkPhase: number;
+  mode: 'patrol' | 'chase' | 'return';
+  lostTimer: number;
+  flashMat: THREE.MeshBasicMaterial | null;
+  speechSprite: THREE.Sprite | null;
+  speechTimer: number;
 }
 
 const SKIN_TONES = [0xf2c8a8, 0xe2ae88, 0xc88c64, 0x9b6342, 0x6b412a];
@@ -42,14 +87,22 @@ const HAIR_COLORS = [0x1c1512, 0x4a2e1b, 0x9c6b30, 0xd8b158, 0x7b2c25, 0x8e939e]
 const SHIRT_COLORS = [0xff5a7a, 0x2ec4ff, 0xffc83d, 0x4de088, 0xb874ff, 0xff7b3b, 0xf2f0eb, 0x26354d];
 const PANTS_COLORS = [0x212c42, 0x2c2b30, 0x453b31, 0x3b4d6b, 0xd6cbb8];
 
+const PERFORMER_LINES: Record<PerformerKind, string[]> = {
+  elvis: ['Thank you, thank you very much', 'Photo with the King? $20!', 'Viva Las Vegas, baby!', 'Ain’t nothin’ but a hound cat'],
+  showgirl: ['Photos with the showgirls!', 'Tips appreciated, darling', 'Strike a pose, kitty!', 'Feathers out!'],
+  slapper: ['*slap slap* Free entry tonight!', 'VIP list, VIP list!', 'Club promos here!', '*slap* *slap*'],
+};
+
+const hawaiianTextures = new Map<number, THREE.CanvasTexture>();
 function makeHawaiianTexture(baseHex: number): THREE.CanvasTexture {
+  const cached = hawaiianTextures.get(baseHex);
+  if (cached) return cached;
   const c = document.createElement('canvas');
   c.width = 128;
   c.height = 128;
   const ctx = c.getContext('2d');
   if (ctx) {
-    const col = new THREE.Color(baseHex);
-    ctx.fillStyle = `#${col.getHexString()}`;
+    ctx.fillStyle = `#${new THREE.Color(baseHex).getHexString()}`;
     ctx.fillRect(0, 0, 128, 128);
     const accents = ['#ffe066', '#ff6b9e', '#63f5b8', '#ffffff'];
     for (let i = 0; i < 18; i++) {
@@ -64,25 +117,23 @@ function makeHawaiianTexture(baseHex: number): THREE.CanvasTexture {
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  hawaiianTextures.set(baseHex, tex);
   return tex;
 }
 
-function makeSpeechTexture(text: string): THREE.CanvasTexture {
+function makeSpeechTexture(text: string, accent = '#ffd25a'): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = 160;
   const ctx = c.getContext('2d');
   if (ctx) {
-    ctx.clearRect(0, 0, 512, 160);
     ctx.fillStyle = 'rgba(18, 22, 36, 0.94)';
-    ctx.strokeStyle = '#ffd25a';
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.roundRect(14, 14, 484, 108, 28);
     ctx.fill();
     ctx.stroke();
-
-    // Pointer triangle
     ctx.beginPath();
     ctx.moveTo(234, 120);
     ctx.lineTo(256, 150);
@@ -90,7 +141,6 @@ function makeSpeechTexture(text: string): THREE.CanvasTexture {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-
     ctx.fillStyle = '#fff5e0';
     ctx.font = 'bold 28px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -102,460 +152,414 @@ function makeSpeechTexture(text: string): THREE.CanvasTexture {
   return tex;
 }
 
-function buildArticulatedHuman(seed: number, isGuard: boolean, prop: TouristProp): {
-  group: THREE.Group;
-  leftArm: THREE.Group;
-  rightArm: THREE.Group;
-  leftLeg: THREE.Group;
-  rightLeg: THREE.Group;
-  head: THREE.Group;
-  cigMesh: THREE.Object3D | null;
-} {
+function std(color: number, roughness = 0.7, metalness = 0, extra: THREE.MeshStandardMaterialParameters = {}) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
+}
+
+function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { flashMat: THREE.MeshBasicMaterial | null } {
   const g = new THREE.Group();
+  const isGuard = outfit === 'guard';
+  const female = outfit === 'showgirl' || (outfit === 'tourist' && seed % 2 === 1);
 
   const skinColor = SKIN_TONES[seed % SKIN_TONES.length];
-  const hairColor = HAIR_COLORS[(seed * 3) % HAIR_COLORS.length];
-  const shirtHex = isGuard ? 0x162038 : SHIRT_COLORS[(seed * 5) % SHIRT_COLORS.length];
-  const pantsHex = isGuard ? 0x0e1320 : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
+  const hairColor = outfit === 'elvis' ? 0x0b0b10 : HAIR_COLORS[(seed * 3) % HAIR_COLORS.length];
+  const shirtHex =
+    outfit === 'guard' ? 0x162038 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xff3fa4 : outfit === 'slapper' ? 0x8cff3a : SHIRT_COLORS[(seed * 5) % SHIRT_COLORS.length];
+  const pantsHex =
+    outfit === 'guard' ? 0x0e1320 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? skinColor : outfit === 'slapper' ? 0x1c1f2a : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
 
-  const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.68 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.78 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: pantsHex, roughness: 0.85 });
-  const shoeMat = new THREE.MeshStandardMaterial({ color: isGuard ? 0x0c0d12 : 0xe9e6de, roughness: 0.55 });
-  const soleMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f6, roughness: 0.7 });
-
-  const isHawaiian = !isGuard && seed % 3 === 0;
+  const skinMat = std(skinColor, 0.68);
+  const hairMat = std(hairColor, outfit === 'elvis' ? 0.25 : 0.78);
+  const pantsMat = std(pantsHex, outfit === 'showgirl' ? 0.5 : 0.85);
+  const shoeMat = std(isGuard || outfit === 'slapper' ? 0x0c0d12 : outfit === 'showgirl' ? 0xffd34d : 0xe9e6de, 0.5);
+  const soleMat = std(0xf4f4f6, 0.7);
+  const isHawaiian = outfit === 'tourist' && seed % 3 === 0;
   const shirtMat = isHawaiian
     ? new THREE.MeshStandardMaterial({ map: makeHawaiianTexture(shirtHex), roughness: 0.72 })
-    : new THREE.MeshStandardMaterial({ color: shirtHex, roughness: 0.72 });
+    : outfit === 'showgirl'
+      ? std(shirtHex, 0.3, 0.6, { emissive: 0x5a0830, emissiveIntensity: 0.4 })
+      : std(shirtHex, 0.72);
+  const goldMat = std(0xf4c44e, 0.22, 0.85);
 
-  // Pelvis / Belt
-  const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.22), pantsMat);
-  pelvis.position.y = 0.84;
-  pelvis.castShadow = true;
-  g.add(pelvis);
+  const add = (parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, cast = false) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.castShadow = cast;
+    parent.add(m);
+    return m;
+  };
 
-  const belt = new THREE.Mesh(
-    new THREE.BoxGeometry(0.40, 0.05, 0.24),
-    new THREE.MeshStandardMaterial({ color: 0x1a1615, roughness: 0.45 })
-  );
-  belt.position.y = 0.90;
-  g.add(belt);
+  // Pelvis / belt
+  add(g, new THREE.BoxGeometry(0.38, 0.14, 0.22), pantsMat, 0, 0.84, 0, true);
+  add(g, new THREE.BoxGeometry(0.4, 0.05, 0.24), outfit === 'elvis' ? goldMat : std(0x1a1615, 0.45), 0, 0.9, 0);
+  add(g, new THREE.BoxGeometry(outfit === 'elvis' ? 0.16 : 0.08, 0.06, 0.03), goldMat, 0, 0.9, 0.125);
 
-  const buckle = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.06, 0.03),
-    new THREE.MeshStandardMaterial({ color: 0xf4c44e, metalness: 0.85, roughness: 0.22 })
-  );
-  buckle.position.set(0, 0.90, 0.125);
-  g.add(buckle);
-
-  // Sculpted Torso (capsule-tapered chest + collar)
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.175, 0.52, 14), shirtMat);
+  const torso = add(g, new THREE.CylinderGeometry(female ? 0.19 : 0.21, 0.175, 0.52, 14), shirtMat, 0, 1.17, 0, true);
   torso.scale.set(1.05, 1, 0.65);
-  torso.position.y = 1.17;
-  torso.castShadow = true;
-  g.add(torso);
+  for (const s of [-1, 1]) add(g, new THREE.SphereGeometry(0.088, 10, 8), shirtMat, s * 0.22, 1.38, 0);
 
-  // Shoulders
-  for (const s of [-1, 1]) {
-    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.088, 10, 8), shirtMat);
-    sh.position.set(s * 0.22, 1.38, 0);
-    g.add(sh);
-  }
-
-  // Guard Tie & Gold Badge OR Tourist Camera Strap
   if (isGuard) {
-    const badge = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8),
-      new THREE.MeshStandardMaterial({ color: 0xffd24d, metalness: 0.9, roughness: 0.2 })
-    );
+    const badge = add(g, new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), goldMat, 0.1, 1.28, 0.13);
     badge.rotation.x = Math.PI / 2;
-    badge.position.set(0.1, 1.28, 0.13);
-    g.add(badge);
-
-    const tie = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.30, 0.03),
-      new THREE.MeshStandardMaterial({ color: 0x10141f, roughness: 0.5 })
-    );
-    tie.position.set(0, 1.24, 0.13);
-    g.add(tie);
+    add(g, new THREE.BoxGeometry(0.06, 0.3, 0.03), std(0x10141f, 0.5), 0, 1.24, 0.13);
+  } else if (outfit === 'elvis') {
+    // High collar, open V and rhinestone studs
+    for (const s of [-1, 1]) {
+      const collar = add(g, new THREE.BoxGeometry(0.12, 0.16, 0.03), shirtMat, s * 0.09, 1.47, 0.07);
+      collar.rotation.z = s * 0.35;
+    }
+    for (let i = 0; i < 6; i++) add(g, new THREE.SphereGeometry(0.014, 6, 6), goldMat, (i % 2 ? 1 : -1) * 0.09, 1.05 + i * 0.05, 0.125);
+    const cape = add(g, new THREE.BoxGeometry(0.44, 0.6, 0.02), std(0xf4f1ea, 0.4), 0, 1.12, -0.13);
+    cape.rotation.x = 0.08;
+  } else if (outfit === 'showgirl') {
+    // Rhinestone bodice + giant feather headdress & back plumes
+    const plumeMat = std(0xfff0f8, 0.6, 0, { emissive: 0xff7ac8, emissiveIntensity: 0.15 });
+    const pinkPlume = std(0xff5fb6, 0.55, 0, { emissive: 0xff2b9e, emissiveIntensity: 0.25 });
+    for (let i = 0; i < 9; i++) {
+      const a = -1.1 + i * 0.275;
+      const f = add(g, new THREE.ConeGeometry(0.09, 0.95, 6), i % 2 ? pinkPlume : plumeMat, Math.sin(a) * 0.45, 1.45 + Math.cos(a) * 0.42, -0.2);
+      f.rotation.z = -a;
+    }
+  } else if (outfit === 'slapper') {
+    add(g, new THREE.BoxGeometry(0.36, 0.06, 0.2), std(0xf2f2f2, 0.6), 0, 1.3, 0.04); // vest stripe
   }
 
-  // Neck & Detailed Head Group
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.072, 0.12, 10), skinMat);
-  neck.position.y = 1.46;
-  g.add(neck);
+  add(g, new THREE.CylinderGeometry(0.062, 0.072, 0.12, 10), skinMat, 0, 1.46, 0);
 
   const head = new THREE.Group();
   head.position.set(0, 1.62, 0);
   g.add(head);
-
-  const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 14), skinMat);
+  const cranium = add(head, new THREE.SphereGeometry(0.145, 16, 14), skinMat, 0, 0, 0, true);
   cranium.scale.set(0.92, 1.06, 0.98);
-  cranium.castShadow = true;
-  head.add(cranium);
-
-  // Nose & Ears
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.055, 6), skinMat);
+  const nose = add(head, new THREE.ConeGeometry(0.022, 0.055, 6), skinMat, 0, -0.01, 0.145);
   nose.rotation.x = Math.PI * 0.45;
-  nose.position.set(0, -0.01, 0.145);
-  head.add(nose);
-
   for (const s of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), skinMat);
+    const ear = add(head, new THREE.SphereGeometry(0.032, 8, 8), skinMat, s * 0.132, -0.01, 0);
     ear.scale.set(0.55, 1.0, 0.75);
-    ear.position.set(s * 0.132, -0.01, 0);
-    head.add(ear);
   }
 
-  // Eyes or Cool Vegas Sunglasses
-  const hasShades = isGuard || seed % 2 === 0;
+  const hasShades = isGuard || outfit === 'elvis' || (outfit === 'tourist' && seed % 2 === 0);
   if (hasShades) {
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x12141c, roughness: 0.2, metalness: 0.7 });
-    const lensMat = new THREE.MeshStandardMaterial({
-      color: isGuard ? 0x090b10 : 0x261436,
-      roughness: 0.08,
-      metalness: 0.85,
-    });
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.018, 0.03), frameMat);
-    bridge.position.set(0, 0.025, 0.138);
-    head.add(bridge);
-    for (const s of [-1, 1]) {
-      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.044, 0.025), lensMat);
-      lens.position.set(s * 0.048, 0.02, 0.142);
-      head.add(lens);
-    }
+    const frameMat = outfit === 'elvis' ? goldMat : std(0x12141c, 0.2, 0.7);
+    const lensMat = std(isGuard ? 0x090b10 : outfit === 'elvis' ? 0x5a3a12 : 0x261436, 0.08, 0.85);
+    add(head, new THREE.BoxGeometry(0.18, 0.018, 0.03), frameMat, 0, 0.025, 0.138);
+    for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.068, 0.05, 0.025), lensMat, s * 0.048, 0.02, 0.142);
   } else {
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x161a24 });
-    for (const s of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), eyeMat);
-      eye.position.set(s * 0.046, 0.022, 0.132);
-      head.add(eye);
-    }
+    const eyeMat = std(0x161a24, 0.3);
+    for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.016, 8, 8), eyeMat, s * 0.046, 0.022, 0.132);
   }
 
-  // Hair / Hats / Guard Cap
   if (isGuard) {
-    const capCrown = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.155, 0.145, 0.09, 14),
-      new THREE.MeshStandardMaterial({ color: 0x13192b, roughness: 0.5 })
-    );
-    capCrown.position.y = 0.11;
-    head.add(capCrown);
-    const visor = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.16, 0.02, 12, 1, false, -Math.PI * 0.35, Math.PI * 0.7),
-      new THREE.MeshStandardMaterial({ color: 0x090b12, roughness: 0.2 })
-    );
-    visor.position.set(0, 0.075, 0.04);
-    head.add(visor);
+    add(head, new THREE.CylinderGeometry(0.155, 0.145, 0.09, 14), std(0x13192b, 0.5), 0, 0.11, 0);
+    add(head, new THREE.BoxGeometry(0.2, 0.02, 0.12), std(0x090b12, 0.2), 0, 0.075, 0.12);
   } else {
-    const hairDome = new THREE.Mesh(
-      new THREE.SphereGeometry(0.152, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58),
-      hairMat
-    );
-    hairDome.position.set(0, 0.02, -0.01);
-    head.add(hairDome);
-
-    if (seed % 4 === 1) {
-      // Tourist Baseball Cap
-      const capColor = [0xd9362b, 0x2665d8, 0x28995a][seed % 3];
-      const capMat = new THREE.MeshStandardMaterial({ color: capColor, roughness: 0.6 });
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.156, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45), capMat);
-      cap.position.y = 0.04;
-      head.add(cap);
-      const brim = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.018, 0.14), capMat);
-      brim.position.set(0, 0.06, 0.14);
+    add(head, new THREE.SphereGeometry(0.152, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat, 0, 0.02, -0.01);
+    if (outfit === 'elvis') {
+      const pomp = add(head, new THREE.SphereGeometry(0.1, 12, 8), hairMat, 0, 0.13, 0.06);
+      pomp.scale.set(1.2, 0.7, 1.1);
+      for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.025, 0.09, 0.04), hairMat, s * 0.128, -0.03, 0.04);
+    } else if (outfit === 'showgirl') {
+      const crown = add(head, new THREE.CylinderGeometry(0.16, 0.15, 0.06, 16), goldMat, 0, 0.1, 0);
+      crown.rotation.x = -0.15;
+      for (let i = 0; i < 7; i++) {
+        const a = -0.9 + i * 0.3;
+        const f = add(head, new THREE.ConeGeometry(0.035, 0.55, 5), std(i % 2 ? 0xff5fb6 : 0xfff0f8, 0.6), Math.sin(a) * 0.22, 0.36 + Math.cos(a) * 0.12, -0.02);
+        f.rotation.z = -a * 0.8;
+      }
+    } else if (outfit === 'slapper' || seed % 4 === 1) {
+      const capMat = std(outfit === 'slapper' ? 0x111111 : [0xd9362b, 0x2665d8, 0x28995a][seed % 3], 0.6);
+      add(head, new THREE.SphereGeometry(0.156, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45), capMat, 0, 0.04, 0);
+      const brim = add(head, new THREE.BoxGeometry(0.17, 0.018, 0.14), capMat, 0, 0.06, 0.14);
       brim.rotation.x = 0.15;
-      head.add(brim);
-    } else if (seed % 4 === 2) {
-      // Back bun / ponytail
-      const bun = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), hairMat);
-      bun.position.set(0, 0.02, -0.16);
-      head.add(bun);
+    } else if (female) {
+      const pony = add(head, new THREE.SphereGeometry(0.07, 10, 8), hairMat, 0, 0.0, -0.16);
+      pony.scale.set(0.8, 1.4, 0.8);
     }
   }
 
-  // Articulated Legs + Sneakers
   const buildLeg = (side: number): THREE.Group => {
-    const legPivot = new THREE.Group();
-    legPivot.position.set(side * 0.11, 0.80, 0);
-
-    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.074, 0.26, 6, 10), pantsMat);
-    thigh.position.y = -0.18;
-    thigh.castShadow = true;
-    legPivot.add(thigh);
-
-    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.060, 0.28, 6, 10), pantsMat);
-    shin.position.y = -0.50;
-    shin.castShadow = true;
-    legPivot.add(shin);
-
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.21), shoeMat);
-    shoe.position.set(0, -0.73, 0.04);
-    shoe.castShadow = true;
-    legPivot.add(shoe);
-
-    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.028, 0.215), soleMat);
-    sole.position.set(0, -0.775, 0.04);
-    legPivot.add(sole);
-
-    return legPivot;
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.11, 0.8, 0);
+    const legMat = outfit === 'showgirl' ? std(0xd49a7a, 0.4) : pantsMat;
+    add(leg, new THREE.CapsuleGeometry(0.074, 0.26, 6, 10), legMat, 0, -0.18, 0, true);
+    add(leg, new THREE.CapsuleGeometry(0.06, 0.28, 6, 10), legMat, 0, -0.5, 0, true);
+    add(leg, new THREE.BoxGeometry(0.11, 0.08, 0.21), shoeMat, 0, -0.73, 0.04, true);
+    add(leg, new THREE.BoxGeometry(0.115, 0.028, 0.215), soleMat, 0, -0.775, 0.04);
+    if (outfit === 'elvis') {
+      const flare = add(leg, new THREE.CylinderGeometry(0.07, 0.11, 0.18, 10), pantsMat, 0, -0.62, 0);
+      flare.castShadow = true;
+    }
+    return leg;
   };
-
   const leftLeg = buildLeg(1);
   const rightLeg = buildLeg(-1);
   g.add(leftLeg, rightLeg);
 
-  // Articulated Arms + Hands + Props
-  const sleeveMat = shirtMat;
   const buildArm = (side: number): THREE.Group => {
-    const armPivot = new THREE.Group();
-    armPivot.position.set(side * 0.24, 1.38, 0);
-
-    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.056, 0.16, 6, 10), sleeveMat);
-    sleeve.position.y = -0.12;
-    sleeve.castShadow = true;
-    armPivot.add(sleeve);
-
-    const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.044, 0.22, 6, 10), isGuard ? sleeveMat : skinMat);
-    forearm.position.y = -0.34;
-    forearm.castShadow = true;
-    armPivot.add(forearm);
-
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.046, 8, 8), skinMat);
-    hand.position.y = -0.50;
-    armPivot.add(hand);
-
-    return armPivot;
+    const arm = new THREE.Group();
+    arm.position.set(side * 0.24, 1.38, 0);
+    add(arm, new THREE.CapsuleGeometry(0.056, 0.16, 6, 10), shirtMat, 0, -0.12, 0, true);
+    add(arm, new THREE.CapsuleGeometry(0.044, 0.22, 6, 10), isGuard || outfit === 'elvis' ? shirtMat : skinMat, 0, -0.34, 0, true);
+    add(arm, new THREE.SphereGeometry(0.046, 8, 8), skinMat, 0, -0.5, 0);
+    return arm;
   };
-
   const leftArm = buildArm(1);
   const rightArm = buildArm(-1);
   g.add(leftArm, rightArm);
 
-  // Guard Flashlight + Cone
+  let flashMat: THREE.MeshBasicMaterial | null = null;
   if (isGuard) {
-    const torch = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032, 0.028, 0.22, 8),
-      new THREE.MeshStandardMaterial({ color: 0x1a1e26, metalness: 0.8, roughness: 0.3 })
-    );
+    const torch = add(rightArm, new THREE.CylinderGeometry(0.032, 0.028, 0.22, 8), std(0x1a1e26, 0.3, 0.8), 0, -0.5, 0.1);
     torch.rotation.x = Math.PI / 2;
-    torch.position.set(0, -0.50, 0.10);
-    rightArm.add(torch);
-
-    const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(1.4, 4.4, 14, 1, true),
-      new THREE.MeshBasicMaterial({
-        color: 0xffe69c,
-        transparent: true,
-        opacity: 0.12,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      })
-    );
+    flashMat = new THREE.MeshBasicMaterial({ color: 0xffe69c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
+    const cone = add(rightArm, new THREE.ConeGeometry(1.4, 4.4, 14, 1, true), flashMat, 0, -0.5, 2.35);
     cone.rotation.x = -Math.PI / 2;
-    cone.position.set(0, -0.50, 2.35);
-    rightArm.add(cone);
   }
 
-  // Tourist Vegas Props!
   let cigMesh: THREE.Object3D | null = null;
-  if (!isGuard) {
+  if (outfit === 'slapper') {
+    const cards = add(rightArm, new THREE.BoxGeometry(0.09, 0.012, 0.13), std(0xffffff, 0.5), 0, -0.55, 0.05);
+    cards.rotation.x = 0.4;
+  } else if (outfit === 'tourist') {
     if (prop === 'yard-drink') {
-      const cupMat = new THREE.MeshStandardMaterial({
-        color: [0xff33a6, 0x2de2ff, 0x7aff47][seed % 3],
+      const cupMat = std([0xff33a6, 0x2de2ff, 0x7aff47][seed % 3], 0.15, 0, {
         emissive: [0xff1e8a, 0x00b7ff, 0x45d618][seed % 3],
         emissiveIntensity: 0.4,
-        roughness: 0.15,
       });
-      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.032, 0.44, 10), cupMat);
-      cup.position.set(0, -0.34, 0.16);
-      rightArm.add(cup);
-      const straw = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.008, 0.008, 0.18, 6),
-        new THREE.MeshBasicMaterial({ color: 0xffffff })
-      );
-      straw.position.set(0, -0.06, 0.16);
-      rightArm.add(straw);
+      add(rightArm, new THREE.CylinderGeometry(0.055, 0.032, 0.44, 10), cupMat, 0, -0.34, 0.16);
+      add(rightArm, new THREE.CylinderGeometry(0.008, 0.008, 0.18, 6), std(0xffffff, 0.4), 0, -0.06, 0.16);
       rightArm.rotation.x = -0.55;
     } else if (prop === 'camera') {
-      const camBody = new THREE.Mesh(
-        new THREE.BoxGeometry(0.14, 0.09, 0.07),
-        new THREE.MeshStandardMaterial({ color: 0x1c1f28, roughness: 0.35 })
-      );
-      camBody.position.set(0, 1.18, 0.17);
-      g.add(camBody);
-      const lens = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.032, 0.035, 0.06, 10),
-        new THREE.MeshStandardMaterial({ color: 0x0b0e14, metalness: 0.8, roughness: 0.1 })
-      );
-      lens.rotation.x = Math.PI / 2;
-      lens.position.set(0, 1.18, 0.22);
-      g.add(lens);
+      add(g, new THREE.BoxGeometry(0.14, 0.09, 0.07), std(0x1c1f28, 0.35), 0, 1.18, 0.17);
+      const lensM = add(g, new THREE.CylinderGeometry(0.032, 0.035, 0.06, 10), std(0x0b0e14, 0.1, 0.8), 0, 1.18, 0.22);
+      lensM.rotation.x = Math.PI / 2;
     } else if (prop === 'cig') {
       const cigGroup = new THREE.Group();
-      const paper = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.010, 0.010, 0.11, 8),
-        new THREE.MeshStandardMaterial({ color: 0xf7f5f0, roughness: 0.7 })
-      );
+      const paper = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.11, 8), std(0xf7f5f0, 0.7));
       paper.rotation.x = Math.PI / 2;
       cigGroup.add(paper);
-      const ember = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0105, 0.008, 0.018, 8),
-        new THREE.MeshBasicMaterial({ color: 0xff5a1f })
-      );
+      const ember = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.008, 0.018, 8), new THREE.MeshBasicMaterial({ color: 0xff5a1f }));
       ember.rotation.x = Math.PI / 2;
       ember.position.z = 0.06;
       cigGroup.add(ember);
-      cigGroup.position.set(0, -0.50, 0.09);
+      cigGroup.position.set(0, -0.5, 0.09);
       rightArm.add(cigGroup);
       rightArm.rotation.x = -0.45;
       cigMesh = cigGroup;
     } else if (prop === 'bag') {
-      const bag = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, 0.28, 0.10),
-        new THREE.MeshStandardMaterial({ color: 0xe8486b, roughness: 0.55 })
-      );
-      bag.position.set(0.04, -0.62, 0);
-      leftArm.add(bag);
+      add(leftArm, new THREE.BoxGeometry(0.24, 0.28, 0.1), std([0xe8486b, 0xf2efe6, 0x2b2b33][seed % 3], 0.55), 0.04, -0.62, 0);
     }
   }
 
-  return { group: g, leftArm, rightArm, leftLeg, rightLeg, head, cigMesh };
+  // Collapse ~35 primitive meshes into ~8 vertex-colored ones (limbs stay separately animated).
+  for (const part of [g, head, leftArm, rightArm, leftLeg, rightLeg]) bakeGroup(part);
+
+  return { group: g, leftArm, rightArm, leftLeg, rightLeg, head, cigMesh, flashMat };
 }
+
+const tmpV = new THREE.Vector3();
 
 export class StripCrowdSystem {
   public readonly tourists: TouristNPC[] = [];
+  public readonly performers: PerformerNPC[] = [];
   public readonly guards: GuardNPC[] = [];
   private readonly scene: THREE.Scene;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, config: CrowdConfig) {
     this.scene = scene;
 
-    const touristRoutes: Array<{ pts: Array<[number, number]>; prop: TouristProp }> = [
-      // Bellagio Fountains Sidewalk tourists
-      { pts: [[-10.6, 8], [-10.6, 48]], prop: 'camera' },
-      { pts: [[-11.2, 46], [-11.2, 12]], prop: 'cig' },
-      { pts: [[-11.4, 20], [-11.4, 38]], prop: 'yard-drink' },
-      { pts: [[-10.8, 32], [-10.8, 18]], prop: 'bag' },
-      // Paris Sidewalk & Eiffel Tower tourists
-      { pts: [[11.0, 6], [11.0, 48]], prop: 'yard-drink' },
-      { pts: [[12.2, 45], [16.5, 24], [12.2, 10]], prop: 'cig' },
-      { pts: [[18.5, 14], [24, 34]], prop: 'camera' },
-      { pts: [[14.5, 26], [14.5, 42]], prop: 'bag' },
-      // Flamingo Strip & Habitat tourists
-      { pts: [[11.2, -16], [11.2, -52]], prop: 'yard-drink' },
-      { pts: [[15.5, -24], [24, -44]], prop: 'cig' },
-      { pts: [[18.0, -40], [18.0, -24]], prop: 'camera' },
-      // Caesars Sidewalk tourists
-      { pts: [[-11.2, -16], [-11.2, -52]], prop: 'cig' },
-      { pts: [[-16.0, -46], [-16.0, -22]], prop: 'yard-drink' },
-      // Inside Bellagio Casino
-      { pts: [[-41, 18], [-41, 40], [-56, 40], [-56, 18]], prop: 'cig' },
-      { pts: [[-48, 22], [-48, 38]], prop: 'yard-drink' },
-      { pts: [[-51, 20], [-43, 35]], prop: 'bag' },
-      // Inside Paris Casino
-      { pts: [[38, 18], [55, 18], [55, 42], [38, 42]], prop: 'cig' },
-      { pts: [[45, 24], [45, 38]], prop: 'yard-drink' },
-      // Inside Flamingo Casino
-      { pts: [[38, -24], [55, -24], [55, -48], [38, -48]], prop: 'cig' },
-      { pts: [[44, -29], [44, -42]], prop: 'bag' },
-      // Cosmopolitan & ABC Stores & Bus Stop South
-      { pts: [[-12.0, 62], [-12.0, 88]], prop: 'yard-drink' },
-      { pts: [[-26.0, 68], [-26.0, 86]], prop: 'camera' },
-      { pts: [[12.5, 62], [12.5, 86]], prop: 'bag' },
-      { pts: [[20.5, 68], [26.5, 78]], prop: 'cig' },
-      // Venetian & Caesars North
-      { pts: [[12.5, -62], [12.5, -92]], prop: 'camera' },
-      { pts: [[25.0, -72], [25.0, -88]], prop: 'yard-drink' },
-      { pts: [[-12.5, -62], [-12.5, -90]], prop: 'cig' },
-    ];
-
-    touristRoutes.forEach((r, idx) => {
-      const built = buildArticulatedHuman(idx + 3, false, r.prop);
+    config.tourists.forEach((r, idx) => {
+      const built = buildHuman(idx + 3, 'tourist', r.prop);
       const waypoints = r.pts.map(([x, z]) => new THREE.Vector3(x, 0, z));
       built.group.position.copy(waypoints[0]);
       scene.add(built.group);
-
       this.tourists.push({
+        ...built,
         id: idx,
         mesh: built.group,
-        leftArm: built.leftArm,
-        rightArm: built.rightArm,
-        leftLeg: built.leftLeg,
-        rightLeg: built.rightLeg,
-        head: built.head,
         waypoints,
         wpIndex: 1 % waypoints.length,
-        speed: 1.55 + (idx % 4) * 0.28,
+        speed: 1.35 + (idx % 4) * 0.25,
         pauseTimer: 0,
         begCooldown: 0,
+        reactCooldown: 0,
         hasCig: r.prop === 'cig',
+        hasCamera: r.prop === 'camera',
         cigStolen: false,
-        cigMesh: built.cigMesh,
         speechSprite: null,
         speechTimer: 0,
         walkPhase: idx * 1.1,
+        lookAtCat: 0,
       });
     });
 
-    // Casino Security Guards (patrol inside Bellagio, Paris, and Flamingo)
-    const guardRoutes: Array<{ name: string; pts: Array<[number, number]>; kick: [number, number] }> = [
-      { name: 'Bellagio', pts: [[-43, 19], [-55, 19], [-55, 41], [-43, 41]], kick: [-33, 30] },
-      { name: 'Paris Las Vegas', pts: [[40, 19], [54, 19], [54, 41], [40, 41]], kick: [29, 30] },
-      { name: 'Flamingo', pts: [[40, -25], [54, -25], [54, -47], [40, -47]], kick: [29, -36] },
-    ];
+    config.performers.forEach((p, idx) => {
+      const built = buildHuman(idx * 7 + 2, p.kind, 'none');
+      built.group.position.set(p.x, 0, p.z);
+      built.group.rotation.y = p.facing;
+      scene.add(built.group);
+      this.performers.push({
+        ...built,
+        id: idx,
+        kind: p.kind,
+        mesh: built.group,
+        begCooldown: 0,
+        speechSprite: null,
+        speechTimer: 0,
+        chatterTimer: 3 + idx * 2.3,
+      });
+    });
 
-    guardRoutes.forEach((gr, idx) => {
-      const built = buildArticulatedHuman(idx + 1, true, 'none');
+    config.guards.forEach((gr, idx) => {
+      const built = buildHuman(idx + 1, 'guard', 'none');
       const waypoints = gr.pts.map(([x, z]) => new THREE.Vector3(x, 0, z));
       built.group.position.copy(waypoints[0]);
       scene.add(built.group);
       this.guards.push({
+        ...built,
         id: idx,
         mesh: built.group,
-        leftArm: built.leftArm,
-        rightArm: built.rightArm,
-        leftLeg: built.leftLeg,
-        rightLeg: built.rightLeg,
         waypoints,
         wpIndex: 1,
         casinoName: gr.name,
-        kickPoint: new THREE.Vector3(...gr.kick),
+        kickPoint: new THREE.Vector3(gr.kick[0], 0, gr.kick[1]),
+        zone: gr.zone,
         walkPhase: idx * 2.0,
+        mode: 'patrol',
+        lostTimer: 0,
+        speechSprite: null,
+        speechTimer: 0,
       });
     });
   }
 
-  public showTouristSpeech(tourist: TouristNPC, text: string, duration = 3.0): void {
-    if (tourist.speechSprite) {
-      this.scene.remove(tourist.speechSprite);
-      tourist.speechSprite.material.map?.dispose();
-      tourist.speechSprite.material.dispose();
-      tourist.speechSprite = null;
+  private setSpeech(holder: { mesh: THREE.Group; speechSprite: THREE.Sprite | null; speechTimer: number }, text: string, duration: number, accent?: string): void {
+    if (holder.speechSprite) {
+      holder.mesh.remove(holder.speechSprite);
+      holder.speechSprite.material.map?.dispose();
+      holder.speechSprite.material.dispose();
     }
-    const tex = makeSpeechTexture(text);
-    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+    const mat = new THREE.SpriteMaterial({ map: makeSpeechTexture(text, accent), transparent: true, depthWrite: false });
     const sprite = new THREE.Sprite(mat);
-    sprite.position.set(0, 2.28, 0);
+    sprite.position.set(0, 2.32, 0);
     sprite.scale.set(2.3, 0.72, 1);
-    tourist.mesh.add(sprite);
-    tourist.speechSprite = sprite;
-    tourist.speechTimer = duration;
+    holder.mesh.add(sprite);
+    holder.speechSprite = sprite;
+    holder.speechTimer = duration;
   }
 
-  public update(dt: number, elapsed: number): void {
+  private tickSpeech(holder: { mesh: THREE.Group; speechSprite: THREE.Sprite | null; speechTimer: number }, dt: number): void {
+    if (holder.speechTimer <= 0) return;
+    holder.speechTimer -= dt;
+    if (holder.speechTimer <= 0 && holder.speechSprite) {
+      holder.mesh.remove(holder.speechSprite);
+      holder.speechSprite.material.map?.dispose();
+      holder.speechSprite.material.dispose();
+      holder.speechSprite = null;
+    }
+  }
+
+  public showTouristSpeech(tourist: TouristNPC, text: string, duration = 3.0): void {
+    this.setSpeech(tourist, text, duration);
+  }
+
+  public showPerformerSpeech(p: PerformerNPC, text: string, duration = 3.0): void {
+    this.setSpeech(p, text, duration, '#ff7ac8');
+  }
+
+  public nearestPerformer(pos: THREE.Vector3, maxDist: number): PerformerNPC | null {
+    let best: PerformerNPC | null = null;
+    let bestD = maxDist;
+    for (const p of this.performers) {
+      const d = p.mesh.position.distanceTo(pos);
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  /** Tourists near a big vape cloud react. Returns how many cheered and the tips they threw. */
+  public reactToCloud(origin: THREE.Vector3, tipMult: number): { cheers: number; tips: number; coughs: number } {
+    let cheers = 0;
+    let tips = 0;
+    let coughs = 0;
+    for (const t of this.tourists) {
+      if (t.reactCooldown > 0) continue;
+      const d = t.mesh.position.distanceTo(origin);
+      if (d > 7.5) continue;
+      t.reactCooldown = 14;
+      t.lookAtCat = 2.5;
+      const roll = Math.random();
+      if (roll < 0.42 + Math.min(0.25, tipMult * 0.05)) {
+        const tip = Math.round((2 + Math.floor(Math.random() * 6)) * tipMult);
+        tips += tip;
+        cheers += 1;
+        this.setSpeech(t, ['Sick clouds!! +$' + tip, 'Do an O-ring! +$' + tip, 'Cloud chaser kitty! +$' + tip][Math.floor(Math.random() * 3)], 2.8);
+      } else if (roll < 0.8) {
+        coughs += 1;
+        this.setSpeech(t, ['*cough* Ugh, kitty!', 'Not in my face!', 'Is that… cotton candy?'][Math.floor(Math.random() * 3)], 2.4);
+      } else {
+        this.setSpeech(t, 'Filming this for my story', 2.4);
+      }
+    }
+    return { cheers, tips, coughs };
+  }
+
+  /** Guards in the casino the cat is standing in, who can see it, start chasing. */
+  public alertGuards(catPos: THREE.Vector3, radius: number): GuardNPC[] {
+    const alerted: GuardNPC[] = [];
+    for (const g of this.guards) {
+      const z = g.zone;
+      if (catPos.x < z.minX || catPos.x > z.maxX || catPos.z < z.minZ || catPos.z > z.maxZ) continue;
+      if (g.mesh.position.distanceTo(catPos) > radius) continue;
+      if (g.mode !== 'chase') {
+        g.mode = 'chase';
+        g.lostTimer = 0;
+        this.setSpeech(g, ['HEY! Stop that cat!', 'Security! Freeze, kitty!', 'You can’t swipe in here!'][g.id % 3], 2.6, '#ff4d4d');
+      }
+      alerted.push(g);
+    }
+    return alerted;
+  }
+
+  public anyChasing(): boolean {
+    return this.guards.some((g) => g.mode === 'chase');
+  }
+
+  /** How close the nearest chasing guard is, 0 (far) → 1 (on you). */
+  public heat(catPos: THREE.Vector3): number {
+    let h = 0;
+    for (const g of this.guards) {
+      if (g.mode !== 'chase') continue;
+      const d = g.mesh.position.distanceTo(catPos);
+      h = Math.max(h, THREE.MathUtils.clamp(1 - (d - 1) / 16, 0.15, 1));
+    }
+    return h;
+  }
+
+  public update(
+    dt: number,
+    elapsed: number,
+    catPos: THREE.Vector3,
+    events: { onCaught: (g: GuardNPC) => void; onEscaped: (g: GuardNPC) => void }
+  ): void {
     for (const t of this.tourists) {
       if (t.begCooldown > 0) t.begCooldown = Math.max(0, t.begCooldown - dt);
+      if (t.reactCooldown > 0) t.reactCooldown = Math.max(0, t.reactCooldown - dt);
+      this.tickSpeech(t, dt);
 
-      if (t.speechTimer > 0) {
-        t.speechTimer -= dt;
-        if (t.speechTimer <= 0 && t.speechSprite) {
-          t.mesh.remove(t.speechSprite);
-          t.speechSprite.material.map?.dispose();
-          t.speechSprite.material.dispose();
-          t.speechSprite = null;
-        }
+      const far = t.mesh.position.distanceToSquared(catPos) > 110 * 110;
+      t.mesh.visible = !far;
+
+      if (t.lookAtCat > 0) {
+        t.lookAtCat -= dt;
+        tmpV.copy(catPos).sub(t.mesh.position);
+        t.mesh.rotation.y = Math.atan2(tmpV.x, tmpV.z);
+        t.leftLeg.rotation.x = THREE.MathUtils.lerp(t.leftLeg.rotation.x, 0, dt * 8);
+        t.rightLeg.rotation.x = THREE.MathUtils.lerp(t.rightLeg.rotation.x, 0, dt * 8);
+        continue;
       }
 
       if (t.pauseTimer > 0) {
@@ -567,26 +571,25 @@ export class StripCrowdSystem {
       }
 
       const target = t.waypoints[t.wpIndex];
-      const delta = target.clone().sub(t.mesh.position);
-      delta.y = 0;
-      const dist = delta.length();
+      tmpV.copy(target).sub(t.mesh.position);
+      tmpV.y = 0;
+      const dist = tmpV.length();
       if (dist < 0.35) {
         t.wpIndex = (t.wpIndex + 1) % t.waypoints.length;
-        if (t.id % 3 === 0) t.pauseTimer = 1.6;
+        if (t.id % 3 === 0) t.pauseTimer = 1.6 + (t.id % 4);
       } else {
-        delta.normalize();
-        t.mesh.position.addScaledVector(delta, t.speed * dt);
-        t.mesh.rotation.y = Math.atan2(delta.x, delta.z);
-
+        tmpV.normalize();
+        t.mesh.position.addScaledVector(tmpV, t.speed * dt);
+        t.mesh.rotation.y = Math.atan2(tmpV.x, tmpV.z);
+        if (far) continue;
         t.walkPhase += dt * t.speed * 3.8;
         const swing = Math.sin(t.walkPhase) * 0.55;
         t.leftLeg.rotation.x = swing;
         t.rightLeg.rotation.x = -swing;
         t.leftArm.rotation.x = -swing * 0.65;
         if (!t.hasCig || t.cigStolen) {
-          t.rightArm.rotation.x = swing * 0.65;
+          t.rightArm.rotation.x = t.hasCamera ? -0.3 : swing * 0.65;
         } else {
-          // Smoker periodically lifts cigarette hand toward face
           const drag = Math.max(0, Math.sin(elapsed * 1.1 + t.id));
           t.rightArm.rotation.x = -0.45 - drag * 0.65;
         }
@@ -594,23 +597,87 @@ export class StripCrowdSystem {
       }
     }
 
-    for (const g of this.guards) {
-      const target = g.waypoints[g.wpIndex];
-      const delta = target.clone().sub(g.mesh.position);
-      delta.y = 0;
-      if (delta.length() < 0.4) {
-        g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
+    for (const p of this.performers) {
+      if (p.begCooldown > 0) p.begCooldown = Math.max(0, p.begCooldown - dt);
+      this.tickSpeech(p, dt);
+      const near = p.mesh.position.distanceToSquared(catPos) < 90 * 90;
+      p.mesh.visible = near;
+      if (!near) continue;
+      // Idle performance loops
+      if (p.kind === 'elvis') {
+        p.rightArm.rotation.x = -1.4 + Math.sin(elapsed * 3 + p.id) * 0.5;
+        p.rightArm.rotation.z = -0.3;
+        p.leftLeg.rotation.z = Math.max(0, Math.sin(elapsed * 6 + p.id)) * 0.25;
+        p.mesh.position.y = Math.abs(Math.sin(elapsed * 6)) * 0.02;
+      } else if (p.kind === 'showgirl') {
+        p.leftArm.rotation.z = 0.9 + Math.sin(elapsed * 1.6 + p.id) * 0.15;
+        p.rightArm.rotation.z = -0.9 - Math.sin(elapsed * 1.6 + p.id) * 0.15;
+        p.head.rotation.y = Math.sin(elapsed * 0.8 + p.id) * 0.3;
       } else {
-        delta.normalize();
-        g.mesh.position.addScaledVector(delta, 2.2 * dt);
-        g.mesh.rotation.y = Math.atan2(delta.x, delta.z);
-        g.walkPhase += dt * 7.2;
-        const swing = Math.sin(g.walkPhase) * 0.5;
-        g.leftLeg.rotation.x = swing;
-        g.rightLeg.rotation.x = -swing;
-        g.leftArm.rotation.x = -swing * 0.6;
-        g.rightArm.rotation.x = -0.35; // Holds flashlight steady forward
+        const slap = Math.max(0, Math.sin(elapsed * 7 + p.id * 3));
+        p.rightArm.rotation.x = -0.9 + slap * 0.5;
+        p.head.rotation.y = Math.sin(elapsed * 1.3 + p.id) * 0.5;
       }
+      p.chatterTimer -= dt;
+      if (p.chatterTimer <= 0 && p.mesh.position.distanceTo(catPos) < 26) {
+        p.chatterTimer = 9 + Math.random() * 8;
+        const lines = PERFORMER_LINES[p.kind];
+        this.setSpeech(p, lines[Math.floor(Math.random() * lines.length)], 2.8, '#ff7ac8');
+      }
+    }
+
+    for (const g of this.guards) {
+      this.tickSpeech(g, dt);
+      const z = g.zone;
+      const catInZone = catPos.x > z.minX - 2 && catPos.x < z.maxX + 2 && catPos.z > z.minZ - 2 && catPos.z < z.maxZ + 2;
+      let speed = 2.2;
+      let target: THREE.Vector3;
+
+      if (g.mode === 'chase') {
+        speed = 5.9; // faster than a prowl (5.2), slower than a sprint (9)
+        target = catPos;
+        const d = g.mesh.position.distanceTo(catPos);
+        if (d < 0.95) {
+          g.mode = 'return';
+          events.onCaught(g);
+        } else if (!catInZone || d > 20) {
+          g.lostTimer += dt;
+          if (g.lostTimer > (catInZone ? 2.5 : 0.8)) {
+            g.mode = 'return';
+            this.setSpeech(g, 'Lost the cat… back to my post.', 2.2);
+            events.onEscaped(g);
+          }
+        } else {
+          g.lostTimer = 0;
+        }
+      } else if (g.mode === 'return') {
+        target = g.waypoints[g.wpIndex];
+        if (g.mesh.position.distanceTo(target) < 0.6) g.mode = 'patrol';
+      } else {
+        target = g.waypoints[g.wpIndex];
+      }
+
+      if (g.flashMat) {
+        g.flashMat.color.setHex(g.mode === 'chase' ? (Math.floor(elapsed * 6) % 2 ? 0xff3030 : 0x3060ff) : 0xffe69c);
+        g.flashMat.opacity = g.mode === 'chase' ? 0.22 : 0.12;
+      }
+
+      tmpV.copy(target).sub(g.mesh.position);
+      tmpV.y = 0;
+      if (g.mode === 'patrol' && tmpV.length() < 0.4) {
+        g.wpIndex = (g.wpIndex + 1) % g.waypoints.length;
+        continue;
+      }
+      if (tmpV.lengthSq() < 1e-4) continue;
+      tmpV.normalize();
+      g.mesh.position.addScaledVector(tmpV, speed * dt);
+      g.mesh.rotation.y = Math.atan2(tmpV.x, tmpV.z);
+      g.walkPhase += dt * (g.mode === 'chase' ? 12 : 7.2);
+      const swing = Math.sin(g.walkPhase) * (g.mode === 'chase' ? 0.8 : 0.5);
+      g.leftLeg.rotation.x = swing;
+      g.rightLeg.rotation.x = -swing;
+      g.leftArm.rotation.x = -swing * 0.6;
+      g.rightArm.rotation.x = g.mode === 'chase' ? -1.2 : -0.35;
     }
   }
 }

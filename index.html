@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#090b1a">
   <title>Smoking Cat Simulator — Las Vegas Strip 3D</title>
   <link rel="stylesheet" href="/src/style.css">
 </head>
@@ -14,29 +15,37 @@
       <div class="hud-brand">
         <h1>Smoking Cat Simulator</h1>
         <p id="zone-label" class="zone-label">Bellagio Fountains</p>
+        <p id="goal-tracker" class="goal-tracker"></p>
       </div>
 
-      <div class="hud-stats" role="status" aria-live="polite">
-        <div class="stat-pill">
-          <span class="stat-label">Cash</span>
-          <span id="cash-value" class="stat-value stat-value--cash">$0</span>
+      <div class="hud-right">
+        <div class="hud-stats" role="status" aria-live="polite">
+          <div class="stat-pill">
+            <span class="stat-label">Cash</span>
+            <span id="cash-value" class="stat-value stat-value--cash">$0</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-label">Cig Stash</span>
+            <span id="stash-value" class="stat-value">2</span>
+          </div>
+          <div class="stat-pill">
+            <span id="device-label" class="stat-label">Cig Lit</span>
+            <span id="device-value" class="stat-value">100%</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-label">Swag</span>
+            <span id="swag-value" class="stat-value stat-value--swag">0</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-label">State</span>
+            <span id="state-value" class="stat-value">Smoking</span>
+          </div>
         </div>
-        <div class="stat-pill">
-          <span class="stat-label">Cig Stash</span>
-          <span id="stash-value" class="stat-value">2</span>
+        <div id="heat-meter" class="heat-meter" hidden>
+          <span class="stat-label">Security Heat</span>
+          <div class="heat-bar"><div id="heat-fill" class="heat-fill"></div></div>
         </div>
-        <div class="stat-pill">
-          <span id="device-label" class="stat-label">Cig Lit</span>
-          <span id="device-value" class="stat-value">100%</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-label">Smoked / Rips</span>
-          <span id="smoked-value" class="stat-value">0</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-label">State</span>
-          <span id="state-value" class="stat-value">Smoking</span>
-        </div>
+        <canvas id="minimap" class="minimap" width="200" height="200" aria-label="Strip minimap"></canvas>
       </div>
     </header>
 
@@ -59,13 +68,16 @@
           Steal Cigs <kbd>Q</kbd>
         </button>
         <button id="btn-bus" type="button" class="action-btn action-btn--bus">
-          Ride Deuce <kbd>G</kbd>
+          Ride <kbd>G</kbd>
         </button>
         <button id="btn-interact" type="button" class="action-btn action-btn--casino">
           Gamble / Shop <kbd>F</kbd>
         </button>
         <button id="btn-mood" type="button" class="action-btn">
           Mojave Day <kbd>T</kbd>
+        </button>
+        <button type="button" class="action-btn" popovertarget="goals-popover">
+          Goals <kbd>J</kbd>
         </button>
         <button id="btn-sound" type="button" class="action-btn">
           Sound: On
@@ -76,25 +88,48 @@
       </nav>
     </div>
 
+    <div id="touch-stick" class="touch-stick" hidden aria-hidden="true">
+      <div id="touch-knob" class="touch-knob"></div>
+    </div>
+    <button id="touch-jump" type="button" class="touch-jump" hidden>Jump</button>
+
+    <section id="title-screen" class="title-screen" aria-labelledby="title-heading">
+      <div class="title-card">
+        <p class="title-kicker">Las Vegas Blvd • Flamingo Rd</p>
+        <h1 id="title-heading">Smoking Cat Simulator</h1>
+        <p class="title-sub">Hustle the Strip as a chain-smoking tabby. Panhandle tourists, swipe smokes, hit the tables, ride the Deuce and the High Roller, and earn your way into the VIP lounge.</p>
+        <p id="title-save-info" class="title-save" hidden></p>
+        <div class="title-actions">
+          <button id="btn-continue" type="button" class="action-btn action-btn--primary" hidden>Continue</button>
+          <button id="btn-new-game" type="button" class="action-btn action-btn--casino">New Game</button>
+        </div>
+        <p id="title-loading" class="title-loading">Loading the Strip…</p>
+      </div>
+    </section>
+
     <section id="controls-popover" popover="auto" class="controls-popover" aria-label="Game Controls">
       <h2>Smoking Cat Simulator — Las Vegas Strip</h2>
       <ul class="controls-list">
-        <li><strong>Prowl / Sprint:</strong> <code>W A S D</code> (or Arrows) + <code>Shift</code></li>
-        <li><strong>Jump (Skybridge / Tables / Fountains):</strong> <code>Space</code></li>
-        <li><strong>Smoke Cig or Rip Vape Cloud:</strong> <code>E</code></li>
-        <li><strong>Switch Cigarette ↔ Neon Vape Mod:</strong> <code>V</code></li>
-        <li><strong>Panhandle Tourists (Get Cash/Cigs):</strong> <code>B</code></li>
-        <li><strong>Steal Cigs (Strip, ABC Counter &amp; Casinos):</strong> <code>Q</code></li>
-        <li><strong>Board / Exit Metallic Gold Deuce Bus:</strong> <code>G</code></li>
-        <li><strong>Gamble (Bellagio/Paris/Flamingo) or Buy Cartons &amp; Vapes (ABC Stores):</strong> <code>F</code></li>
-        <li><strong>Time Cycle (Day / Sunset / Night / Auto):</strong> <code>T</code> &bull; <strong>Reset:</strong> <code>R</code></li>
+        <li><strong>Prowl / Sprint:</strong> <code>W A S D</code> (or Arrows) + <code>Shift</code> • <strong>Jump:</strong> <code>Space</code></li>
+        <li><strong>Smoke Cig or Rip Vape Cloud:</strong> <code>E</code> • <strong>Switch Cig ↔ Vape:</strong> <code>V</code></li>
+        <li><strong>Panhandle / Pose for photos:</strong> <code>B</code> • <strong>Steal Cigs:</strong> <code>Q</code> (casino guards will chase you!)</li>
+        <li><strong>Ride The Deuce, High Roller or a Gondola:</strong> <code>G</code></li>
+        <li><strong>Gamble, Shop, VIP Lounge:</strong> <code>F</code></li>
+        <li><strong>Time of Day:</strong> <code>T</code> • <strong>Goals:</strong> <code>J</code> • <strong>Minimap:</strong> <code>M</code> • <strong>Reset:</strong> <code>R</code></li>
       </ul>
       <p class="controls-tip">
-        Panhandle Strip crowds, steal smokes or hit <strong>ABC Stores</strong> (south of Paris) for full 100-cig cartons &amp; flavored vape pods, gamble in Bellagio/Paris/Flamingo, and ride the upper deck of <strong>The Deuce</strong> double-decker bus!
+        Tips get bigger as your <strong>Swag</strong> goes up — buy shades, hats and chains at the Forum Shops boutique by Caesars. Win $500 at the tables (or rock 5 Swag) to get past the velvet rope at the Cosmopolitan's VIP lounge. Your progress saves automatically.
       </p>
-      <button type="button" class="action-btn" popovertarget="controls-popover" popovertargetaction="hide">
-        Close
-      </button>
+      <div class="controls-footer">
+        <button id="btn-reset-save" type="button" class="action-btn">Start Over</button>
+        <button type="button" class="action-btn" popovertarget="controls-popover" popovertargetaction="hide">Close</button>
+      </div>
+    </section>
+
+    <section id="goals-popover" popover="auto" class="controls-popover goals-popover" aria-label="Hustle Goals">
+      <h2>Hustle Goals</h2>
+      <ol id="goals-list" class="goals-list"></ol>
+      <button type="button" class="action-btn" popovertarget="goals-popover" popovertargetaction="hide">Close</button>
     </section>
 
     <dialog id="casino-dialog" closedby="any" class="casino-dialog" aria-labelledby="casino-dialog-title">
@@ -134,13 +169,68 @@
             <option value="5">$5</option>
             <option value="15" selected>$15</option>
             <option value="50">$50</option>
-            <option value="all">ALL IN</option>
+            <option value="100">$100</option>
+            <option value="250" data-vip-only>$250 (VIP)</option>
+            <option value="500" data-vip-only>$500 (VIP)</option>
           </select>
         </div>
         <div class="casino-bet-row">
-          <button type="button" class="action-btn roulette-red" data-roulette-pick="red">Bet RED (2×)</button>
-          <button type="button" class="action-btn roulette-black" data-roulette-pick="black">Bet BLACK (2×)</button>
-          <button type="button" class="action-btn roulette-green" data-roulette-pick="green">Bet 00 GREEN (14×)</button>
+          <button type="button" class="action-btn roulette-red" data-roulette-pick="red">Red 1:1</button>
+          <button type="button" class="action-btn roulette-black" data-roulette-pick="black">Black 1:1</button>
+          <button type="button" class="action-btn" data-roulette-pick="odd">Odd 1:1</button>
+          <button type="button" class="action-btn" data-roulette-pick="even">Even 1:1</button>
+          <button type="button" class="action-btn roulette-green" data-roulette-pick="green">0/00 Split 17:1</button>
+        </div>
+      </div>
+
+      <div id="blackjack-panel" class="casino-panel" hidden>
+        <div class="bj-hand">
+          <span class="bj-label">Dealer <b id="bj-dealer-total"></b></span>
+          <div id="bj-dealer" class="cards" aria-label="Dealer cards"></div>
+        </div>
+        <div class="bj-hand">
+          <span class="bj-label">Kitty <b id="bj-player-total"></b></span>
+          <div id="bj-player" class="cards" aria-label="Your cards"></div>
+        </div>
+        <div id="bj-bet-row" class="casino-bet-row">
+          <button type="button" class="action-btn action-btn--casino" data-bj-bet="10">Deal $10</button>
+          <button type="button" class="action-btn action-btn--casino" data-bj-bet="25">Deal $25</button>
+          <button type="button" class="action-btn action-btn--casino" data-bj-bet="50">Deal $50</button>
+          <button type="button" class="action-btn action-btn--casino" data-bj-bet="100">Deal $100</button>
+          <button type="button" class="action-btn action-btn--primary" data-bj-bet="250" data-vip-only>Deal $250</button>
+          <button type="button" class="action-btn action-btn--primary" data-bj-bet="500" data-vip-only>Deal $500</button>
+        </div>
+        <div id="bj-play-row" class="casino-bet-row" hidden>
+          <button id="bj-hit" type="button" class="action-btn action-btn--primary">Hit</button>
+          <button id="bj-stand" type="button" class="action-btn">Stand</button>
+          <button id="bj-double" type="button" class="action-btn action-btn--casino">Double</button>
+        </div>
+      </div>
+
+      <div id="craps-panel" class="casino-panel" hidden>
+        <div class="dice" aria-label="Dice">
+          <span id="die-0" class="die">⚄</span>
+          <span id="die-1" class="die">⚁</span>
+        </div>
+        <p id="craps-point" class="craps-point" data-on="false">Point: OFF</p>
+        <div class="roulette-controls">
+          <label for="craps-bet">Wager:</label>
+          <select id="craps-bet" class="casino-select">
+            <option value="10">$10</option>
+            <option value="25" selected>$25</option>
+            <option value="50">$50</option>
+            <option value="100">$100</option>
+            <option value="250" data-vip-only>$250 (VIP)</option>
+            <option value="500" data-vip-only>$500 (VIP)</option>
+          </select>
+        </div>
+        <div id="craps-bet-row" class="casino-bet-row">
+          <button type="button" class="action-btn action-btn--casino" data-craps="pass">Pass Line</button>
+          <button type="button" class="action-btn" data-craps="dontpass">Don't Pass</button>
+          <button type="button" class="action-btn action-btn--vape" data-craps="field">Field (1 roll)</button>
+        </div>
+        <div class="casino-bet-row">
+          <button id="craps-roll" type="button" class="action-btn action-btn--primary" hidden>Roll the Dice</button>
         </div>
       </div>
 
@@ -155,7 +245,7 @@
       <div class="casino-header">
         <div>
           <h1 id="abc-dialog-title">ABC Stores • Las Vegas Strip</h1>
-          <p class="casino-sub">Cigarette Cartons, Sub-Ohm Vapes &amp; Flavor Pods</p>
+          <p class="casino-sub">Cigarette Cartons, Vapes, Pods &amp; Souvenirs</p>
         </div>
         <div class="casino-bank-wrap">
           <span class="stat-label">Cash</span>
@@ -166,13 +256,13 @@
       <div class="abc-grid">
         <button type="button" class="abc-card" data-abc-item="pack" autofocus>
           <strong>Single Pack</strong>
-          <span>+10 Cigarettes</span>
-          <em>$8</em>
+          <span>+20 Cigarettes</span>
+          <em>$12</em>
         </button>
         <button type="button" class="abc-card abc-card--highlight" data-abc-item="carton">
-          <strong>Full Strip Carton</strong>
-          <span>+100 Cigarettes</span>
-          <em>$55</em>
+          <strong>Full Carton</strong>
+          <span>10 packs • +200 Cigs</span>
+          <em>$95</em>
         </button>
         <button type="button" class="abc-card abc-card--vape" data-abc-item="vape-mod">
           <strong>Neon Sub-Ohm Mod</strong>
@@ -193,6 +283,24 @@
 
       <form method="dialog" class="casino-footer">
         <button type="submit" class="action-btn">Exit ABC Stores</button>
+      </form>
+    </dialog>
+
+    <dialog id="boutique-dialog" closedby="any" class="casino-dialog boutique-dialog" aria-labelledby="boutique-title">
+      <div class="casino-header">
+        <div>
+          <h1 id="boutique-title">Forum Shops Boutique</h1>
+          <p class="casino-sub">Caesars Palace • Swag for the discerning alley cat</p>
+        </div>
+        <div class="casino-bank-wrap">
+          <span class="stat-label">Cash</span>
+          <strong id="boutique-bank" class="casino-bank">$0</strong>
+        </div>
+      </div>
+      <div id="boutique-grid" class="abc-grid"></div>
+      <p id="boutique-result" class="casino-result" aria-live="polite"></p>
+      <form method="dialog" class="casino-footer">
+        <button type="submit" class="action-btn">Leave the Shop</button>
       </form>
     </dialog>
   </main>

@@ -51,15 +51,15 @@ export class AbcShopController {
         const cash = this.callbacks.getCash();
 
         if (item === 'pack') {
-          if (cash < 8) return this.fail(8);
-          this.callbacks.setCash(cash - 8);
-          this.callbacks.addCigs(10, false);
-          this.succeed('Bought 1 Pack (+10 Cigs) for $8!');
+          if (cash < 12) return this.fail(12);
+          this.callbacks.setCash(cash - 12);
+          this.callbacks.addCigs(20, false);
+          this.succeed('Bought a pack (+20 Cigs) for $12. Strip prices, baby.');
         } else if (item === 'carton') {
-          if (cash < 55) return this.fail(55);
-          this.callbacks.setCash(cash - 55);
-          this.callbacks.addCigs(100, true);
-          this.succeed('Bought a FULL CARTON (+100 Cigs) for $55!');
+          if (cash < 95) return this.fail(95);
+          this.callbacks.setCash(cash - 95);
+          this.callbacks.addCigs(200, true);
+          this.succeed('Bought a FULL CARTON — 10 packs, +200 Cigs for $95!');
         } else if (item === 'vape-mod') {
           if (cash < 35) return this.fail(35);
           this.callbacks.setCash(cash - 35);

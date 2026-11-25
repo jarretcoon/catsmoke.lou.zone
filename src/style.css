@@ -491,3 +491,323 @@ kbd {
   display: flex;
   justify-content: flex-end;
 }
+
+/* ---------- Added: right-hand HUD column, minimap, heat ---------- */
+.hud-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.goal-tracker {
+  margin: 0.35rem 0 0;
+  max-width: 22rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: #ffd98a;
+}
+
+.goal-tracker:empty {
+  display: none;
+}
+
+.stat-value--swag {
+  color: #ffd24d;
+}
+
+.minimap {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: 150px;
+  height: 150px;
+  border-radius: 14px;
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  background: #100e0b;
+  pointer-events: none;
+  transition: width 0.18s ease, height 0.18s ease;
+}
+
+.minimap--full {
+  width: min(320px, 46dvw);
+  height: min(320px, 46dvw);
+}
+
+.heat-meter {
+  position: absolute;
+  right: calc(150px + 0.6rem);
+  top: calc(100% + 0.5rem);
+  background: var(--bg-glass);
+  border: 1px solid rgba(255, 80, 80, 0.6);
+  border-radius: 12px;
+  padding: 0.35rem 0.7rem;
+  width: 150px;
+}
+
+.heat-bar {
+  margin-top: 0.25rem;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.heat-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffb347, #ff3b3b);
+  transition: width 0.15s linear;
+}
+
+/* ---------- Title screen ---------- */
+.title-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: radial-gradient(circle at 50% 30%, rgba(60, 22, 70, 0.55), rgba(6, 7, 16, 0.88) 70%);
+  backdrop-filter: blur(3px);
+  z-index: 30;
+}
+
+.title-screen[hidden] {
+  display: none;
+}
+
+.title-card {
+  max-width: 34rem;
+  text-align: center;
+  background: rgba(14, 14, 26, 0.86);
+  border: 1px solid rgba(255, 196, 120, 0.4);
+  border-radius: 20px;
+  padding: 1.6rem 1.5rem 1.3rem;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+}
+
+.title-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ff8ad8;
+}
+
+.title-card h1 {
+  margin: 0.3rem 0 0.6rem;
+  font-size: clamp(1.7rem, 1.3rem + 2vw, 2.6rem);
+  color: #ffd24d;
+  text-shadow: 0 0 18px rgba(255, 180, 60, 0.55), 0 0 2px #fff;
+}
+
+.title-sub {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.title-save {
+  margin: 0 0 0.8rem;
+  font-size: 0.82rem;
+  color: #9fe8b0;
+}
+
+.title-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.title-actions .action-btn {
+  font-size: 1rem;
+  padding: 0.65rem 1.3rem;
+}
+
+.title-actions .action-btn:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.title-loading {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Goals ---------- */
+.goals-popover {
+  max-width: min(34rem, 94dvw);
+  max-height: 80dvh;
+  overflow: auto;
+}
+
+.goals-list {
+  margin: 0 0 1rem;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.goal {
+  font-size: 0.86rem;
+  color: var(--text-main);
+}
+
+.goal strong {
+  display: block;
+}
+
+.goal span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.goal--done strong {
+  color: #6ef58f;
+}
+
+.controls-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* ---------- Blackjack & craps ---------- */
+.bj-hand {
+  margin-bottom: 0.75rem;
+}
+
+.bj-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.bj-label b {
+  color: var(--casino-gold);
+  margin-left: 0.4rem;
+}
+
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 3.4rem;
+  margin-top: 0.3rem;
+}
+
+.card {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 3.4rem;
+  border-radius: 7px;
+  background: #fbf8f0;
+  color: #15161c;
+  font-weight: 800;
+  font-size: 1rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.card--red {
+  color: #c4142c;
+}
+
+.card--back {
+  background: repeating-linear-gradient(45deg, #8c1230 0 6px, #b41d40 6px 12px);
+  color: #ffd24d;
+  font-size: 1.5rem;
+}
+
+.dice {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  font-size: 3.4rem;
+  line-height: 1;
+  color: #fff4f0;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+.craps-point {
+  text-align: center;
+  margin: 0.5rem 0 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.craps-point[data-on="true"] {
+  color: #6ef58f;
+}
+
+.boutique-dialog {
+  border-color: rgba(255, 210, 80, 0.7);
+  background: radial-gradient(circle at top, #3a2a10, #14110c 75%);
+}
+
+.casino-panel + .casino-panel {
+  margin-top: 0;
+}
+
+/* ---------- Touch controls ---------- */
+.touch-stick {
+  position: absolute;
+  left: max(1rem, env(safe-area-inset-left));
+  bottom: 7.5rem;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  touch-action: none;
+  z-index: 12;
+}
+
+.touch-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(255, 160, 70, 0.7);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.touch-jump {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: 8rem;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 140, 59, 0.55);
+  color: #fff;
+  font-weight: 800;
+  touch-action: none;
+  z-index: 12;
+}
+
+@media (max-width: 720px) {
+  .heat-meter {
+    right: calc(110px + 0.6rem);
+  }
+  .hud-stats .stat-pill {
+    min-width: 4.2rem;
+    padding: 0.35rem 0.55rem;
+  }
+  .minimap {
+    width: 110px;
+    height: 110px;
+  }
+  .goal-tracker {
+    max-width: 60dvw;
+  }
+}
