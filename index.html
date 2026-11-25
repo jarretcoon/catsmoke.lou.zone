@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smoking Cat Simulator — Las Vegas Strip 3D</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <main id="game-root" class="game-root">
+    <canvas id="game-canvas" aria-label="Las Vegas Strip 3D Smoking Cat Simulator"></canvas>
+
+    <header class="hud-top">
+      <div class="hud-brand">
+        <h1>Smoking Cat Simulator</h1>
+        <p id="zone-label" class="zone-label">Bellagio Fountains</p>
+      </div>
+
+      <div class="hud-stats" role="status" aria-live="polite">
+        <div class="stat-pill">
+          <span class="stat-label">Cash</span>
+          <span id="cash-value" class="stat-value stat-value--cash">$0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Cig Stash</span>
+          <span id="stash-value" class="stat-value">2</span>
+        </div>
+        <div class="stat-pill">
+          <span id="device-label" class="stat-label">Cig Lit</span>
+          <span id="device-value" class="stat-value">100%</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Smoked / Rips</span>
+          <span id="smoked-value" class="stat-value">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">State</span>
+          <span id="state-value" class="stat-value">Smoking</span>
+        </div>
+      </div>
+    </header>
+
+    <div id="toast-banner" class="toast-banner" aria-live="polite"></div>
+
+    <div class="hud-bottom">
+      <div id="prompt-pill" class="prompt-pill" aria-live="polite" hidden></div>
+
+      <nav class="hud-actions" aria-label="Cat Actions">
+        <button id="btn-puff" type="button" class="action-btn action-btn--primary">
+          Smoke / Vape <kbd>E</kbd>
+        </button>
+        <button id="btn-device" type="button" class="action-btn action-btn--vape">
+          Mode: Cig <kbd>V</kbd>
+        </button>
+        <button id="btn-beg" type="button" class="action-btn">
+          Beg / Meow <kbd>B</kbd>
+        </button>
+        <button id="btn-steal" type="button" class="action-btn">
+          Steal Cigs <kbd>Q</kbd>
+        </button>
+        <button id="btn-bus" type="button" class="action-btn action-btn--bus">
+          Ride Deuce <kbd>G</kbd>
+        </button>
+        <button id="btn-interact" type="button" class="action-btn action-btn--casino">
+          Gamble / Shop <kbd>F</kbd>
+        </button>
+        <button id="btn-mood" type="button" class="action-btn">
+          Mojave Day <kbd>T</kbd>
+        </button>
+        <button id="btn-sound" type="button" class="action-btn">
+          Sound: On
+        </button>
+        <button type="button" class="action-btn" popovertarget="controls-popover">
+          Controls <kbd>?</kbd>
+        </button>
+      </nav>
+    </div>
+
+    <section id="controls-popover" popover="auto" class="controls-popover" aria-label="Game Controls">
+      <h2>Smoking Cat Simulator — Las Vegas Strip</h2>
+      <ul class="controls-list">
+        <li><strong>Prowl / Sprint:</strong> <code>W A S D</code> (or Arrows) + <code>Shift</code></li>
+        <li><strong>Jump (Skybridge / Tables / Fountains):</strong> <code>Space</code></li>
+        <li><strong>Smoke Cig or Rip Vape Cloud:</strong> <code>E</code></li>
+        <li><strong>Switch Cigarette ↔ Neon Vape Mod:</strong> <code>V</code></li>
+        <li><strong>Panhandle Tourists (Get Cash/Cigs):</strong> <code>B</code></li>
+        <li><strong>Steal Cigs (Strip, ABC Counter &amp; Casinos):</strong> <code>Q</code></li>
+        <li><strong>Board / Exit Metallic Gold Deuce Bus:</strong> <code>G</code></li>
+        <li><strong>Gamble (Bellagio/Paris/Flamingo) or Buy Cartons &amp; Vapes (ABC Stores):</strong> <code>F</code></li>
+        <li><strong>Time Cycle (Day / Sunset / Night / Auto):</strong> <code>T</code> &bull; <strong>Reset:</strong> <code>R</code></li>
+      </ul>
+      <p class="controls-tip">
+        Panhandle Strip crowds, steal smokes or hit <strong>ABC Stores</strong> (south of Paris) for full 100-cig cartons &amp; flavored vape pods, gamble in Bellagio/Paris/Flamingo, and ride the upper deck of <strong>The Deuce</strong> double-decker bus!
+      </p>
+      <button type="button" class="action-btn" popovertarget="controls-popover" popovertargetaction="hide">
+        Close
+      </button>
+    </section>
+
+    <dialog id="casino-dialog" closedby="any" class="casino-dialog" aria-labelledby="casino-dialog-title">
+      <div class="casino-header">
+        <div>
+          <h1 id="casino-dialog-title">Casino Floor</h1>
+          <p id="casino-dialog-sub" class="casino-sub">High-Stakes Alleycat Action</p>
+        </div>
+        <div class="casino-bank-wrap">
+          <span class="stat-label">Bankroll</span>
+          <strong id="casino-bank" class="casino-bank">$0</strong>
+        </div>
+      </div>
+
+      <div id="slots-panel" class="casino-panel">
+        <div class="reels" aria-label="Slot machine reels">
+          <span id="reel-0" class="reel">🐈</span>
+          <span id="reel-1" class="reel">🚬</span>
+          <span id="reel-2" class="reel">7️⃣</span>
+        </div>
+        <div class="casino-bet-row">
+          <button type="button" class="action-btn action-btn--casino" data-slot-bet="5" autofocus>Spin $5</button>
+          <button type="button" class="action-btn action-btn--casino" data-slot-bet="20">Spin $20</button>
+          <button type="button" class="action-btn action-btn--casino" data-slot-bet="50">Spin $50</button>
+          <button type="button" class="action-btn action-btn--primary" data-slot-bet="all">ALL IN!</button>
+        </div>
+      </div>
+
+      <div id="roulette-panel" class="casino-panel" hidden>
+        <div class="roulette-display">
+          <span>Last Spin:</span>
+          <strong id="roulette-result-badge" class="roulette-badge">READY</strong>
+        </div>
+        <div class="roulette-controls">
+          <label for="roulette-bet">Wager:</label>
+          <select id="roulette-bet" class="casino-select">
+            <option value="5">$5</option>
+            <option value="15" selected>$15</option>
+            <option value="50">$50</option>
+            <option value="all">ALL IN</option>
+          </select>
+        </div>
+        <div class="casino-bet-row">
+          <button type="button" class="action-btn roulette-red" data-roulette-pick="red">Bet RED (2×)</button>
+          <button type="button" class="action-btn roulette-black" data-roulette-pick="black">Bet BLACK (2×)</button>
+          <button type="button" class="action-btn roulette-green" data-roulette-pick="green">Bet 00 GREEN (14×)</button>
+        </div>
+      </div>
+
+      <p id="casino-result" class="casino-result" aria-live="polite"></p>
+
+      <form method="dialog" class="casino-footer">
+        <button type="submit" class="action-btn">Cash Out &amp; Walk</button>
+      </form>
+    </dialog>
+
+    <dialog id="abc-dialog" closedby="any" class="casino-dialog abc-dialog" aria-labelledby="abc-dialog-title">
+      <div class="casino-header">
+        <div>
+          <h1 id="abc-dialog-title">ABC Stores • Las Vegas Strip</h1>
+          <p class="casino-sub">Cigarette Cartons, Sub-Ohm Vapes &amp; Flavor Pods</p>
+        </div>
+        <div class="casino-bank-wrap">
+          <span class="stat-label">Cash</span>
+          <strong id="abc-bank" class="casino-bank">$0</strong>
+        </div>
+      </div>
+
+      <div class="abc-grid">
+        <button type="button" class="abc-card" data-abc-item="pack" autofocus>
+          <strong>Single Pack</strong>
+          <span>+10 Cigarettes</span>
+          <em>$8</em>
+        </button>
+        <button type="button" class="abc-card abc-card--highlight" data-abc-item="carton">
+          <strong>Full Strip Carton</strong>
+          <span>+100 Cigarettes</span>
+          <em>$55</em>
+        </button>
+        <button type="button" class="abc-card abc-card--vape" data-abc-item="vape-mod">
+          <strong>Neon Sub-Ohm Mod</strong>
+          <span>Pro Tank + 100% Juice</span>
+          <em>$35</em>
+        </button>
+      </div>
+
+      <h2 class="abc-subheading">Flavor Vape Pods ($18 — 100% Refill)</h2>
+      <div class="casino-bet-row">
+        <button type="button" class="action-btn action-btn--vape" data-abc-item="pod:Blue Razz">Blue Razz $18</button>
+        <button type="button" class="action-btn action-btn--primary" data-abc-item="pod:Mango Sunset">Mango Sunset $18</button>
+        <button type="button" class="action-btn action-btn--bus" data-abc-item="pod:Mint Chill">Mint Chill $18</button>
+        <button type="button" class="action-btn" data-abc-item="pod:Cotton Candy">Cotton Candy $18</button>
+      </div>
+
+      <p id="abc-result" class="casino-result" aria-live="polite"></p>
+
+      <form method="dialog" class="casino-footer">
+        <button type="submit" class="action-btn">Exit ABC Stores</button>
+      </form>
+    </dialog>
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
