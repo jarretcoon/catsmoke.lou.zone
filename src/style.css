@@ -9,6 +9,12 @@
   --hud-hue: 28;
 }
 
+/* `hidden` always wins: classes like .action-btn set display:flex, which would otherwise show hidden buttons
+   (e.g. Continue on a first visit with no save, or Roll the Dice before a craps bet). */
+[hidden] {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {
