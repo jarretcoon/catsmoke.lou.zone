@@ -30,6 +30,8 @@ export interface CatLookFrame {
   night: number;
   /** Standing or loafing with no one-shot playing: allowed to glance about. */
   idle: boolean;
+  /** On the move: he still turns his head to people he passes, just less far. */
+  roam?: boolean;
   /** Things worth a glance when idle: the camera first, else the nearest tourist. */
   camera?: THREE.Vector3;
   tourists?: ReadonlyArray<{ mesh: THREE.Object3D }>;
@@ -697,11 +699,12 @@ export class CatLook {
 
     // ---- idle glance: the camera when it's in front of him, else the nearest tourist ahead
     this.glanceTimer -= dt;
-    if (f.idle && this.glanceTimer <= 0) {
+    const looking = f.idle || !!f.roam;
+    if (looking && this.glanceTimer <= 0) {
       this.glanceTimer = 1.2 + Math.random() * 2.2;
       this.glanceTarget = this.pickGlance(f);
     }
-    if (!f.idle) this.glanceTarget = null;
+    if (!looking) this.glanceTarget = null;
     let wantYaw = 0;
     let wantPitch = 0;
     let wantW = 0;
@@ -716,7 +719,7 @@ export class CatLook {
       if (Math.abs(yaw) < THREE.MathUtils.degToRad(105)) {
         wantYaw = THREE.MathUtils.clamp(yaw, -0.95, 0.95);
         wantPitch = THREE.MathUtils.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.3, 0.42);
-        wantW = 1;
+        wantW = f.idle ? 1 : 0.6;
       }
     }
     const k = Math.min(1, dt * 4);
