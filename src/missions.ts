@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { MapMarker } from './minimap';
 import type { GameState } from './state';
+import { beamMaterial } from './world/skyLife';
 
 export type MissionEvent =
   | 'tip'
@@ -235,8 +236,10 @@ export class MissionManager {
 
   private makeBeacon(color: number): THREE.Group {
     const g = new THREE.Group();
-    const beamMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending });
-    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 40, 16, 1, true), beamMat));
+    // Soft light shaft (bright core, fading upward) rather than a solid tube.
+    const beamMat = beamMaterial(color, 1.1);
+    beamMat.uniforms.opacity.value = 0.42;
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.05, 40, 16, 1, true), beamMat));
     g.children[0].position.y = 20;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.12, 8, 32), new THREE.MeshBasicMaterial({ color }));
     ring.rotation.x = Math.PI / 2;

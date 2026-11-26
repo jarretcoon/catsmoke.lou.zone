@@ -187,8 +187,8 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     hemi.groundColor.setHex(0x7a4a3a).lerp(tmpC.setHex(0x7a6a58), day);
     // The env map (look.ts) now adds sky and neon fill, so the flat hemisphere light steps back:
     // more contrast between lit and shaded sides, deeper night shadows.
-    hemi.intensity = THREE.MathUtils.lerp(0.62, 0.78, day);
-    scene.environmentIntensity = THREE.MathUtils.lerp(0.55, 0.85, day);
+    hemi.intensity = THREE.MathUtils.lerp(0.8, 0.78, day);
+    scene.environmentIntensity = THREE.MathUtils.lerp(0.62, 0.85, day);
     sun.color.setHex(0x9fb4ff).lerp(tmpC.setHex(0xfff4de), day).lerp(tmpC.setHex(0xff924c), sunset);
     sun.intensity = THREE.MathUtils.lerp(0.55, 2.9, day);
     // Shadow frustum follows the cat so shadows stay crisp across a 700 m map
