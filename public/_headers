@@ -2,8 +2,9 @@
 # Hashed bundles never change; the page itself always revalidates so new builds show up at once.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+# Lou's models are loaded with a content hash (?v=, vite.config.ts), so a new model is a new URL.
 /models/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=31536000, immutable
 /
   Cache-Control: no-cache
 /index.html

@@ -30,9 +30,47 @@ bun run preview  # serve dist/ on http://localhost:5181
 - [three.js](https://threejs.org) with Vite and TypeScript. The whole Strip is built in code
   (`src/world/`), including its textures (canvas-drawn) and its sounds (synthesized with WebAudio).
 - Lou is a Blender model that `blender/build_tabby_cat.py` builds from scratch. It exports
-  `public/models/tabby_cat.glb` (Draco + WebP).
+  `public/models/tabby_cat.glb` (Draco + WebP). Phones and tablets load `tabby_cat_lite.glb`, the same
+  model with half-size textures: after rebuilding Lou, run `node scripts/lite-model.mjs` to remake it
+  (until then phones get the full model). Both are loaded with a content hash in the URL, so they can
+  be cached for a year.
+- Loading (`src/loading.ts`): Lou's model and the Draco decoder start downloading before the Strip is
+  built, and the shaders of the opening view compile while Lou's model is parsed, with progress on the
+  title screen.
 - Hosting: a Cloudflare Worker serving static assets (`wrangler.jsonc`). Merging to `main` deploys
-  the live site, and every pull request gets a preview link.
+  the live site, and every pull request gets a preview link. The Worker's own code (`worker/index.ts`)
+  only runs for `/api/*`: today that's the anonymous game stats below.
+
+## Stats
+
+The game sends a few anonymous numbers so we can see what to fix and what people play
+(`src/stats.ts` → `POST /api/stats` → `worker/index.ts` → Cloudflare Workers Analytics Engine,
+dataset `catsmoke_stats`, kept for three months; PR previews write to `catsmoke_stats_preview`).
+Analytics Engine has to be switched on once for the Cloudflare account before the binding goes into
+`wrangler.jsonc` (the lines are there, commented out); until then the Worker accepts reports and drops them.
+
+**What's sent**, as one small report when the tab is hidden or closed, and at most every 5 minutes
+while playing: the kind of device (desktop, phone or tablet), the graphics setting, how long the game
+took to load (in buckets like "3-6s"), the typical frame rate (in buckets), how long you've played (in
+buckets), the three places on the Strip where Lou spent the most time, which missions and goals were
+just finished, and the game version. Cloudflare adds the country.
+
+**What isn't**: no IP address, no user agent, no cookies, no IDs of any kind, nothing stored on your
+device for the stats, no fingerprinting, nothing that could tie two reports to the same person. If your browser
+sends Do Not Track or Global Privacy Control, nothing is sent at all. Dev servers and the PR check
+send nothing (add `?stats=1` to try it).
+
+Reading the numbers needs an API token with **Account Analytics Read**; for example:
+
+```sh
+curl "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/analytics_engine/sql" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "SELECT blob3 AS device, blob5 AS load, SUM(_sample_interval) AS reports
+      FROM catsmoke_stats WHERE double3 = 1 AND timestamp > NOW() - INTERVAL '7' DAY
+      GROUP BY device, load ORDER BY reports DESC"
+```
+
+The field order is listed at the top of `worker/index.ts`.
 
 ## Checks
 

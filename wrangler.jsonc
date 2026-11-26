@@ -1,10 +1,23 @@
 {
   "name": "catsmoke-lou-zone",
   "compatibility_date": "2026-11-20",
+  // Only /api/* runs the Worker (anonymous game stats); everything else is the static game, served as before.
+  "main": "worker/index.ts",
   "workers_dev": false,
   "preview_urls": true,
   "routes": [{ "pattern": "catsmoke.lou.zone", "custom_domain": true }],
-  "assets": { "directory": "dist", "not_found_handling": "single-page-application" },
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // The stats need Workers Analytics Engine, which has to be switched on once for the account (Cloudflare
+  // dashboard > Storage & Databases > Analytics Engine); deploys fail with "You need to enable Analytics
+  // Engine" until it is. Until then there's no binding and worker/index.ts accepts reports and drops them.
+  // Once it's on, add the binding here and in "previews" (previews get their own dataset):
+  //   "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats" }],
+  //   "previews": { "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats_preview" }] }
   // Required by `wrangler preview` (the PR preview builds). Empty = previews use the top-level settings.
   "previews": {}
 }

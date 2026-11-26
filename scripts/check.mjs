@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { chromium } from 'playwright';
 
 const ROOT = process.cwd();
@@ -60,6 +61,9 @@ const TYPES = {
   '.json': 'application/json',
   '.wasm': 'application/wasm',
 };
+// What the player downloads before "Ready" (the first load): every file this server hands out until then,
+// raw and as Cloudflare would send it (text compressed; gzip here, Cloudflare's brotli is a little smaller).
+const firstLoad = { counting: true, bytes: 0, wire: 0 };
 const server = http.createServer((req, res) => {
   const p = decodeURIComponent(new URL(req.url, 'http://check').pathname);
   let file = path.join(SITE, p);
@@ -68,6 +72,11 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(SITE, 'index.html');
+  if (firstLoad.counting) {
+    const body = fs.readFileSync(file);
+    firstLoad.bytes += body.length;
+    firstLoad.wire += /\.(html|js|css|svg|json|wasm)$/.test(file) ? zlib.gzipSync(body, { level: 6 }).length : body.length;
+  }
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream' });
   fs.createReadStream(file).pipe(res);
 });
@@ -98,6 +107,7 @@ try {
     polling: 500,
   });
   loadSeconds = (Date.now() - t0) / 1000;
+  firstLoad.counting = false;
   await page.screenshot({ path: path.join(OUT, 'snaps', 'title.jpg'), type: 'jpeg', quality: 80 });
   if (!(await page.evaluate(() => !!window.__game))) throw new Error('the check build has no dev hooks (build it with `bun run build:check`)');
   await page.click('#btn-new-game');
@@ -179,6 +189,8 @@ const metrics = {
   sha: process.env.GITHUB_SHA ?? null,
   renderer: useGpu ? 'gpu' : 'software',
   loadSeconds,
+  firstLoadKB: Math.round(firstLoad.bytes / 1000),
+  firstLoadWireKB: Math.round(firstLoad.wire / 1000),
   totalKB,
   chunks: chunks.map((c) => ({ name: c.name, kb: +c.kb.toFixed(1) })),
   views: views_out.map((v) => ({ ...v, mean: +v.mean.toFixed(1), blownPct: +v.blownPct.toFixed(2), darkPct: +v.darkPct.toFixed(1), seconds: +v.seconds.toFixed(1) })),
@@ -190,7 +202,7 @@ fs.writeFileSync(path.join(OUT, 'metrics.json'), JSON.stringify(metrics, null, 2
 const lines = [
   `## Game check: ${metrics.ok ? 'passed' : `${failures.length} problem${failures.length === 1 ? '' : 's'}`}`,
   '',
-  `Loaded to Ready in ${loadSeconds === null ? '—' : `${fmt(loadSeconds, 1)} s`} (${metrics.renderer} WebGL). Download: ${fmt(totalKB / 1000, 2)} MB; biggest JS chunk ${chunks[0] ? `${chunks[0].name} ${fmt(chunks[0].kb)} KB` : '—'}.`,
+  `Loaded to Ready in ${loadSeconds === null ? '—' : `${fmt(loadSeconds, 1)} s`} (${metrics.renderer} WebGL). Download before Ready (desktop): ${fmt(metrics.firstLoadKB / 1000, 2)} MB, ${fmt(metrics.firstLoadWireKB / 1000, 2)} MB compressed; whole site: ${fmt(totalKB / 1000, 2)} MB; biggest JS chunk ${chunks[0] ? `${chunks[0].name} ${fmt(chunks[0].kb)} KB` : '—'}.`,
   '',
   ...failures.map((f) => `- ❌ ${f}`),
   ...warnings.map((w) => `- ⚠️ ${w}`),
