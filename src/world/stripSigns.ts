@@ -350,7 +350,8 @@ export function harrahsSigns(b: WorldBuilder): void {
 // ====================================================================== The LINQ
 /** The LINQ: big white LINQ letters on the hotel's crown (cool white neon at night). */
 export function linqSigns(b: WorldBuilder): void {
-  b.add(neonPanel(b, 'LINQ', 15, 4.6, { style: 'block', color: '#ff5ad8', fill: '#ffffff', spacing: 0.12, size: 0.8 }), 21.85, 20.6, -128, -Math.PI / 2);
+  // white backlit channel letters (no neon over them: white + tubes bloomed into a blob at night)
+  b.add(letters(b, 'LINQ', 15, 4.6, { style: 'block', fill: '#eef2f6', edge: '#c0207a', edgeW: 10, spacing: 0.12, scale: 0.86 }), 21.85, 20.6, -128, -Math.PI / 2);
   // promenade gateway: THE LINQ in white on the slate entrance cabinet with a cyan tube underline
   b.add(neonPanel(b, 'THE LINQ', 10, 1.8, { style: 'sans', color: '#5ad0ff', fill: '#eaf8ff', bg: 0x0d1420, depth: 0.28, spacing: 0.25, size: 0.72 }), 39, 6, -117.8);
 }
@@ -728,4 +729,493 @@ export function treasureIslandSigns(b: WorldBuilder): void {
   const z = -328;
   place(b, g, x, z, 0, [5.6, 1.0], top + 3.4);
   driveLed(b, led, x, 10, z);
+}
+
+// ====================================================================== Excalibur
+const EXCALIBUR_SHOWS: LedShow[] = [
+  { name: 'TOURNAMENT OF KINGS', sub: 'DINNER • JOUSTING • NIGHTLY', color: '#8a1a1a', art: 'band' },
+  { name: 'THUNDER FROM DOWN UNDER', sub: 'THUNDER ROOM • 18+', color: '#1f3f86', art: 'dj' },
+];
+
+/** Excalibur: a castle-gate marquee between two round turrets with red / blue / gold cone roofs, battlements and gothic gold lettering. */
+export function excaliburSigns(b: WorldBuilder, x = -23.4, z = 476): void {
+  const stone = mat(0xf2efe6, 0.75);
+  const roofs = [mat(0xb3121f, 0.55), mat(0x1f3f86, 0.55), mat(0xd4a640, 0.35, 0.6)];
+  const gold = mat(0xd9a93e, 0.3, 0.85);
+  const led = new LedBoard('EXCALIBUR', ['FUN DUNGEON MIDWAY', 'ROUND TABLE BUFFET', 'DICK’S LAST RESORT', 'FREE TRAM TO LUXOR & MANDALAY'], ['#b3121f', '#1f3f86', '#d4a640', '#2a7a3a'], 256, 512).withShows(EXCALIBUR_SHOWS);
+  const g = new THREE.Group();
+  const w = 6.4;
+  const ledH = 8;
+  const ledY = 5.2;
+  const crownH = 2.6;
+  const crownY = ledY + ledH + 0.3 + crownH / 2;
+  const tx = w / 2 + 1.0;
+  // turrets
+  for (const s of [-1, 1]) {
+    const th = crownY + crownH / 2 + 1.6;
+    g.add(part(cyl(1.05, th, 16, 0.95), stone, s * tx, th / 2, 0));
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g.add(part(box(0.42, 0.55, 0.42), stone, s * tx + Math.cos(a) * 0.98, th + 0.27, Math.sin(a) * 0.98, -a));
+    }
+    g.add(part(new THREE.ConeGeometry(1.25, 3.2, 16), roofs[s < 0 ? 0 : 1], s * tx, th + 2.2, 0));
+    g.add(part(new THREE.SphereGeometry(0.16, 8, 6), gold, s * tx, th + 3.9, 0));
+    g.add(part(box(0.04, 1.4, 0.04), gold, s * tx, th + 4.5, 0));
+    g.add(part(box(0.8, 0.45, 0.03), roofs[s < 0 ? 2 : 0], s * tx + 0.42, th + 4.9, 0));
+    for (const yy of [3.2, 7.2, 11.2]) g.add(part(box(0.28, 0.9, 0.12), mat(0x1a1410, 0.6), s * tx, yy, s * 0.0 + 1.0)); // arrow slits
+  }
+  // the gate: a stone arch under the board
+  g.add(part(box(w + 0.6, ledY, 1.1), stone, 0, ledY / 2, 0));
+  g.add(part(box(2.4, 3.2, 1.2), mat(0x2a1a10, 0.7), 0, 1.6, 0));
+  g.add(part(new THREE.CylinderGeometry(1.2, 1.2, 1.2, 16, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2).rotateZ(Math.PI / 2), mat(0x2a1a10, 0.7), 0, 3.2, 0));
+  // board
+  g.add(part(box(w + 0.5, ledH + 0.5, 1.0), stone, 0, ledY + ledH / 2, 0));
+  g.add(placed(ledFaces(led, w, ledH, 1.0), 0, ledY + ledH / 2, 0));
+  // crown with battlements
+  g.add(part(box(w + 1.0, crownH, 1.2), stone, 0, crownY, 0));
+  g.add(placed(letterFace(b, w + 0.8, crownH - 0.2, (ctx, cw, ch) => {
+    const gr = ctx.createLinearGradient(0, 0, 0, ch);
+    gr.addColorStop(0, '#b3121f');
+    gr.addColorStop(1, '#6a0810');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.strokeStyle = goldGradient(ctx, 0, ch);
+    ctx.lineWidth = ch * 0.05;
+    ctx.strokeRect(ch * 0.08, ch * 0.08, cw - ch * 0.16, ch - ch * 0.16);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    fitFont(ctx, 'Excalibur', 'gothic', cw * 0.84, ch * 0.78);
+    ctx.lineWidth = ch * 0.04;
+    ctx.strokeStyle = '#3a0408';
+    ctx.strokeText('Excalibur', cw / 2, ch * 0.54);
+    ctx.fillStyle = goldGradient(ctx, ch * 0.15, ch * 0.85);
+    ctx.fillText('Excalibur', cw / 2, ch * 0.54);
+  }, 1.2), 0, crownY, 0));
+  for (let i = -3; i <= 3; i++) g.add(part(box(0.6, 0.6, 1.2), stone, i * 1.05, crownY + crownH / 2 + 0.3, 0));
+  // sword in the stone on top
+  g.add(part(box(0.12, 2.2, 0.06), mat(0xd8dde4, 0.2, 0.9), 0, crownY + crownH / 2 + 1.7, 0));
+  g.add(part(box(0.9, 0.12, 0.12), gold, 0, crownY + crownH / 2 + 2.5, 0));
+  g.add(part(new THREE.SphereGeometry(0.12, 8, 6), gold, 0, crownY + crownH / 2 + 3.0, 0));
+  b.add(g, x, 0, z);
+  b.collider(x - tx - 1.05, x + tx + 1.05, z - 1.05, z + 1.05, 0, crownY + crownH / 2 + 1.6, true);
+  driveLed(b, led, x, ledY + ledH / 2, z);
+}
+
+/** Gold gothic Excalibur letters for the tower face. */
+export function excaliburTowerLetters(b: WorldBuilder): THREE.Object3D {
+  return letters(b, 'Excalibur', 10, 2.4, { style: 'gothic', fill: 'gold', edge: '#5a0a10', edgeW: 6 });
+}
+
+// ====================================================================== Luxor
+const LUXOR_SHOWS: LedShow[] = [
+  { name: 'CARROT TOP', sub: 'ATRIUM SHOWROOM • NIGHTLY', color: '#1f3f86', art: 'comic' },
+  { name: 'BLUE MAN GROUP', sub: 'BLUE MAN THEATER', color: '#1a3aa8', art: 'band' },
+  { name: 'FANTASY', sub: 'ATRIUM SHOWROOM • 18+', color: '#7a1c6a', art: 'singer' },
+];
+
+/** Luxor: a sandstone Egyptian pylon (battered piers, cavetto cornice, winged sun disc) carrying the LED board, LUXOR in gold. */
+export function luxorSigns(b: WorldBuilder, x = -23.4, z = 604): void {
+  const sand = mat(0xc9a878, 0.8);
+  const dark = mat(0x1a1c2a, 0.5, 0.3);
+  const gold = mat(0xe0b04a, 0.3, 0.85);
+  const led = new LedBoard('LUXOR', ['TITANIC: THE ARTIFACT EXHIBITION', 'BODIES… THE EXHIBITION', 'HYDE BELLAGIO • ESPORTS ARENA', 'THE SKY BEAM IS ON'], ['#1f3f86', '#c9a04a', '#7a1c6a', '#0a6a7a'], 256, 512).withShows(LUXOR_SHOWS);
+  const g = new THREE.Group();
+  const w = 6.2;
+  const ledH = 8.6;
+  const ledY = 5.4;
+  // battered piers either side, painted with hieroglyph bands
+  for (const s of [-1, 1]) {
+    const pier = new THREE.CylinderGeometry(0.9 * Math.SQRT2 * 0.72, 1.2 * Math.SQRT2 * 0.72, ledY + ledH + 1.2, 4, 1);
+    pier.rotateY(Math.PI / 4);
+    g.add(part(pier, sand, s * (w / 2 + 1.0), (ledY + ledH + 1.2) / 2, 0));
+    const glyphs = letterFace(b, 1.2, 9, (ctx, pw, ph) => {
+      ctx.fillStyle = '#c9a878';
+      ctx.fillRect(0, 0, pw, ph);
+      ctx.fillStyle = '#1f3f86';
+      ctx.fillRect(pw * 0.08, 0, pw * 0.04, ph);
+      ctx.fillRect(pw * 0.88, 0, pw * 0.04, ph);
+      const R = rngSigns(7 + s);
+      for (let y = ph * 0.03; y < ph * 0.97; y += pw * 0.5) {
+        const k = Math.floor(R() * 5);
+        ctx.fillStyle = ['#1f3f86', '#8a1a1a', '#2a6a4a', '#1a1a1a', '#b07a1a'][k];
+        const cx = pw / 2;
+        const cy = y + pw * 0.22;
+        const r = pw * 0.2;
+        ctx.beginPath();
+        if (k === 0) ctx.ellipse(cx, cy, r * 1.3, r * 0.6, 0, 0, Math.PI * 2); // eye
+        else if (k === 1) ctx.arc(cx, cy, r, 0, Math.PI * 2); // sun
+        else if (k === 2) {
+          ctx.moveTo(cx - r, cy + r); // reed
+          ctx.lineTo(cx, cy - r);
+          ctx.lineTo(cx + r * 0.4, cy + r);
+        } else if (k === 3) ctx.rect(cx - r, cy - r * 0.3, r * 2, r * 0.6); // water
+        else {
+          ctx.moveTo(cx, cy - r); // ankh
+          ctx.arc(cx, cy - r * 0.5, r * 0.45, 0, Math.PI * 2);
+          ctx.rect(cx - r * 0.12, cy - r * 0.1, r * 0.24, r * 1.2);
+          ctx.rect(cx - r * 0.6, cy + r * 0.05, r * 1.2, r * 0.22);
+        }
+        ctx.fill();
+      }
+    }, 1.75);
+    g.add(placed(glyphs, s * (w / 2 + 1.0), ledY + ledH / 2 - 0.4, 0));
+  }
+  // board between the piers
+  g.add(part(box(w + 0.4, ledH + 0.4, 1.0), dark, 0, ledY + ledH / 2, 0));
+  g.add(placed(ledFaces(led, w, ledH, 1.0), 0, ledY + ledH / 2, 0));
+  g.add(part(box(w + 0.2, ledY, 0.9), sand, 0, ledY / 2, 0));
+  // cavetto cornice with LUXOR and the winged sun disc
+  const cy = ledY + ledH + 1.6;
+  g.add(part(box(w + 3.8, 2.4, 1.9), sand, 0, cy, 0));
+  g.add(part(box(w + 4.4, 0.4, 2.3), gold, 0, cy + 1.4, 0));
+  g.add(placed(letterFace(b, w + 3.6, 2.2, (ctx, cw, ch) => {
+    ctx.fillStyle = '#141a30';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.fillStyle = '#e0b04a';
+    ctx.fillRect(0, 0, cw, ch * 0.08);
+    ctx.fillRect(0, ch * 0.92, cw, ch * 0.08);
+    for (let i = 0; i < 26; i++) {
+      ctx.fillStyle = i % 2 ? '#1f3f86' : '#c9a04a';
+      ctx.fillRect((i / 26) * cw, ch * 0.08, cw / 26, ch * 0.08);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    fitFont(ctx, 'LUXOR', 'roman', cw * 0.7, ch * 0.62, 0.32);
+    ctx.fillStyle = goldGradient(ctx, ch * 0.25, ch * 0.85);
+    ctx.fillText('LUXOR', cw / 2, ch * 0.58);
+    ctx.letterSpacing = '0px';
+  }, 1.9), 0, cy, 0));
+  const disc = letterFace(b, 4.2, 1.3, (ctx, cw, ch) => {
+    ctx.fillStyle = goldGradient(ctx, 0, ch);
+    ctx.beginPath();
+    ctx.arc(cw / 2, ch * 0.5, ch * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    for (const s of [-1, 1]) {
+      for (let k = 0; k < 4; k++) {
+        ctx.beginPath();
+        ctx.moveTo(cw / 2 + s * ch * 0.36, ch * (0.36 + k * 0.08));
+        ctx.quadraticCurveTo(cw / 2 + s * cw * 0.3, ch * (0.2 + k * 0.1), cw / 2 + s * cw * (0.48 - k * 0.06), ch * (0.3 + k * 0.12));
+        ctx.lineTo(cw / 2 + s * ch * 0.36, ch * (0.44 + k * 0.08));
+        ctx.fill();
+      }
+    }
+    ctx.fillStyle = '#8a1a1a';
+    ctx.beginPath();
+    ctx.arc(cw / 2, ch * 0.5, ch * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }, 0.3);
+  g.add(placed(disc, 0, cy + 2.4, 0));
+  g.add(part(box(0.4, 0.8, 0.3), gold, 0, cy + 1.8, 0));
+  b.add(g, x, 0, z);
+  b.collider(x - w / 2 - 2.1, x + w / 2 + 2.1, z - 1.2, z + 1.2, 0, cy + 3, true);
+  driveLed(b, led, x, ledY + ledH / 2, z);
+}
+
+function rngSigns(seed: number): () => number {
+  let s = seed * 9301 + 49297;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+/** Gold LUXOR letters lying on the pyramid's Strip face (replaces the boxed neon sign; same transform). */
+export function luxorPyramidLetters(b: WorldBuilder): THREE.Object3D {
+  return neonPanel(b, 'LUXOR', 14, 2.8, { style: 'roman', color: '#ffd27a', fill: '#f2c86a', spacing: 0.3, size: 0.78 });
+}
+
+// ====================================================================== Mandalay Bay
+const MANDALAY_SHOWS: LedShow[] = [
+  { name: 'MICHELOB ULTRA ARENA', sub: 'LIVE • THIS WEEKEND', color: '#7a5a1a', art: 'band' },
+  { name: 'HOUSE OF BLUES', sub: 'GOSPEL BRUNCH • SUNDAYS', color: '#1a2a6a', art: 'singer' },
+  { name: 'SHARK REEF', sub: 'AQUARIUM • OPEN DAILY', color: '#0f6a7a', art: 'cirque' },
+];
+
+/** Mandalay Bay: a gold-leaf pylon under a flared pagoda cap, MANDALAY BAY in gold on bronze; gold letters on the tower wings. */
+export function mandalaySigns(b: WorldBuilder, x = -23.4, z = 650): void {
+  const goldLeaf = mat(0xd4a640, 0.25, 0.9);
+  const bronze = mat(0x3a2a14, 0.4, 0.6);
+  const led = new LedBoard('MANDALAY BAY', ['MANDALAY BAY BEACH', 'SHARK REEF AQUARIUM', 'FOUR SEASONS • W HOTEL', 'BAYSIDE BUFFET'], ['#c9a04a', '#0f6a7a', '#d0502a', '#2a3a8a'], 256, 512).withShows(MANDALAY_SHOWS);
+  const crown = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = '#2a1c0c';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = goldGradient(ctx, 0, h);
+    ctx.lineWidth = h * 0.04;
+    ctx.strokeRect(h * 0.07, h * 0.07, w - h * 0.14, h - h * 0.14);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    fitFont(ctx, 'MANDALAY', 'deco', w * 0.82, h * 0.42, 0.14);
+    ctx.fillStyle = goldGradient(ctx, h * 0.12, h * 0.52);
+    ctx.fillText('MANDALAY', w / 2, h * 0.33);
+    fitFont(ctx, 'BAY', 'deco', w * 0.4, h * 0.32, 0.6);
+    ctx.fillStyle = goldGradient(ctx, h * 0.55, h * 0.88);
+    ctx.fillText('BAY', w / 2, h * 0.72);
+    ctx.letterSpacing = '0px';
+  };
+  const { g, top } = marqueePylon(b, { w: 6.2, ledH: 8.6, ledY: 6.4, led, frame: goldLeaf, trim: bronze, legs: 'slab', crownH: 3.2, crownW: 7.2, crown });
+  // flared pagoda cap
+  const cap = new THREE.ConeGeometry(5.6, 1.8, 4, 1, true);
+  cap.rotateY(Math.PI / 4);
+  cap.scale(1, 1, 0.32);
+  g.add(part(cap, goldLeaf, 0, top + 0.9, 0));
+  g.add(part(new THREE.ConeGeometry(0.35, 2.6, 8), goldLeaf, 0, top + 2.6, 0));
+  g.add(part(new THREE.SphereGeometry(0.3, 10, 8), goldLeaf, 0, top + 1.6, 0));
+  place(b, g, x, z, 0, [4.6, 1.2], top + 2);
+  driveLed(b, led, x, 10, z);
+}
+
+/** Gold MANDALAY BAY letters for a tower wing (faces +z). */
+export function mandalayTowerLetters(b: WorldBuilder): THREE.Object3D {
+  return letters(b, 'MANDALAY BAY', 10, 1.9, { style: 'deco', fill: 'gold', edge: '#3a2608', spacing: 0.1 });
+}
+
+// ====================================================================== Resorts World
+/** The Resorts World mark: a red lotus over the white wordmark, on a black cabinet (two-sided crown for the pylon). */
+function resortsWorldCrown(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.fillStyle = '#0c0c0e';
+  ctx.fillRect(0, 0, w, h);
+  // lotus
+  const cx = w / 2;
+  const cy = h * 0.3;
+  const r = h * 0.2;
+  ctx.fillStyle = '#e0102a';
+  for (let i = -2; i <= 2; i++) {
+    ctx.save();
+    ctx.translate(cx, cy + r * 0.8);
+    ctx.rotate(i * 0.42);
+    ctx.beginPath();
+    ctx.ellipse(0, -r * 0.8, r * 0.32, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  fitFont(ctx, 'RESORTS', 'thin', w * 0.84, h * 0.2, 0.25);
+  ctx.fillText('RESORTS', cx, h * 0.66);
+  fitFont(ctx, 'WORLD', 'thin', w * 0.6, h * 0.2, 0.45);
+  ctx.fillText('WORLD', cx, h * 0.86);
+  ctx.letterSpacing = '0px';
+}
+
+/** Crown + red bands for the existing Resorts World LED pylon (faces ±x, board 7 wide at x, z). */
+export function resortsWorldPylonCrown(b: WorldBuilder, x: number, z: number, topY: number, w: number): void {
+  const g = new THREE.Group();
+  g.add(part(box(w + 0.6, 4.4, 1.4), mat(0x0c0c0e, 0.4, 0.4), 0, 2.2, 0));
+  g.add(placed(letterFace(b, w + 0.4, 4.2, resortsWorldCrown, 1.4), 0, 2.2, 0));
+  g.add(placed(neonFace(b, w + 0.4, 0.3, (ctx, pw, ph) => {
+    const p = new Path2D();
+    p.moveTo(ph, ph / 2);
+    p.lineTo(pw - ph, ph / 2);
+    neonStroke(ctx, p, '#ff2a3a', ph * 0.3);
+  }, 1.4), 0, -0.1, 0));
+  b.add(g, x, topY, z, Math.PI / 2);
+}
+
+/** Resorts World tower lettering: thin white caps with the red lotus (faces +z). */
+export function resortsWorldTowerSign(b: WorldBuilder, w: number, h: number): THREE.Object3D {
+  return letterFace(b, w, h, (ctx, pw, ph) => {
+    const r = ph * 0.38;
+    ctx.fillStyle = '#e0102a';
+    for (let i = -2; i <= 2; i++) {
+      ctx.save();
+      ctx.translate(r * 1.3, ph * 0.5 + r * 0.6);
+      ctx.rotate(i * 0.42);
+      ctx.beginPath();
+      ctx.ellipse(0, -r * 0.8, r * 0.3, r * 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    fitFont(ctx, 'RESORTS WORLD', 'thin', pw - r * 3.2, ph * 0.7, 0.14);
+    ctx.fillText('RESORTS WORLD', r * 2.6 + (pw - r * 2.6) / 2, ph * 0.54);
+    ctx.letterSpacing = '0px';
+  });
+}
+
+// ====================================================================== Fontainebleau
+function bowtie(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx - s, cy - s * 0.6);
+  ctx.lineTo(cx - s, cy + s * 0.6);
+  ctx.closePath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + s, cy - s * 0.6);
+  ctx.lineTo(cx + s, cy + s * 0.6);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** Fontainebleau: thin white Didone caps with the bowtie mark (tower crown and the porte-cochère). Faces +z. */
+export function fontainebleauSign(b: WorldBuilder, w: number, h: number, sub?: string, bg?: number): THREE.Object3D {
+  const g = new THREE.Group();
+  if (bg !== undefined) g.add(part(box(w, h, 0.3), mat(bg, 0.4, 0.3), 0, 0, 0));
+  const face = letterFace(b, w - 0.1, h - 0.1, (ctx, pw, ph) => {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    bowtie(ctx, pw / 2, ph * (sub ? 0.18 : 0.2), ph * 0.12, '#ffffff');
+    fitFont(ctx, 'FONTAINEBLEAU', 'deco', pw * 0.92, ph * (sub ? 0.36 : 0.46), 0.16);
+    ctx.font = ctx.font.replace('bold ', '');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('FONTAINEBLEAU', pw / 2, ph * (sub ? 0.55 : 0.64));
+    if (sub) {
+      fitFont(ctx, sub, 'thin', pw * 0.4, ph * 0.13, 0.6);
+      ctx.fillStyle = '#cfe6ff';
+      ctx.fillText(sub, pw / 2, ph * 0.84);
+    }
+    ctx.letterSpacing = '0px';
+  });
+  face.position.z = bg !== undefined ? 0.162 : 0;
+  g.add(face);
+  return g;
+}
+
+// ====================================================================== Peppermill
+/** Peppermill's 1970s pole sign: magenta script on a violet cabinet, a chasing bulb frame, and the two-line neon under-panel. */
+export function peppermillSign(b: WorldBuilder): THREE.Group {
+  const g = new THREE.Group();
+  g.add(neonPanel(b, 'Peppermill', 6.8, 2.0, { style: 'script', color: '#ff5ad8', fill: '#ff9ae8', bg: 0x2a0a3a, depth: 0.5, size: 0.9, two: true }));
+  g.add(bulbRect(6.8, 2.0, 0.5, 0.14, true, 0.3, 0.16));
+  const sub = new THREE.Group();
+  sub.add(part(box(6.0, 1.0, 0.4), mat(0x1c0630, 0.6), 0, 0, 0));
+  sub.add(neonFace(b, 5.9, 0.95, (ctx, pw, ph) => {
+    paintNeonText(ctx, pw / 2, ph * 0.3, 'RESTAURANT', 'sans', ph * 0.3, '#7ad8ff', 0.2);
+    paintNeonText(ctx, pw / 2, ph * 0.74, 'FIRESIDE LOUNGE', 'sans', ph * 0.28, '#ffb35a', 0.15);
+  }, 0.4));
+  g.add(placed(sub, 0, -1.65, 0));
+  return g;
+}
+
+// ====================================================================== North backdrop (Sahara, The STRAT)
+/** SAHARA in sand-gold Didone caps over LAS VEGAS (the 2019 identity), on a dark cabinet. Faces +z. */
+export function saharaSign(b: WorldBuilder, w: number, h: number, withSub: boolean): THREE.Object3D {
+  const g = new THREE.Group();
+  g.add(part(box(w, h, 0.4), mat(0x1a120a, 0.6), 0, 0, 0));
+  const face = letterFace(b, w - 0.1, h - 0.1, (ctx, pw, ph) => {
+    ctx.fillStyle = '#1a120a';
+    ctx.fillRect(0, 0, pw, ph);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    fitFont(ctx, 'SAHARA', 'deco', pw * 0.86, ph * (withSub ? 0.52 : 0.7), 0.22);
+    ctx.fillStyle = goldGradient(ctx, ph * 0.1, ph * 0.7, 'bronze');
+    ctx.fillText('SAHARA', pw / 2, ph * (withSub ? 0.4 : 0.52));
+    if (withSub) {
+      fitFont(ctx, 'LAS VEGAS', 'thin', pw * 0.5, ph * 0.16, 0.7);
+      ctx.fillStyle = '#ffd9a8';
+      ctx.fillText('LAS VEGAS', pw / 2, ph * 0.8);
+    }
+    ctx.letterSpacing = '0px';
+  });
+  face.position.z = 0.212;
+  g.add(face);
+  return g;
+}
+
+/** THE STRAT in red block letters with a white tube core. Faces +z. */
+export function stratSign(b: WorldBuilder, w: number, h: number, bg?: number): THREE.Group {
+  return neonPanel(b, 'THE STRAT', w, h, { style: 'block', color: '#ff2a44', fill: '#e8102c', bg, depth: 0.3, spacing: 0.06, size: 0.66 });
+}
+
+// ====================================================================== Street level
+/**
+ * RTC Deuce stop flag: black and metallic-gold DEUCE header, the blue RTC band, the stop name and the
+ * double-decker pictogram, two-sided on a pole. Origin at the foot of the pole.
+ */
+export function deuceStopSign(b: WorldBuilder, stopName: string): THREE.Group {
+  const g = new THREE.Group();
+  const pole = mat(0x8c9196, 0.4, 0.7);
+  g.add(part(cyl(0.05, 3.4, 8), pole, 0, 1.7, 0));
+  g.add(part(box(0.86, 1.32, 0.05), mat(0x111111, 0.5, 0.3), 0, 2.75, 0));
+  g.add(placed(letterFace(b, 0.8, 1.26, (ctx, w, h) => {
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = goldGradient(ctx, 0, h * 0.3);
+    fitFont(ctx, 'DEUCE', 'block', w * 0.86, h * 0.17, 0.04);
+    ctx.fillText('DEUCE', w / 2, h * 0.13);
+    fitFont(ctx, 'ON THE STRIP', 'sans', w * 0.8, h * 0.06, 0.12);
+    ctx.fillStyle = '#ffd36a';
+    ctx.fillText('ON THE STRIP', w / 2, h * 0.255);
+    ctx.fillStyle = '#1d4f9c';
+    ctx.fillRect(0, h * 0.31, w, h * 0.13);
+    ctx.fillStyle = '#ffffff';
+    fitFont(ctx, 'RTC  BUS STOP', 'sans', w * 0.86, h * 0.08, 0.06);
+    ctx.fillText('RTC  BUS STOP', w / 2, h * 0.375);
+    // bus pictogram
+    ctx.fillStyle = '#c8a34a';
+    const bx = w * 0.18;
+    const by = h * 0.48;
+    const bw = w * 0.64;
+    const bh = h * 0.2;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, h * 0.02);
+    ctx.fill();
+    ctx.fillStyle = '#111111';
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(bx + bw * (0.06 + i * 0.18), by + bh * 0.12, bw * 0.13, bh * 0.28);
+      ctx.fillRect(bx + bw * (0.06 + i * 0.18), by + bh * 0.52, bw * 0.13, bh * 0.22);
+    }
+    ctx.beginPath();
+    ctx.arc(bx + bw * 0.22, by + bh, bh * 0.16, 0, Math.PI * 2);
+    ctx.arc(bx + bw * 0.78, by + bh, bh * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    fitFont(ctx, stopName, 'sans', w * 0.88, h * 0.075, 0.02);
+    ctx.fillText(stopName, w / 2, h * 0.8);
+    ctx.fillStyle = '#ffd36a';
+    fitFont(ctx, '24 HRS • EVERY 15 MIN', 'sans', w * 0.8, h * 0.05, 0.05);
+    ctx.fillText('24 HRS • EVERY 15 MIN', w / 2, h * 0.92);
+    ctx.letterSpacing = '0px';
+  }, 0.05), 0, 2.75, 0));
+  return g;
+}
+
+/**
+ * Clark County mast-arm street-name blade: internally lit, white mixed-case on green with a thin white
+ * border (two-sided). `w` long; origin at its centre; faces ±z.
+ */
+export function streetBlade(b: WorldBuilder, name: string, w = 2.8): THREE.Group {
+  const g = new THREE.Group();
+  const h = 0.52;
+  g.add(part(box(w + 0.06, h + 0.06, 0.12), mat(0x2a2d32, 0.5, 0.5), 0, 0, 0));
+  g.add(placed(letterFace(b, w, h, (ctx, pw, ph) => {
+    ctx.fillStyle = '#0d6b3c';
+    ctx.fillRect(0, 0, pw, ph);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(2, ph * 0.05);
+    ctx.beginPath();
+    ctx.roundRect(ph * 0.07, ph * 0.07, pw - ph * 0.14, ph - ph * 0.14, ph * 0.08);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    fitFont(ctx, name, 'road', pw * 0.88, ph * 0.66, 0.03);
+    ctx.fillText(name, pw / 2, ph * 0.54);
+    ctx.letterSpacing = '0px';
+  }, 0.12), 0, 0, 0));
+  return g;
+}
+
+/** Skybridge fascia: an illuminated band with the street it crosses and the resorts it links. Faces +z. */
+export function bridgeFascia(b: WorldBuilder, street: string, label: string, accent: string, w = 10, h = 1.3): THREE.Object3D {
+  return letterFace(b, w, h, (ctx, pw, ph) => {
+    ctx.fillStyle = '#0c1016';
+    ctx.fillRect(0, 0, pw, ph);
+    ctx.fillStyle = accent;
+    ctx.fillRect(0, ph * 0.9, pw, ph * 0.1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    fitFont(ctx, street, 'road', pw * 0.8, ph * 0.46, 0.12);
+    ctx.fillText(street, pw / 2, ph * 0.33);
+    ctx.fillStyle = mixWhite(accent, 0.35);
+    fitFont(ctx, label, 'sans', pw * 0.9, ph * 0.22, 0.08);
+    ctx.fillText(label, pw / 2, ph * 0.7);
+    ctx.letterSpacing = '0px';
+  });
 }

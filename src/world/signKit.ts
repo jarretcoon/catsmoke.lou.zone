@@ -15,7 +15,7 @@ import { chaseBulbMaterial, mat } from './props';
  * LED boards only redraw when the camera is near them. One `b.every` drives all of it.
  */
 
-export type LetterStyle = 'roman' | 'serif' | 'script' | 'block' | 'sans' | 'deco' | 'slab' | 'egypt' | 'thin';
+export type LetterStyle = 'roman' | 'serif' | 'script' | 'block' | 'sans' | 'deco' | 'slab' | 'egypt' | 'thin' | 'gothic' | 'road';
 
 const FONT: Record<LetterStyle, (px: number) => string> = {
   roman: (px) => `${px}px "Perpetua Titling MT", "Trajan Pro", "Times New Roman", Georgia, serif`,
@@ -27,6 +27,8 @@ const FONT: Record<LetterStyle, (px: number) => string> = {
   slab: (px) => `bold ${px}px "Rockwell Extra Bold", Rockwell, "Courier New", serif`,
   egypt: (px) => `bold ${px}px Papyrus, "Copperplate Gothic Bold", Copperplate, Georgia, serif`,
   thin: (px) => `300 ${px}px "Segoe UI Light", "Helvetica Neue", Arial, sans-serif`,
+  gothic: (px) => `${px}px "Old English Text MT", "Blackadder ITC", "Engravers MT", Georgia, serif`,
+  road: (px) => `bold ${px}px "Highway Gothic", "Arial Narrow", "Segoe UI", Arial, sans-serif`,
 };
 
 export function font(style: LetterStyle, px: number): string {

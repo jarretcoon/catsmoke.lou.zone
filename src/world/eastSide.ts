@@ -658,7 +658,7 @@ function buildLinq(b: WorldBuilder): void {
   );
 
   const linqSkin = { wall: '#e8ebef', mullion: '#ffffff', glass: '#4a6a8a', lit: '#e8f4ff', cols: 10, rows: 20, style: 1 as const, seed: 111 };
-  tower(b, { x: 39, z: -128, w: 34, d: 20, h: 28, facade: linqSkin });
+  tower(b, { x: 39, z: -128, w: 34, d: 20, h: 28, facade: linqSkin, crownGlow: 0.5, washStrength: 0.3, washZone: 5 }); // soft crown so the LINQ letters read
   linqSigns(b); // LINQ crown letters + the promenade gateway sign (stripSigns.ts)
   b.building(39, -128, 34, 20, '#e8ebef', 'LINQ');
   b.zone('The LINQ Hotel', 19, 60, -140, -110);
@@ -691,7 +691,7 @@ function buildHarrahs(b: WorldBuilder): void {
 
   const harrahs = { wall: '#d9c4a0', mullion: '#ecdcbc', glass: '#7a4a3a', lit: '#ffe0a0', cols: 10, rows: 22, style: 0 as const, seed: 121 };
   b.box(52, 0, -164, 16, 12, 42, mat(0x7a1c1c, 0.6), true);
-  tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs });
+  tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs, crownGlow: 0.5, washStrength: 0.3, washZone: 5 }); // soft crown so the script reads
   harrahsSigns(b); // the burgundy-and-gold script marquee at the Strip + tower script (stripSigns.ts)
   b.building(62, -165, 40, 42, '#7a1c1c', "Harrah's");
   b.zone("Harrah's Las Vegas", 19, 90, -186, -140);

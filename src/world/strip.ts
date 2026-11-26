@@ -6,6 +6,8 @@ import { LedBoard, makeBoulevardMaps, makeCrossStreetTexture, makeGlowTexture, m
 import { viewer } from './builder';
 import { boxTruck, lampGlow, signs } from './backOfHouse';
 import { posterGeometry, POSTER_COUNT } from './streetTextures';
+import { bridgeFascia, deuceStopSign, streetBlade } from './stripSigns';
+import { placed } from './signKit';
 import {
   ashUrn,
   basic,
@@ -70,6 +72,21 @@ export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?:
   { z: -244, name: 'Venetian', offset: 11 },
   { z: -316, name: 'TI / Palazzo', offset: 1 },
 ];
+
+/** Lit mast-arm blades at the real cross streets: [west pole, east pole]. Mid-block casino crossings get none. */
+const STREET_BLADES: Record<string, [string, string]> = {
+  'Circus Circus Dr': ['Circus Circus Dr', 'Circus Circus Dr'],
+  'Resorts World Ave': ['Resorts World Ave', 'Resorts World Ave'],
+  'Convention Center Dr': ['Convention Center Dr', 'Convention Center Dr'],
+  'Genting Blvd': ['Genting Blvd', 'Genting Blvd'],
+  'Fashion Show Dr': ['Fashion Show Dr', 'Fashion Show Dr'],
+  'Spring Mountain Rd / Sands Ave': ['Spring Mountain Rd', 'Sands Ave'],
+  'Harmon Ave': ['Harmon Ave', 'Harmon Ave'],
+  'Reno Ave': ['Reno Ave', 'Reno Ave'],
+  'Mandalay Bay Rd / Hacienda': ['Mandalay Bay Rd', 'Hacienda Ave'],
+  'Four Seasons Dr': ['Four Seasons Dr', 'Four Seasons Dr'],
+  'Russell Rd': ['Russell Rd', 'Russell Rd'],
+};
 
 export interface DeuceState {
   mesh: THREE.Group;
@@ -275,11 +292,14 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   const lampSets = { fns: signalLamps(), few: signalLamps(), tns: signalLamps(), tew: signalLamps() };
   for (const [x, z, rot, axis] of flamingoDefs) {
     const sig = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1, axis === 'ns' ? lampSets.fns : lampSets.few);
+    // Lit street-name blades on the mast arms: the cross street over the Strip, the Boulevard over the cross street
+    sig.group.add(placed(streetBlade(b, axis === 'ns' ? 'Flamingo Rd' : 'Las Vegas Blvd S'), 2.1, 7.35, 0));
     b.add(sig.group, x, 0, z, rot);
     b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, 7, true);
     signals.push({ sig, read: () => flamingoPhase(clock())[axis] });
     const tz = z + STRIP.tropicanaZ;
     const sig2 = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1, axis === 'ns' ? lampSets.tns : lampSets.tew);
+    sig2.group.add(placed(streetBlade(b, axis === 'ns' ? 'Tropicana Ave' : 'Las Vegas Blvd S'), 2.1, 7.35, 0));
     b.add(sig2.group, x, 0, tz, rot);
     b.collider(x - 0.25, x + 0.25, tz - 0.25, tz + 0.25, 0, 7, true);
     signals.push({ sig: sig2, read: () => tropicanaPhase(clock())[axis] });
@@ -307,6 +327,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       bar.rotation.x = -Math.PI / 2;
       b.add(bar);
       const sig = trafficSignal(5.5, lamps);
+      const blade = STREET_BLADES[cw.name];
+      if (blade) sig.group.add(placed(streetBlade(b, s < 0 ? blade[0] : blade[1]), 2.0, 7.35, 0));
       const sx = s * (half + 0.9);
       const sz = cw.z - s * 3.4;
       b.add(sig.group, sx, 0, sz, s < 0 ? 0 : Math.PI);
@@ -386,9 +408,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       pm.rotation.y = f > 0 ? 0 : Math.PI;
       b.add(pm);
     }
-    const sign = neonSign('THE DEUCE', '#111111', '#ffcc33', 1.7, 0.6, stop.name, 0.08);
-    b.add(sign, x - stop.side * 1.0, 3.2, stop.z - 1.4, stop.side < 0 ? Math.PI / 2 : -Math.PI / 2);
-    b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.2, 6), shelterFrame, x - stop.side * 1.0, 1.6, stop.z - 1.4));
+    // RTC Deuce stop flag (black and gold DEUCE, blue RTC band, the stop), facing the oncoming bus
+    b.add(deuceStopSign(b, stop.name), x - stop.side * 1.0, 0, stop.z - 3.1); // clear of the shelter roof
     b.staticMarkers.push({ x, z: stop.z, color: '#ffcc33', glyph: 'D', size: 2.6 });
   }
 
@@ -690,8 +711,8 @@ function buildSkybridges(b: WorldBuilder, zc: number, labels: [string, string, s
     b.box(0, y, zc + sz, X * 2 - wDeck, 0.4, wDeck, deck);
     for (const e of [-1, 1]) b.box(0, y + 0.4, zc + sz + e * (wDeck / 2 - 0.1), X * 2 - wDeck * 2, 1.15, 0.12, glass, true, false);
     b.add(mesh(new THREE.BoxGeometry(X * 2, 0.2, wDeck + 0.6), steel, 0, y + 3.6, zc + sz));
-    const sign = neonSign('LAS VEGAS BLVD', '#0f1d14', '#7dffb0', 9, 1.1, label, 0.1);
-    b.add(sign, 0, y - 0.7, zc + sz + (sz < 0 ? -1 : 1) * (wDeck / 2 + 0.06), sz < 0 ? Math.PI : 0);
+    // Spans the Boulevard: Strip traffic reads the cross street and the resorts it links
+    b.add(bridgeFascia(b, sideName, label, '#ff8ad8', 10, 1.2), 0, y - 0.7, zc + sz + (sz < 0 ? -1 : 1) * (wDeck / 2 + 0.08), sz < 0 ? Math.PI : 0);
   }
   for (const [sx, label] of [
     [-X, labels[2]],
@@ -700,8 +721,8 @@ function buildSkybridges(b: WorldBuilder, zc: number, labels: [string, string, s
     b.box(sx, y, zc, wDeck, 0.4, Z * 2 - wDeck, deck);
     for (const e of [-1, 1]) b.box(sx + e * (wDeck / 2 - 0.1), y + 0.4, zc, 0.12, 1.15, Z * 2 - wDeck * 2, glass, true, false);
     b.add(mesh(new THREE.BoxGeometry(wDeck + 0.6, 0.2, Z * 2), steel, sx, y + 3.6, zc));
-    const sign = neonSign(sideName, '#1b0b18', '#ff8ad8', 6, 0.9, label, 0.1);
-    b.add(sign, sx + (sx < 0 ? -1 : 1) * (wDeck / 2 + 0.06), y - 0.6, zc, sx < 0 ? -Math.PI / 2 : Math.PI / 2);
+    // Spans the cross street: its traffic reads the Boulevard
+    b.add(bridgeFascia(b, 'LAS VEGAS BLVD', label, '#7dffb0', 8, 1.1), sx + (sx < 0 ? -1 : 1) * (wDeck / 2 + 0.08), y - 0.6, zc, sx < 0 ? -Math.PI / 2 : Math.PI / 2);
   }
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
