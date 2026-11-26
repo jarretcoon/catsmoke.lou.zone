@@ -1314,7 +1314,7 @@ function buildLuxor(b: WorldBuilder): void {
   mg.box(sandDark, -45.6, 5.55, pz, 1.4, 0.5, 14.5);
   b.add(mesh(new THREE.BoxGeometry(0.2, 0.25, 6.4), basic(0xffd9a0), -45.95, 4.5, pz));
 
-  buildSphinx(b, mg, -28.6, zFromS(-2173));
+  buildSphinx(b, mg, -30.2, zFromS(-2173));
   // Obelisk with glowing hieroglyphs
   const glyphs = canvasTex(256, 1024, (ctx, w, hh) => {
     ctx.fillStyle = '#c9ad7e';
@@ -1369,9 +1369,16 @@ function buildLuxor(b: WorldBuilder): void {
   );
 }
 
-/** Luxor's sandstone Sphinx facing the Boulevard (walkable plinth and paws). */
+/**
+ * Luxor's Sphinx facing the Boulevard: a recumbent lion with its forelegs stretched toward the Strip, a broad
+ * chest, and a pharaoh's head in a blue-and-gold striped nemes with the uraeus and false beard (the real one is
+ * 110 ft tall, about a third of the pyramid's height; here it keeps that ratio). Walkable plinth and paws.
+ */
 function buildSphinx(b: WorldBuilder, mg: Merger, x: number, z: number): void {
-  const sand = mat(0xd2b48a, 0.85);
+  const S = 1.3;
+  // floodlit warm at night (faked in the material: no extra scene light)
+  const sand = new THREE.MeshStandardMaterial({ color: 0xd2b48a, roughness: 0.85, emissive: 0xffc890, emissiveIntensity: 0 });
+  b.nightGlow(sand, 0.0, 0.2);
   const sandDark = mat(0xb39669, 0.85);
   const stripes = canvasTex(64, 64, (ctx, w, h) => {
     for (let y = 0; y < h; y += 8) {
@@ -1383,39 +1390,50 @@ function buildSphinx(b: WorldBuilder, mg: Merger, x: number, z: number): void {
   stripes.repeat.set(1, 3);
   const nemes = new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.6 });
   const dark = mat(0x2a2218, 0.7);
-  const P = (lx: number, ly: number, lz: number) => [x + lx, ly, z + lz] as const;
-  const box = (m: THREE.Material, lx: number, ly: number, lz: number, w: number, h: number, d: number) => {
-    const [wx, wy, wz] = P(lx, ly, lz);
-    mg.box(m, wx, wy, wz, w, h, d, 0, true);
+  const goldM = mat(0xe8b93a, 0.3, 0.85);
+  /** Local (lx forward toward the Strip, ly up, lz across) → a geometry placed in the world, scaled by S. */
+  const put = (m: THREE.Material, g: THREE.BufferGeometry, lx: number, ly: number, lz: number, cast = true) => {
+    g.scale(S, S, S);
+    g.translate(x + lx * S, ly * S, z + lz * S);
+    mg.add(g, m, cast);
   };
+  const box = (m: THREE.Material, lx: number, ly: number, lz: number, w: number, h: number, d: number) => put(m, new THREE.BoxGeometry(w, h, d), lx, ly, lz);
+  // plinth
   box(sandDark, 0, 0.6, 0, 16.4, 1.2, 7.6);
-  b.collider(x - 8.2, x + 8.2, z - 3.8, z + 3.8, 0, 1.2);
-  box(sand, -3.6, 2.9, 0, 8.4, 3.4, 5.4);
-  const back = new THREE.CylinderGeometry(2.7, 2.7, 8.4, 16);
-  back.rotateZ(Math.PI / 2);
-  back.scale(1, 0.45, 1);
-  mg.at(sand, back, x - 3.6, 4.6, z);
-  for (const s of [-1, 1]) mg.add(new THREE.SphereGeometry(1.6, 12, 8).scale(1.3, 0.9, 0.6).translate(x - 5.6, 2.8, z + s * 2.5), sand);
-  box(sand, 1.2, 3.3, 0, 2.6, 4.2, 5.0);
+  // lion body: long rounded torso, back sloping up to the shoulders, haunches
+  put(sand, new THREE.SphereGeometry(1, 20, 12).scale(4.9, 1.75, 2.5), -2.6, 2.85, 0);
+  put(sand, new THREE.SphereGeometry(1, 16, 10).scale(2.2, 1.6, 1.35), -5.4, 2.6, 2.1);
+  put(sand, new THREE.SphereGeometry(1, 16, 10).scale(2.2, 1.6, 1.35), -5.4, 2.6, -2.1);
+  // the tail curled along the right flank
+  put(sand, beamGeo(v3(-7.6, 1.5, 2.6), v3(-1.5, 1.35, 2.95), 0.18, 6), 0, 0, 0);
+  // chest and shoulders
+  put(sand, new THREE.CylinderGeometry(2.1, 2.5, 4.6, 16).scale(0.85, 1, 1.1), 1.0, 3.5, 0);
+  // forelegs stretched toward the Strip, with paws
   for (const s of [-1, 1]) {
-    box(sand, 4.2, 1.85, s * 1.75, 6.6, 1.3, 1.5);
-    box(sand, 7.6, 1.7, s * 1.75, 1.2, 1.0, 1.6);
+    put(sand, new THREE.CylinderGeometry(0.75, 0.82, 6.4, 12).rotateZ(Math.PI / 2), 4.6, 1.95, s * 1.6);
+    put(sand, new THREE.SphereGeometry(0.9, 12, 8).scale(1.1, 0.75, 1), 7.6, 1.85, s * 1.6);
   }
-  box(sand, 2.0, 6.6, 0, 2.3, 2.5, 2.3);
-  box(nemes, 1.8, 8.1, 0, 2.7, 0.6, 2.9);
-  box(nemes, 0.9, 6.2, 0, 1.2, 2.6, 2.7);
-  for (const s of [-1, 1]) box(nemes, 2.55, 5.6, s * 1.42, 0.6, 2.6, 0.62);
-  box(sand, 3.3, 6.55, 0, 0.36, 0.52, 0.36);
-  for (const s of [-1, 1]) box(dark, 3.17, 7.1, s * 0.45, 0.06, 0.18, 0.42);
-  box(dark, 3.17, 6.05, 0, 0.06, 0.08, 0.6);
-  box(nemes, 3.0, 4.9, 0, 0.45, 1.1, 0.5);
-  box(mat(0xe8b93a, 0.3, 0.85), 3.17, 7.85, 0, 0.12, 0.5, 0.22);
-  mg.beam(sand, v3(x - 7.8, 1.6, z + 2.6), v3(x - 1, 1.4, z + 2.85), 0.18, 6);
-  b.collider(x - 7.8, x + 2.5, z - 2.7, z + 2.7, 1.2, 5.8, true);
-  b.collider(x + 0.7, x + 3.2, z - 1.5, z + 1.5, 5.4, 8.4, true);
-  for (const s of [-1, 1]) b.collider(x + 0.9, x + 8.2, z + s * 1.75 - 0.8, z + s * 1.75 + 0.8, 1.2, 2.5);
-  b.pickup(x + 7.4, 2.95, z - 1.75, 3, 'Sphinx Paw Offering Pack', false);
-  b.zone('Great Sphinx of Luxor', x - 8.2, x + 8.2, z - 3.8, z + 3.8);
+  // head: the face, the nemes headdress spreading over the shoulders in two striped lappets, its crown fold
+  put(sand, new THREE.BoxGeometry(2.0, 2.4, 2.1), 2.2, 6.75, 0);
+  put(sand, new THREE.SphereGeometry(1.05, 14, 10).scale(1.0, 1.1, 1.0), 2.35, 6.9, 0);
+  put(nemes, new THREE.CylinderGeometry(1.25, 1.9, 2.7, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 1.25), 1.7, 7.2, 0);
+  put(nemes, new THREE.SphereGeometry(1.3, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1.2), 1.75, 8.5, 0);
+  for (const s of [-1, 1]) put(nemes, new THREE.BoxGeometry(0.75, 3.0, 0.55).rotateX(s * 0.12), 2.55, 5.6, s * 1.45);
+  put(nemes, new THREE.BoxGeometry(1.4, 2.2, 2.6), 0.8, 6.2, 0);
+  // face: nose, eyes (kohl), mouth, false beard, the gold uraeus cobra on the brow
+  put(sand, new THREE.BoxGeometry(0.42, 0.55, 0.38), 3.45, 6.75, 0);
+  for (const s of [-1, 1]) put(dark, new THREE.BoxGeometry(0.06, 0.18, 0.46), 3.33, 7.25, s * 0.46);
+  put(dark, new THREE.BoxGeometry(0.06, 0.08, 0.62), 3.33, 6.25, 0);
+  put(nemes, new THREE.BoxGeometry(0.42, 1.2, 0.48), 3.1, 5.15, 0);
+  put(goldM, new THREE.BoxGeometry(0.14, 0.55, 0.24), 3.35, 8.15, 0);
+  // colliders (scaled with it)
+  const C = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, wall: boolean) => b.collider(x + x0 * S, x + x1 * S, z + z0 * S, z + z1 * S, y0 * S, y1 * S, wall);
+  C(-8.2, 8.2, -3.8, 3.8, 0, 1.2, false);
+  C(-7.8, 2.5, -2.7, 2.7, 1.2, 4.6, true);
+  C(0.7, 3.4, -1.6, 1.6, 4.6, 9.2, true);
+  for (const s of [-1, 1]) C(1.5, 8.5, s * 1.6 - 0.85, s * 1.6 + 0.85, 1.2, 2.7, false);
+  b.pickup(x + 7.6 * S, 2.75 * S + 0.1, z - 1.6 * S, 3, 'Sphinx Paw Offering Pack', false);
+  b.zone('Great Sphinx of Luxor', x - 8.2 * S, x + 8.2 * S, z - 3.8 * S, z + 3.8 * S);
 }
 
 // ================================================================ Mandalay Bay / W / Four Seasons

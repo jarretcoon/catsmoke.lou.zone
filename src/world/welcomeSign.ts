@@ -373,8 +373,8 @@ export function buildWelcomeSign(b: WorldBuilder): void {
   // Sandstone boulders at the front corners of the lawn
   const stone = mat(0xb98a5e, 0.95);
   for (const [x, z, r] of [
-    [-1.5, zSign + 9.3, 0.5],
-    [1.55, zSign + 9.2, 0.44],
+    [-1.6, zSign + 4.3, 0.46],
+    [1.5, zSign - 4.2, 0.44],
     [-1.55, zSign - 4.0, 0.4],
   ] as const) {
     const g = new THREE.DodecahedronGeometry(r, 0);
@@ -575,46 +575,82 @@ export function buildWelcomeSign(b: WorldBuilder): void {
   b.add(mesh(new THREE.PlaneGeometry(0.62, 0.46), plaqueM, -1.62, 1.0, zSign - 2.6).rotateY(Math.PI));
   mg.beam(mat(0x3a3a3c, 0.5, 0.5), v3(-1.62, 0, zSign - 2.58), v3(-1.62, 0.8, zSign - 2.58), 0.04, 6);
 
-  // Three solar trees just north of the sign (2014) feeding it
+  // Three solar trees (2014) along the walk south of the sign: a pole and one big square panel tilted to the sun
+  // (kept off the east edge between z 915 and the spawn point so they never block a new game's first view)
   const panelTex = canvasTex(64, 64, (ctx, w, h) => {
     ctx.fillStyle = '#16244a';
     ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = '#7d8fb4';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
+    for (let i = 0; i <= 6; i++) {
       ctx.beginPath();
-      ctx.moveTo((i * w) / 4, 0);
-      ctx.lineTo((i * w) / 4, h);
-      ctx.moveTo(0, (i * h) / 4);
-      ctx.lineTo(w, (i * h) / 4);
+      ctx.moveTo((i * w) / 6, 0);
+      ctx.lineTo((i * w) / 6, h);
+      ctx.moveTo(0, (i * h) / 6);
+      ctx.lineTo(w, (i * h) / 6);
       ctx.stroke();
     }
   });
   const panel = new THREE.MeshStandardMaterial({ map: panelTex, roughness: 0.25, metalness: 0.5 });
   const steel = mat(0x9aa0a8, 0.45, 0.6);
-  for (const [i, z] of [zSign - 4.8, zSign - 9.4, zSign - 14.0].entries()) {
-    const h = 4.6 + (i % 2) * 0.5;
-    mg.beam(steel, v3(0, 0, z), v3(0, h, z), 0.11, 8, 0.08, true);
-    mg.add(new THREE.CylinderGeometry(0.32, 0.36, 0.3, 10).translate(0, 0.15, z), mat(0x9a968c, 0.9));
-    for (let k = 0; k < 4; k++) {
-      const a = (k / 4) * Math.PI * 2 + Math.PI / 4 + i * 0.3;
-      const tip = v3(Math.cos(a) * 0.95, h + 0.55 + (k % 2) * 0.35, z + Math.sin(a) * 0.95);
-      mg.beam(steel, v3(0, h - 0.4, z), tip, 0.045, 5);
-      const pg = new THREE.PlaneGeometry(1.15, 0.8);
-      pg.rotateX(-Math.PI / 2 + 0.38);
-      pg.rotateY(-a + Math.PI / 2);
-      mg.at(panel, pg, tip.x, tip.y + 0.03, tip.z);
-      const pb = new THREE.PlaneGeometry(1.15, 0.8);
-      pb.rotateX(Math.PI / 2 + 0.38);
-      pb.rotateY(-a + Math.PI / 2);
-      mg.at(steel, pb, tip.x, tip.y + 0.01, tip.z);
-    }
-    b.collider(-0.15, 0.15, z - 0.15, z + 0.15, 0, h, true);
+  for (const [x, z, h] of [
+    [1.62, zSign + 6.9, 4.7],
+    [-1.62, zSign + 6.1, 5.0],
+    [-1.62, zSign + 9.6, 4.6],
+  ] as const) {
+    mg.beam(steel, v3(x, 0, z), v3(x, h, z), 0.1, 8, 0.08, true);
+    mg.add(new THREE.CylinderGeometry(0.3, 0.34, 0.3, 10).translate(x, 0.15, z), mat(0x9a968c, 0.9));
+    const cx = x * 0.55;
+    mg.beam(steel, v3(x, h - 0.6, z), v3(cx, h + 0.05, z), 0.05, 5);
+    const pg = new THREE.PlaneGeometry(2.1, 2.1);
+    pg.rotateX(-Math.PI / 2 + 0.33);
+    mg.at(panel, pg, cx, h + 0.2, z);
+    const pb = new THREE.BoxGeometry(2.1, 0.06, 2.1);
+    pb.rotateX(0.33);
+    mg.at(steel, pb, cx, h + 0.16, z);
+    b.collider(x - 0.14, x + 0.14, z - 0.14, z + 0.14, 0, h, true);
   }
+  // The old McCarran Field gate pillars (1941, moved here 1948): rubble-stone posts just south of the sign, east side
+  const rubble = canvasTex(64, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#8a7a66';
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 120; i++) {
+      const x = (i * 23 + (i >> 3) * 11) % w;
+      const y = (i * 37 + (i >> 2) * 5) % h;
+      ctx.fillStyle = ['#a8967c', '#9a8670', '#b8a688', '#7e6e5a', '#c2ae90'][i % 5];
+      ctx.beginPath();
+      ctx.ellipse(x, y, 5 + (i % 3) * 1.5, 3.5 + (i % 2) * 1.5, (i % 5) * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  const stoneM = new THREE.MeshStandardMaterial({ map: rubble, roughness: 0.95 });
+  for (const pz of [zSign + 14.2, zSign + 19.4]) {
+    const g = new THREE.BoxGeometry(1.05, 3.1, 1.05);
+    mg.at(stoneM, g, 20.15, 1.55, pz, 0, true);
+    mg.box(mat(0xd8d0c0, 0.8), 20.15, 3.2, pz, 1.25, 0.2, 1.25);
+    mg.add(new THREE.SphereGeometry(0.28, 12, 8).translate(20.15, 3.58, pz), mat(0xf4ecd8, 0.4));
+    b.collider(19.62, 20.68, pz - 0.53, pz + 0.53, 0, 3.3, true);
+  }
+  const marker = canvasTex(256, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#5a4a2a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#c8a860';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(6, 6, w - 12, h - 12);
+    ctx.fillStyle = '#e8d8a8';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 22px Georgia, serif';
+    ctx.fillText('McCARRAN FIELD', w / 2, 44);
+    ctx.font = '15px Georgia, serif';
+    ctx.fillText('Gate pillars, 1941', w / 2, 74);
+    ctx.fillText('Las Vegas Army Air Field', w / 2, 98);
+  });
+  b.add(mesh(new THREE.PlaneGeometry(0.62, 0.31), new THREE.MeshStandardMaterial({ map: marker, roughness: 0.5, metalness: 0.4 }), 19.615, 1.7, zSign + 14.2).rotateY(-Math.PI / 2));
   mg.flush(b);
 
   b.zone('Welcome to Fabulous Las Vegas Sign', -ISLAND - 0.6, ISLAND + 0.6, zIsl0, zLot0 - 1.2);
   b.zone('Welcome Sign Parking Lot', -ISLAND - 0.6, ISLAND + 0.6, zLot0 - 1.2, zIsl1);
+  b.zone('McCarran Field Gate Pillars', 19.2, 21.2, zSign + 12.5, zSign + 21);
   b.staticMarkers.push({ x: 0, z: zSign, color: '#ff3b3b', glyph: '★', size: 3.2 });
   b.pickup(1.3, 0.95, zSign + 1.2, 3, 'Welcome Sign Selfie Pack', false);
   // The regulars posing out front for tips, and the photo line waiting its turn along the west side of the walk
@@ -623,7 +659,7 @@ export function buildWelcomeSign(b: WorldBuilder): void {
   // (kept north of z 915 so it never stands between a new game's camera and Lou at the spawn point)
   const queue: Array<'camera' | 'cig' | 'yard-drink' | 'bag'> = ['camera', 'camera', 'yard-drink', 'cig', 'bag'];
   queue.forEach((prop, i) => {
-    const x = -1.3 + (i % 2) * 0.16;
+    const x = -0.85 + (i % 2) * 0.14;
     const z = zSign + 4.2 + i * 0.8;
     b.crowd.tourists.push({ pts: [[x, z], [x, z + 0.25]], prop });
   });

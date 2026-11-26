@@ -35,6 +35,7 @@
     { "id": "pinball-church-day", "label": "Pinball Hall of Fame sign + Little Church of the West (day)", "time": "day", "tp": [8, 0.3, 840], "cam": [-0.45, 0.05, 10], "maxCalls": 1540 },
     { "id": "east-row-day", "label": "East side shops: Shell, strip mall, motels (day)", "time": "day", "tp": [10, 0.3, 700], "cam": [-1.25, 0.16, 14], "maxCalls": 420 },
     { "id": "diamond-inn-night", "label": "Diamond Inn pink elephant (night)", "time": "night", "tp": [16, 0.3, 772], "cam": [-1.0, 0.14, 10], "maxCalls": 470 },
+    { "id": "welcome-sign-back-day", "label": "Leaving town: the back of the Welcome sign (day)", "time": "day", "tp": [-2.6, 0.3, 897], "cam": [3.0, 0.04, 5.5], "maxCalls": 480 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 }
   ]
 }
