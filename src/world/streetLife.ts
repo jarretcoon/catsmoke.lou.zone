@@ -3,15 +3,16 @@ import { viewer, type WorldBuilder } from './builder';
 import { BX, CY, K, part, signs } from './backOfHouse';
 import { car, mat } from './props';
 import { litterGeometry, litterMaterial, mistMaterial, registerStreetTick, signGeometry, wetSheenMaterial } from './streetTextures';
-import { CROSSWALKS, STRIP } from './strip';
-import { buildCornerRails } from './stripRails';
+import { CROSSWALKS } from './strip';
+import { buildCornerRails, buildCurbBollards } from './stripRails';
 import { buildRideshareSigns } from './rideshareSpots';
+import { buildStreetCrowd } from './streetCrowd';
 import { rng } from './textures';
 
 /**
  * Street life along the Boulevard:
- * - ambient walkers: an instanced crowd (6 draw calls for everyone) that streams along both sidewalks
- *   around the camera, denser at night;
+ * - the sidewalk crowd: walkers, onlookers, crosswalk waiters and bridge crossers, all instanced
+ *   (streetCrowd.ts), densest in the middle Strip at night;
  * - taxi + rideshare queues, valet podiums and bellhop luggage carts at the porte-cochères;
  * - shade structures with misters (animated mist, wet sheen on the pavers);
  * - water-bottle sellers with coolers, flyer litter round the card slappers, overflowing trash;
@@ -20,158 +21,15 @@ import { rng } from './textures';
 export function buildStreetLife(b: WorldBuilder): void {
   registerStreetTick(b);
   const R = rng(8080);
-  buildWalkers(b);
   buildPorteCocheres(b);
   buildMisters(b, R);
   buildSidewalkTrade(b, R);
   buildCornerRails(b); // no at-grade crossing at the bridge intersections (stripRails.ts)
   buildRideshareSigns(b); // RIDESHARE PICKUP + Waymo flags on the side streets (rideshareSpots.ts)
-}
-
-// ---------------------------------------------------------------- ambient walkers (instanced)
-const SKIN = [0xf2c8a8, 0xe2ae88, 0xc88c64, 0x9b6342, 0x6b412a];
-const HAIR = [0x1c1512, 0x4a2e1b, 0x9c6b30, 0xd8b158, 0x7b2c25, 0x8e939e];
-const SHIRT = [0xff5a7a, 0x2ec4ff, 0xffc83d, 0x4de088, 0xb874ff, 0xff7b3b, 0xf2f0eb, 0x26354d, 0x111111, 0xd8352b, 0xf4f4f4, 0x1e8c5a];
-const PANTS = [0x212c42, 0x2c2b30, 0x453b31, 0x3b4d6b, 0xd6cbb8, 0x1a1a1e];
-
-function buildWalkers(b: WorldBuilder): void {
-  const N = 150;
-  const R = rng(321);
-  const humanMat = new THREE.MeshStandardMaterial({ roughness: 0.7 });
-  const torsoGeo = new THREE.CylinderGeometry(0.19, 0.16, 0.66, 7).translate(0, 1.16, 0);
-  const armL = new THREE.BoxGeometry(0.09, 0.58, 0.1).translate(-0.24, 1.14, 0);
-  const armR = new THREE.BoxGeometry(0.09, 0.58, 0.1).translate(0.24, 1.14, 0);
-  const torso = mergeSimple([torsoGeo, armL, armR]);
-  const head = new THREE.SphereGeometry(0.12, 8, 6).translate(0, 1.62, 0.01);
-  const hair = new THREE.SphereGeometry(0.128, 8, 4, 0, Math.PI * 2, 0, Math.PI * 0.55).translate(0, 1.645, -0.01);
-  const leg = new THREE.BoxGeometry(0.13, 0.82, 0.15).translate(0, -0.41, 0);
-  const shadowTex = (() => {
-    const c = document.createElement('canvas');
-    c.width = c.height = 64;
-    const ctx = c.getContext('2d')!;
-    const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
-    g.addColorStop(0, 'rgba(0,0,0,0.55)');
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 64, 64);
-    return new THREE.CanvasTexture(c);
-  })();
-  const blob = new THREE.PlaneGeometry(0.9, 0.9).rotateX(-Math.PI / 2);
-  const meshes = {
-    torso: new THREE.InstancedMesh(torso, humanMat, N),
-    head: new THREE.InstancedMesh(head, humanMat, N),
-    hair: new THREE.InstancedMesh(hair, humanMat, N),
-    legL: new THREE.InstancedMesh(leg, humanMat, N),
-    legR: new THREE.InstancedMesh(leg, humanMat, N),
-    blob: new THREE.InstancedMesh(blob, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), N),
-  };
-  const c = new THREE.Color();
-  interface W {
-    x: number;
-    z: number;
-    dir: 1 | -1;
-    speed: number;
-    phase: number;
-    scale: number;
-  }
-  const ws: W[] = [];
-  for (let i = 0; i < N; i++) {
-    const side = i % 2 ? 1 : -1;
-    const lane = (i >> 1) % 2;
-    const dir: 1 | -1 = (side > 0) === (lane === 0) ? 1 : -1;
-    ws.push({ x: side * (16.9 + lane * 1.3 + (R() - 0.5) * 0.4), z: 0, dir, speed: 1.1 + R() * 0.6, phase: R() * 6.28, scale: 0.92 + R() * 0.16 });
-    meshes.torso.setColorAt(i, c.setHex(SHIRT[Math.floor(R() * SHIRT.length)]));
-    meshes.head.setColorAt(i, c.setHex(SKIN[Math.floor(R() * SKIN.length)]));
-    meshes.hair.setColorAt(i, c.setHex(HAIR[Math.floor(R() * HAIR.length)]));
-    const pc = PANTS[Math.floor(R() * PANTS.length)];
-    meshes.legL.setColorAt(i, c.setHex(pc));
-    meshes.legR.setColorAt(i, c.setHex(pc));
-  }
-  for (const m of Object.values(meshes)) {
-    m.frustumCulled = false;
-    m.castShadow = false;
-    m.receiveShadow = m !== meshes.blob;
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    b.scene.add(m);
-  }
-  const WINDOW = 130;
-  let seeded = false;
-  const dummy = new THREE.Object3D();
-  const hidden = (z: number) => Math.abs(z) < 20 || Math.abs(z - STRIP.tropicanaZ) < 20 || z < STRIP.north + 6 || z > 885;
-  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-  b.every((dt, t, night) => {
-    const cam = viewer.cam;
-    const on = Math.abs(cam.x) < 70 && cam.y < 90;
-    for (const m of Object.values(meshes)) m.visible = on;
-    if (!on) return;
-    const count = Math.round(THREE.MathUtils.lerp(90, N, night));
-    if (!seeded) {
-      for (const w of ws) w.z = cam.z + (R() - 0.5) * 2 * WINDOW;
-      seeded = true;
-    }
-    for (let i = 0; i < count; i++) {
-      const w = ws[i];
-      w.z += w.dir * w.speed * dt;
-      if (w.z - cam.z > WINDOW) w.z -= 2 * WINDOW;
-      else if (cam.z - w.z > WINDOW) w.z += 2 * WINDOW;
-      if (hidden(w.z)) {
-        for (const m of Object.values(meshes)) m.setMatrixAt(i, zero);
-        continue;
-      }
-      w.phase += dt * w.speed * 3.6;
-      const bob = Math.abs(Math.sin(w.phase)) * 0.035;
-      const yaw = w.dir > 0 ? 0 : Math.PI;
-      dummy.position.set(w.x, bob, w.z);
-      dummy.rotation.set(0, yaw, 0);
-      dummy.scale.setScalar(w.scale);
-      dummy.updateMatrix();
-      meshes.torso.setMatrixAt(i, dummy.matrix);
-      meshes.head.setMatrixAt(i, dummy.matrix);
-      meshes.hair.setMatrixAt(i, dummy.matrix);
-      dummy.position.set(w.x, 0.08, w.z);
-      dummy.updateMatrix();
-      meshes.blob.setMatrixAt(i, dummy.matrix);
-      const swing = Math.sin(w.phase) * 0.5;
-      for (const [m, s] of [
-        [meshes.legL, 1],
-        [meshes.legR, -1],
-      ] as Array<[THREE.InstancedMesh, number]>) {
-        dummy.position.set(w.x + Math.cos(yaw) * s * 0.1 * w.scale, 0.83 * w.scale + bob, w.z - Math.sin(yaw) * s * 0.1 * w.scale);
-        dummy.rotation.set(s * swing, yaw, 0, 'YXZ');
-        dummy.updateMatrix();
-        m.setMatrixAt(i, dummy.matrix);
-      }
-    }
-    for (const m of Object.values(meshes)) {
-      m.count = count;
-      m.instanceMatrix.needsUpdate = true;
-    }
-    void t;
-  });
-}
-
-function mergeSimple(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  // tiny merge for non-indexed + indexed mixes: convert all to non-indexed with position/normal only
-  const parts = geos.map((g) => {
-    const n = g.index ? g.toNonIndexed() : g;
-    for (const k of Object.keys(n.attributes)) if (k !== 'position' && k !== 'normal') n.deleteAttribute(k);
-    return n;
-  });
-  let count = 0;
-  for (const p of parts) count += p.attributes.position.count;
-  const pos = new Float32Array(count * 3);
-  const nor = new Float32Array(count * 3);
-  let o = 0;
-  for (const p of parts) {
-    pos.set(p.attributes.position.array as Float32Array, o * 3);
-    nor.set(p.attributes.normal.array as Float32Array, o * 3);
-    o += p.attributes.position.count;
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-  return g;
+  // Last, so every performer is placed and gets its ring of onlookers. Deuce stops = the map's D markers.
+  const deuceStops = b.staticMarkers.filter((m) => m.glyph === 'D').map((m) => ({ z: m.z, side: (m.x < 0 ? -1 : 1) as 1 | -1 }));
+  buildCurbBollards(b, deuceStops, CROSSWALKS); // the 2018+ security posts along both curbs (stripRails.ts)
+  buildStreetCrowd(b, deuceStops);
 }
 
 // ---------------------------------------------------------------- porte-cochères: taxis, rideshare, valet, bellhops
@@ -402,6 +260,14 @@ function buildSidewalkTrade(b: WorldBuilder, R: () => number): void {
     }
     b.crowd.performers.push({ kind, x, z, facing: side > 0 ? -Math.PI / 2 : Math.PI / 2, y: kind === 'statue' ? 0.5 : 0 });
   }
+  // The middle Strip's other regulars: a feathered showgirl pair outside the Cosmopolitan, an Elvis
+  // working the Harmon corner, a silver robot at the LINQ Promenade mouth (each draws a ring of onlookers)
+  b.crowd.performers.push(
+    { kind: 'showgirl', x: -16.3, z: 171.5, facing: Math.PI / 2 },
+    { kind: 'showgirl', x: -16.9, z: 174.2, facing: Math.PI / 2 + 0.3 },
+    { kind: 'elvis', x: 16.4, z: 222, facing: -Math.PI / 2 },
+    { kind: 'robot', x: 16.2, z: -99, facing: -Math.PI / 2 }
+  );
   // Flyer litter round every card slapper
   const lm = litterMaterial();
   for (const p of b.crowd.performers) {
