@@ -851,8 +851,8 @@ function buildVenetian(b: WorldBuilder): void {
   });
 
   const ven = { wall: '#d9b98a', mullion: '#ecd5ad', glass: '#6d5a44', lit: '#ffe9a8', cols: 12, rows: 22, style: 0 as const, seed: 131 };
-  tower(b, { x: 98, z: -266, w: 20, d: 60, h: 44, facade: ven });
-  tower(b, { x: 118, z: -290, w: 24, d: 14, h: 40, facade: { ...ven, seed: 133 } });
+  tower(b, { x: 98, z: -266, w: 20, d: 60, h: 44, facade: ven, wash: 0xffd9a0, crownGlow: 0.7 });
+  tower(b, { x: 118, z: -290, w: 24, d: 14, h: 40, facade: { ...ven, seed: 133 }, wash: 0xffd9a0, crownGlow: 0.7 });
   b.add(neonSign('THE VENETIAN', '#221409', '#ffd86b', 14, 2.4), 87.8, 40, -266, -Math.PI / 2);
 
   // Footbridge from the Venetian to the Sphere (deck at 8 m)
@@ -1001,7 +1001,7 @@ function buildPalazzo(b: WorldBuilder): void {
   b.box(34, 0, -350, 26, 9, 80, mat(0xd9c39a, 0.7), true);
   b.add(neonSign('THE PALAZZO', '#1d150a', '#f2d28a', 12, 2, 'SHOPPES AT THE PALAZZO'), 20.8, 7, -340, -Math.PI / 2);
   const gold = { wall: '#c8a46a', mullion: '#e0c38a', glass: '#7a5a34', lit: '#ffe6a8', cols: 12, rows: 26, style: 1 as const, seed: 141 };
-  tower(b, { x: 70, z: -350, w: 24, d: 50, h: 60, facade: gold, metal: 0.4 });
+  tower(b, { x: 70, z: -350, w: 24, d: 50, h: 60, facade: gold, metal: 0.4, wash: 0xffd9a0, crownGlow: 0.7 });
   b.add(neonSign('PALAZZO', '#1d150a', '#f2d28a', 14, 2.6), 57.8, 54, -350, -Math.PI / 2);
   b.building(34, -350, 26, 80, '#d9c39a', 'Palazzo');
   b.building(70, -350, 24, 50, '#c8a46a');

@@ -882,24 +882,300 @@ export function makeRoadPaintTexture(): THREE.CanvasTexture {
 // Interiors + signs
 // ------------------------------------------------------------------------------------------------
 
-export function makeCarpetTexture(primary: string, accent: string, accent2?: string): THREE.CanvasTexture {
-  const [c, ctx] = canvas(256, 256);
+export type CarpetStyle = 'grid' | 'scroll' | 'damask' | 'deco' | 'confetti' | 'medallion' | 'floral';
+
+/**
+ * Vegas casino carpet: loud on purpose. Each property gets its own classic pattern (picked from its
+ * colours unless `style` says otherwise): swirling scrolls, damask lattices, deco fans, bowling-alley
+ * confetti, Roman medallions, big florals. Seamless 512² tile; two-colour calls (stone-like floors) keep
+ * the plain grid.
+ */
+export function makeCarpetTexture(primary: string, accent: string, accent2?: string, style?: CarpetStyle): THREE.CanvasTexture {
+  const S = 512;
+  const [c, ctx] = canvas(S, S);
+  const known: Record<string, CarpetStyle> = {
+    '#4a1220': 'damask', // Paris
+    '#1a0a0c': 'scroll', // Horseshoe
+    '#4a1238': 'deco', // Flamingo
+    '#3a1420': 'medallion', // Venetian
+    '#5a0c10': 'confetti', // Slots-A-Fun
+    '#6a0a12': 'medallion', // Excalibur
+    '#1c1230': 'scroll', // Cosmopolitan
+    '#5a1a1e': 'floral', // Bellagio
+    '#3a1e12': 'medallion', // Caesars
+    '#141a36': 'deco', // Luxor
+  };
+  let h = 0;
+  for (const ch of primary + accent + (accent2 ?? '')) h = (Math.imul(h, 31) + ch.charCodeAt(0)) | 0;
+  const pool: CarpetStyle[] = ['scroll', 'damask', 'deco', 'confetti', 'medallion', 'floral'];
+  const st: CarpetStyle = style ?? (accent2 ? known[primary.toLowerCase()] ?? pool[Math.abs(h) % pool.length] : 'grid');
+  const R = rng(Math.abs(h) + 7);
+  const a2 = accent2 ?? accent;
   ctx.fillStyle = primary;
-  ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 4;
-  for (let x = 0; x <= 256; x += 64) {
-    for (let y = 0; y <= 256; y += 64) {
+  ctx.fillRect(0, 0, S, S);
+  // Draw a motif at (x, y) and at its wrapped copies so the tile is seamless.
+  const wrap = (x: number, y: number, r: number, fn: (x: number, y: number) => void) => {
+    for (const ox of [-S, 0, S])
+      for (const oy of [-S, 0, S]) {
+        const px = x + ox;
+        const py = y + oy;
+        if (px + r < 0 || px - r > S || py + r < 0 || py - r > S) continue;
+        fn(px, py);
+      }
+  };
+  // Soft wool texture underneath everything: tiny tufts of lighter/darker pile.
+  const tufts = () => {
+    for (let i = 0; i < 9000; i++) {
+      ctx.fillStyle = R() < 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.06)';
+      ctx.fillRect(R() * S, R() * S, 1.5, 1.5);
+    }
+  };
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (st === 'grid') {
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 8;
+    for (let x = 0; x <= S; x += 128)
+      for (let y = 0; y <= S; y += 128) {
+        ctx.beginPath();
+        ctx.arc(x, y, 44, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeRect(x + 36, y + 36, 56, 56);
+      }
+    if (accent2) {
+      ctx.fillStyle = accent2;
+      for (let x = 64; x < S; x += 128) for (let y = 64; y < S; y += 128) ctx.fillRect(x - 8, y - 8, 16, 16);
+    }
+  } else if (st === 'scroll') {
+    // Acanthus-like swirls: spirals with leaves sprouting off them, in two colours.
+    for (let i = 0; i < 22; i++) {
+      const x = R() * S;
+      const y = R() * S;
+      const r0 = 22 + R() * 34;
+      const dir = R() < 0.5 ? 1 : -1;
+      const a0 = R() * Math.PI * 2;
+      wrap(x, y, r0 * 2.2, (px, py) => {
+        ctx.strokeStyle = i % 3 === 0 ? a2 : accent;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        for (let t = 0; t <= 1; t += 0.02) {
+          const ang = a0 + dir * t * Math.PI * 3.2;
+          const rr = r0 * (1.9 - t * 1.7);
+          const qx = px + Math.cos(ang) * rr;
+          const qy = py + Math.sin(ang) * rr;
+          if (t === 0) ctx.moveTo(qx, qy);
+          else ctx.lineTo(qx, qy);
+        }
+        ctx.stroke();
+        ctx.fillStyle = i % 3 === 0 ? accent : a2;
+        for (let k = 0; k < 5; k++) {
+          const t = 0.1 + k * 0.17;
+          const ang = a0 + dir * t * Math.PI * 3.2;
+          const rr = r0 * (1.9 - t * 1.7);
+          ctx.save();
+          ctx.translate(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr);
+          ctx.rotate(ang + dir * 0.9);
+          ctx.beginPath();
+          ctx.ellipse(0, -9, 5, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      });
+    }
+  } else if (st === 'damask' || st === 'medallion') {
+    // Diamond lattice with a rosette (damask) or a ringed medallion with a key border (medallion) in each cell.
+    const n = 4;
+    const cell = S / n;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 4;
+    for (let i = -n; i <= n * 2; i++) {
       ctx.beginPath();
-      ctx.arc(x, y, 22, 0, Math.PI * 2);
+      ctx.moveTo(i * cell, 0);
+      ctx.lineTo(i * cell + S, S);
+      ctx.moveTo(i * cell, 0);
+      ctx.lineTo(i * cell - S, S);
       ctx.stroke();
-      ctx.strokeRect(x + 18, y + 18, 28, 28);
+    }
+    for (let gx = 0; gx < n; gx++)
+      for (let gy = 0; gy < n; gy++) {
+        const cx = (gx + 0.5) * cell + ((gy % 2) * cell) / 2;
+        const cy = (gy + 0.5) * cell;
+        wrap(cx % S, cy, cell, (px, py) => {
+          if (st === 'damask') {
+            for (let k = 0; k < 8; k++) {
+              ctx.save();
+              ctx.translate(px, py);
+              ctx.rotate((k * Math.PI) / 4);
+              ctx.fillStyle = k % 2 ? accent : a2;
+              ctx.beginPath();
+              ctx.ellipse(0, -20, 8, 20, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+            ctx.fillStyle = accent;
+            ctx.beginPath();
+            ctx.arc(px, py, 8, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = accent;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(px, py, 38, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = a2;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(px, py, 28, 0, Math.PI * 2);
+            ctx.stroke();
+            // little Greek-key teeth round the ring
+            ctx.fillStyle = accent;
+            for (let k = 0; k < 16; k++) {
+              const ang = (k / 16) * Math.PI * 2;
+              ctx.save();
+              ctx.translate(px + Math.cos(ang) * 46, py + Math.sin(ang) * 46);
+              ctx.rotate(ang);
+              ctx.fillRect(-3, -5, 6, 10);
+              ctx.restore();
+            }
+            ctx.fillStyle = a2;
+            ctx.beginPath();
+            for (let k = 0; k < 10; k++) {
+              const ang = (k / 10) * Math.PI * 2 - Math.PI / 2;
+              const rr = k % 2 ? 9 : 20;
+              ctx.lineTo(px + Math.cos(ang) * rr, py + Math.sin(ang) * rr);
+            }
+            ctx.closePath();
+            ctx.fill();
+          }
+        });
+      }
+  } else if (st === 'deco') {
+    // Overlapping art-deco fans (scales), each with radiating ribs and a jewel at the hinge.
+    const fw = 128;
+    const fh = 64;
+    for (let row = -1; row <= S / fh + 1; row++)
+      for (let col = -1; col <= S / fw + 1; col++) {
+        const x = col * fw + (row % 2 ? fw / 2 : 0);
+        const y = row * fh;
+        ctx.fillStyle = row % 4 === 0 ? a2 : primary;
+        ctx.beginPath();
+        ctx.arc(x, y, fw / 2 - 4, Math.PI, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
+        for (const rr of [fw / 2 - 6, fw / 2 - 20, fw / 2 - 34]) {
+          ctx.beginPath();
+          ctx.arc(x, y, rr, Math.PI, 0);
+          ctx.stroke();
+        }
+        ctx.lineWidth = 2;
+        for (let k = 1; k < 8; k++) {
+          const ang = Math.PI + (k / 8) * Math.PI;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(ang) * 12, y + Math.sin(ang) * 12);
+          ctx.lineTo(x + Math.cos(ang) * (fw / 2 - 6), y + Math.sin(ang) * (fw / 2 - 6));
+          ctx.stroke();
+        }
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+  } else if (st === 'confetti') {
+    // The bowling-alley / arcade carpet: stars, squiggles, dots and triangles in neon on dark.
+    const cols = [accent, a2, '#3af0ff', '#ff4fd8', '#9dff4a', '#ffffff'];
+    for (let i = 0; i < 160; i++) {
+      const x = R() * S;
+      const y = R() * S;
+      const col = cols[i % cols.length];
+      const kind = i % 4;
+      const rot = R() * Math.PI * 2;
+      wrap(x, y, 30, (px, py) => {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot);
+        ctx.fillStyle = col;
+        ctx.strokeStyle = col;
+        if (kind === 0) {
+          ctx.beginPath();
+          for (let k = 0; k < 10; k++) {
+            const ang = (k / 10) * Math.PI * 2;
+            const rr = k % 2 ? 6 : 15;
+            ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+          }
+          ctx.closePath();
+          ctx.fill();
+        } else if (kind === 1) {
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          for (let t = -1; t <= 1; t += 0.1) ctx.lineTo(t * 22, Math.sin(t * 7) * 6);
+          ctx.stroke();
+        } else if (kind === 2) {
+          ctx.beginPath();
+          ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(0, -12);
+          ctx.lineTo(11, 9);
+          ctx.lineTo(-11, 9);
+          ctx.closePath();
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+    }
+  } else {
+    // floral: big open roses with leaves, scattered on a faint trellis.
+    ctx.strokeStyle = accent;
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = 2;
+    for (let i = 0; i <= S; i += 64) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, S);
+      ctx.moveTo(0, i);
+      ctx.lineTo(S, i);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 14; i++) {
+      const x = R() * S;
+      const y = R() * S;
+      const r = 20 + R() * 16;
+      const leaves = [R(), R(), R()].map((v) => v * Math.PI * 2); // fixed per rose, so wrapped copies match
+      wrap(x, y, r * 2.4, (px, py) => {
+        ctx.fillStyle = a2;
+        for (let k = 0; k < 3; k++) {
+          const ang = leaves[k];
+          ctx.save();
+          ctx.translate(px + Math.cos(ang) * r * 1.3, py + Math.sin(ang) * r * 1.3);
+          ctx.rotate(ang);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.75, r * 0.32, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        for (let ring = 3; ring >= 1; ring--) {
+          ctx.fillStyle = ring % 2 ? accent : primary;
+          for (let k = 0; k < 6; k++) {
+            const ang = (k / 6) * Math.PI * 2 + ring;
+            ctx.beginPath();
+            ctx.arc(px + Math.cos(ang) * r * 0.25 * ring, py + Math.sin(ang) * r * 0.25 * ring, r * 0.22 * ring, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+      });
     }
   }
-  if (accent2) {
-    ctx.fillStyle = accent2;
-    for (let x = 32; x < 256; x += 64) for (let y = 32; y < 256; y += 64) ctx.fillRect(x - 4, y - 4, 8, 8);
-  }
+  tufts();
   return finish(c, [6, 6]);
 }
 

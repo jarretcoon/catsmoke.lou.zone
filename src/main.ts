@@ -25,6 +25,7 @@ import { SmokeSystem, VapeTrick } from './smoke';
 import { CosmeticId, defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
 import { INDOOR_ZONE } from './world/builder';
+import { hiddenIndoors } from './world/grandInteriors';
 import { Ambience } from './ambience';
 import { STRIP } from './world/strip';
 
@@ -1835,6 +1836,9 @@ function step(now: number, render = true): void {
   world.update(dt, elapsed, catHolder.position, camera);
   envLighting.update(world.atmosphere);
   crowd.update(dt, elapsed, catHolder.position, { onCaught, onEscaped });
+  // People inside the big interiors (Bellagio, Venetian, Forum Shops, Luxor) aren't drawn from the street.
+  for (const t of crowd.tourists) if (t.mesh.visible && hiddenIndoors(t.mesh.position.x, t.mesh.position.z)) t.mesh.visible = false;
+  for (const t of crowd.guards) if (t.mesh.visible && hiddenIndoors(t.mesh.position.x, t.mesh.position.z)) t.mesh.visible = false;
 
   const seatAt = restaurants.update(dt, elapsed, catHolder.position);
   if (seatAt && started) {

@@ -69,8 +69,8 @@ function buildCityCenter(b: WorldBuilder): void {
 // ---------------------------------------------------------------- Cosmopolitan
 function buildCosmopolitan(b: WorldBuilder): void {
   const blueGlass = { wall: '#3a4a5c', mullion: '#55677c', glass: '#1d2938', lit: '#d7f0ff', cols: 9, rows: 20, style: 2 as const, seed: 11 };
-  tower(b, { x: -82, z: 170, w: 18, d: 14, h: 56, facade: blueGlass, metal: 0.7, rough: 0.2 });
-  tower(b, { x: -82, z: 196, w: 18, d: 14, h: 56, facade: { ...blueGlass, seed: 13 }, metal: 0.7, rough: 0.2 });
+  tower(b, { x: -82, z: 170, w: 18, d: 14, h: 56, facade: blueGlass, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0xc77dff }, wash: 0xd59cff });
+  tower(b, { x: -82, z: 196, w: 18, d: 14, h: 56, facade: { ...blueGlass, seed: 13 }, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0xc77dff }, wash: 0xd59cff });
   b.building(-82, 183, 18, 40, '#3a4a5c', 'Cosmopolitan');
 
   // Podium: casino floor with the 3-level Chandelier bar and the VIP lounge
