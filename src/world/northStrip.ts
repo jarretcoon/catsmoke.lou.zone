@@ -11,7 +11,7 @@ import type { FacadeSpec } from './textures';
 import { barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
 import type { CarKind } from './props';
 import { STRIP, xFromO, zFromS } from './strip';
-import { buildNorthNeighbours, buildPorteCochere, buildSouthNeighbours, bulbLetters, casinoEntranceClown, paved, towerValance } from './northBlock';
+import { buildNorthNeighbours, buildPorteCochere, buildSouthNeighbours, bulbLetters, casinoEntranceClown, paved, redNeonGlow, towerValance } from './northBlock';
 import { fontainebleauSign, peppermillSign, resortsWorldPylonCrown, resortsWorldTowerSign, saharaSign, stratSign, wynnSignature } from './stripSigns';
 import { bulbPath, bulbRect, letterFace, letters, neonPanel } from './signKit';
 
@@ -737,16 +737,16 @@ function buildSlotsAFun(b: WorldBuilder): void {
   const red = mat(0xb3161e, 0.5, 0.1);
   const front: THREE.Object3D[] = [];
   // pediment band across the whole front
-  front.push(mesh(new THREE.BoxGeometry(0.9, 2.6, maxZ - minZ + 0.6), red, fx + 0.45, 6.5, cz));
-  front.push(mesh(new THREE.BoxGeometry(1.0, 0.22, maxZ - minZ + 0.8), gold, fx + 0.5, 5.15, cz));
-  front.push(mesh(new THREE.BoxGeometry(1.0, 0.22, maxZ - minZ + 0.8), gold, fx + 0.5, 7.85, cz));
+  front.push(mesh(new THREE.BoxGeometry(0.9, 3.0, maxZ - minZ + 0.6), red, fx + 0.45, 8.0, cz));
+  front.push(mesh(new THREE.BoxGeometry(1.0, 0.22, maxZ - minZ + 0.8), gold, fx + 0.5, 6.45, cz));
+  front.push(mesh(new THREE.BoxGeometry(1.0, 0.22, maxZ - minZ + 0.8), gold, fx + 0.5, 9.55, cz));
   // barrel vault over the doors
   const vault = new THREE.CylinderGeometry(4.4, 4.4, 3.4, 28, 1, true, 0, Math.PI);
   vault.rotateZ(HALF_PI);
   vault.scale(1, 0.42, 1);
   front.push(mesh(vault, mat(0xe0b040, 0.25, 0.9, { side: THREE.DoubleSide }), fx + 1.7, 4.55, cz));
   // the two inverted-cone pillars + their red-neon-ringed round cabinets
-  const ringM = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xd8101e, roughness: 0.35, emissive: 0xff1a2a, emissiveIntensity: 0.2 }), 0.2, 1.2);
+  const ringM = redNeonGlow(b);
   const faceTex = slotsSignTexture();
   const faceM = b.nightGlow(new THREE.MeshStandardMaterial({ map: faceTex, emissiveMap: faceTex, emissive: 0xffffff, emissiveIntensity: 0.25, roughness: 0.5 }), 0.25, 0.95);
   for (const s of [-1, 1]) {
@@ -764,10 +764,10 @@ function buildSlotsAFun(b: WorldBuilder): void {
   }
   mergeAdd(b, front);
   // bulb letters + gold bulb raceways on the pediment, chasing bulbs round the vault's arch
-  b.add(letterFace(b, 9.2, 1.7, bulbLetters("SLOTS A' FUN", '#fff6ec', '#d0101c', '#d8a838', 0.12)), fx + 0.92, 6.5, cz, HALF_PI);
+  b.add(letterFace(b, 7.0, 1.9, bulbLetters("SLOTS A' FUN", '#fff6ec', '#d0101c', '#d8a838', 0.12)), fx + 0.92, 8.0, cz, HALF_PI);
   const race = new THREE.Group();
   const span = (maxZ - minZ) / 2;
-  for (const y of [7.55]) race.add(bulbPath([[-span, y], [span, y]], false, 0.32, 0.17, 0));
+  for (const y of [6.75, 9.25]) race.add(bulbPath([[-span, y], [span, y]], false, 0.32, 0.17, 0));
   const arch: Array<[number, number]> = [];
   for (let i = 0; i <= 20; i++) {
     const a = (i / 20) * Math.PI;
@@ -785,8 +785,8 @@ function buildSlotsAFun(b: WorldBuilder): void {
   mq.add(mesh(new THREE.BoxGeometry(4.4, 1.6, 0.4), mat(0xfbf2f4, 0.5)));
   mq.add(letters(b, 'CIRCUS CIRCUS', 4.2, 1.4, { style: 'block', fill: '#e8237a', sub: 'HOTEL • CASINO • ADVENTUREDOME', subFill: '#7a1040' }, 0.4));
   mq.add(bulbRect(4.4, 1.6, 0.4, 0.1, true, 0.3, 0.16));
-  b.add(mq, fx - 1.6, 9.6, minZ + 0.6, 0);
-  b.add(mesh(new THREE.BoxGeometry(0.25, 2.0, 0.25), mat(0x6a6e74, 0.4, 0.6)), fx - 1.6, 8.0, minZ + 0.6);
+  b.add(mq, fx - 1.6, 10.9, minZ + 0.6, 0);
+  b.add(mesh(new THREE.BoxGeometry(0.25, 3.2, 0.25), mat(0x6a6e74, 0.4, 0.6)), fx - 1.6, 8.6, minZ + 0.6);
   // Big Bus stop pole on the curb
   b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.0, 6), mat(0x8a8d92, 0.4, 0.6)), -12.4, 1.5, -701.2);
   b.add(letters(b, 'BIG BUS', 0.62, 0.8, { style: 'block', fill: '#ffffff', bg: '#d0101c', sub: 'STOP', subFill: '#ffd23a' }, 0.04), -12.4, 2.6, -701.2, HALF_PI);
@@ -828,7 +828,7 @@ function buildCircusCircus(b: WorldBuilder): void {
   b.add(neonSign('CIRCUS CIRCUS', '#fff4f8', '#ff2f8a', 13, 2.4), skyX + 8.3, 31.5, -767, HALF_PI);
   b.building(skyX, -767, 16, 34, '#f7eef2', 'West Tower');
   const skrZ = Z_CCDR - 9 - 17.5;
-  tower(b, { x: skyX, z: skrZ, w: 16, d: 34, h: 31, facade: { ...ccSkin, seed: 405 }, accent: 0xff4fa8 });
+  tower(b, { x: skyX, z: skrZ, w: 16, d: 34, h: 31, facade: { ...ccSkin, seed: 403 }, accent: 0xff4fa8 });
   towerValance(b, skyX, skrZ, 16, 34, 31);
   b.add(neonSign('CIRCUS CIRCUS', '#fff4f8', '#ff2f8a', 13, 2.4), skyX + 8.3, 26.5, skrZ, HALF_PI);
   b.building(skyX, skrZ, 16, 34, '#f7eef2', 'Skyrise Tower');

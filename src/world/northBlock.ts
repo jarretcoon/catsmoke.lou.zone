@@ -71,9 +71,16 @@ export function paved(b: WorldBuilder, x0: number, x1: number, z0: number, z1: n
   b.floor((x0 + x1) / 2, (z0 + z1) / 2, w, d, m, 0.012);
 }
 
-/** Lit glass storefront: dark by day, warm interior glow at night. */
-function shopGlass(b: WorldBuilder, lit = 0xfff0d8, night = 1.0): THREE.MeshStandardMaterial {
-  return b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x1a232c, roughness: 0.08, metalness: 0.5, emissive: lit, emissiveIntensity: 0.05 }), 0.05, night);
+/** Lit glass storefront: dark by day, warm interior glow at night (one shared material for the block). */
+let shopGlassM: THREE.MeshStandardMaterial | null = null;
+function shopGlass(b: WorldBuilder): THREE.MeshStandardMaterial {
+  return (shopGlassM ??= b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x1a232c, roughness: 0.08, metalness: 0.5, emissive: 0xffd9a8, emissiveIntensity: 0.05 }), 0.05, 0.48));
+}
+
+/** The red neon glow shared by the Sky Shuttle stripes and the Slots-A-Fun cabinet rings. */
+let redNeonM: THREE.MeshStandardMaterial | null = null;
+export function redNeonGlow(b: WorldBuilder): THREE.MeshStandardMaterial {
+  return (redNeonM ??= b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xc81030, roughness: 0.4, emissive: 0xff1838, emissiveIntensity: 0.15 }), 0.15, 1.1));
 }
 
 /**
@@ -376,7 +383,7 @@ export function buildSouthNeighbours(b: WorldBuilder, zS: number, zN: number): v
   const wood = mat(0x9a6a3e, 0.75);
   const yellow = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xffc72c, roughness: 0.45, emissive: 0xffb000, emissiveIntensity: 0.04 }), 0.04, 0.35);
   const red = mat(0xda291c, 0.5);
-  const glass = shopGlass(b, 0xffd9a0, 0.42);
+  const glass = shopGlass(b);
   b.box((mx0 + mx1) / 2, 0, mz, mx0 - mx1, 5.2, md, charcoal, true);
   objs.push(boxM(0.08, 3.0, md - 2.2, glass, mx0 + 0.05, 1.7, mz));
   objs.push(boxM(0.3, 0.5, md + 0.2, wood, mx0 + 0.1, 5.4, mz));
@@ -457,7 +464,7 @@ export function buildNorthNeighbours(b: WorldBuilder, zDr: number, zEnd: number)
   const beamY = 7.6;
   const beamZ = zDr + 4.2;
   const white = mat(0xf2ecee, 0.6);
-  const stripe = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xc81030, roughness: 0.4, emissive: 0xff1838, emissiveIntensity: 0.15 }), 0.15, 1.1);
+  const stripe = redNeonGlow(b);
   const xs0 = -78;
   const xs1 = -40;
   objs.push(boxM(xs1 - xs0, 1.3, 1.8, white, (xs0 + xs1) / 2, beamY, beamZ));
@@ -496,7 +503,7 @@ export function buildNorthNeighbours(b: WorldBuilder, zDr: number, zEnd: number)
     objs.push(boxM(0.14, 3.0, 0.14, rail, x, 1.5, wz + 0.88));
   }
   // doors + windows (both floors)
-  const lit = shopGlass(b, 0xffd8a0, 0.55);
+  const lit = shopGlass(b);
   for (let x = wingX1 + 1.6; x < wingX0 - 0.8; x += 3.0) {
     for (const y of [1.1, 4.25]) {
       objs.push(boxM(0.95, 2.0, 0.06, teal, x, y, wingZ + 4.53));
@@ -544,7 +551,7 @@ export function buildNorthNeighbours(b: WorldBuilder, zDr: number, zEnd: number)
   tower(b, { x: -38, z: kzc + 0.5, w: 16, d: kz0 - kz1 - 4, h: 52, y: 6, facade: skyFacade, accent: 0x8fd0e8 });
   b.box(-32, 0, kzc, 21, 6, kz0 - kz1, mat(0xe4e2dc, 0.7), true);
   // CVS storefront: glass wall to the Strip, red band, red wordmark
-  objs.push(boxM(0.1, 3.4, kz0 - kz1 - 3, shopGlass(b, 0xe8f0ff, 0.5), -21.45, 1.9, kzc));
+  objs.push(boxM(0.1, 3.4, kz0 - kz1 - 3, shopGlass(b), -21.45, 1.9, kzc));
   objs.push(boxM(0.4, 1.0, kz0 - kz1 - 1, mat(0xcc0000, 0.5), -21.3, 4.3, kzc));
   const cvs = letters(b, 'CVS pharmacy', 6.4, 0.9, { style: 'sans', fill: '#ffffff' });
   b.add(cvs, -21.07, 4.3, kzc, HALF_PI);
