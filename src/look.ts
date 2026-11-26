@@ -224,16 +224,16 @@ export interface StripLook {
 }
 
 /**
- * Exposure and bloom for the time of day. Day: a touch under 1.1 so sunlit white stucco keeps its
- * texture under ACES instead of going chalky. Sunset: open up slightly for the warm low light.
- * Night: the eye adapts to the dark street, so exposure rises, and bloom gets strong enough for neon
- * and bulbs to throw a halo while lit windows (kept below the threshold) stay sharp.
+ * Exposure and bloom for the time of day. Day: 1.06 (was 1.12) so sunlit white stucco keeps its
+ * shading under ACES instead of going chalky (the grade adds a little daylight contrast too).
+ * Night: the eye adapts to the dark street, so exposure rises to 1.2, and bloom gets strong enough
+ * for neon and bulbs to throw a halo while lit windows (kept below the threshold) stay sharp.
+ * Sunset sits in between, with a gentle bloom on the low sun's glints.
  */
 export function stripLook(a: AtmosphereState, out: StripLook): StripLook {
-  const day = THREE.MathUtils.clamp(a.day, 0, 1);
   const sunset = THREE.MathUtils.clamp(a.sunset, 0, 1);
   const night = THREE.MathUtils.clamp(a.night, 0, 1);
-  out.exposure = 1.04 + sunset * 0.08 + night * 0.16 - day * 0.02;
+  out.exposure = 1.06 + night * 0.14;
   out.bloomStrength = 0.12 + sunset * 0.15 + night * 1.0;
   out.bloomThreshold = THREE.MathUtils.lerp(1.15, 0.85, Math.max(night, sunset * 0.6));
   return out;

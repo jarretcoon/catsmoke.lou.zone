@@ -1991,7 +1991,7 @@ function buildMGMGrand(b: WorldBuilder): void {
   const tz = 400;
   for (let k = 0; k < 4; k++) {
     const a = Math.PI / 4 + (k * Math.PI) / 2;
-    tower(b, { x: tx + Math.cos(a) * 10, z: tz + Math.sin(a) * 10, w: 24, d: 12, h: 36, y: MGM.h, facade: { ...em, seed: 432 + k }, rotY: -a, metal: 0.55, rough: 0.2, minimal: true, accent: 0x3dff8c, wash: 0x2ee07a, washZone: 36, washStrength: 0.85 });
+    tower(b, { x: tx + Math.cos(a) * 10, z: tz + Math.sin(a) * 10, w: 24, d: 12, h: 36, y: MGM.h, facade: { ...em, seed: 432 + k }, rotY: -a, metal: 0.55, rough: 0.2, minimal: true, accent: 0x2ee07a, wash: 0x2ee07a, washZone: 36, washStrength: 0.85 });
     if (k === 1 || k === 2) {
       const dx = Math.cos(a);
       const dz = Math.sin(a);
