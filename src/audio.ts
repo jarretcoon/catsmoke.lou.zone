@@ -121,6 +121,46 @@ export class SoundFX {
     });
   }
 
+  /** Lou's phone: open / close swishes, a tap, a text ding, the camera shutter. */
+  public playPhone(kind: 'open' | 'close' | 'text' | 'tap' | 'shutter'): void {
+    const ctx = this.ensureCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    if (kind === 'shutter') {
+      const len = Math.floor(ctx.sampleRate * 0.09);
+      const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (i < len * 0.35 ? 1 : 0.35) * Math.exp(-i / (len * 0.3));
+      const src = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 1800;
+      gain.gain.value = 0.22;
+      src.buffer = buffer;
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      src.start(now);
+      return;
+    }
+    const notes: Record<string, number[]> = { open: [520, 780], close: [700, 470], text: [1320, 1760], tap: [900] };
+    notes[kind].forEach((freq, i) => {
+      const t = now + i * (kind === 'text' ? 0.11 : 0.06);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(kind === 'tap' ? 0.04 : 0.07, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + (kind === 'text' ? 0.22 : 0.12));
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    });
+  }
+
   public playSteal(): void {
     const ctx = this.ensureCtx();
     if (!ctx) return;
