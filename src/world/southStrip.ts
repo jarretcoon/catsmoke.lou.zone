@@ -1,16 +1,17 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bakeGroup } from '../meshBake';
 import { viewer, type WorldBuilder } from './builder';
 import { facadeMaterial, stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
-import { LedBoard, makePaverTexture } from './textures';
+import { LedBoard } from './textures';
 import type { FacadeSpec } from './textures';
 import { basic, car, mat, mesh, neonSign, planter } from './props';
 import type { CarKind } from './props';
-import { palmPieces } from './props';
 import { beamMaterial } from './skyLife';
 import { buildLuxorAtrium, luxorColliders, luxorSkinGeometry } from './grandLuxor';
+import { buildSouthFronts } from './southFronts';
+import { buildWelcomeSign } from './welcomeSign';
+import { L0, L1, L2, Merger, UP, beamGeo, canvasTex, ground, palmInto, paving, v3 } from './southKit';
 import { xFromO, zFromS } from './strip';
 import { excaliburSigns, excaliburTowerLetters, luxorPyramidLetters, luxorSigns, mandalaySigns, mandalayTowerLetters } from './stripSigns';
 import { MGM, buildMGMRotunda, mgmFloorSet, mgmMarquee } from './mgmInterior';
@@ -41,6 +42,7 @@ export function buildSouthStrip(b: WorldBuilder): void {
   buildOYO(b);
   buildEastLots(b);
   buildPinballAndDream(b);
+  buildSouthFronts(b);
   buildAirport(b);
   buildBaliHai(b);
   buildWelcomeSign(b);
@@ -56,122 +58,6 @@ const RING_S = TROP_Z + 30.2;
 const RUSSELL_Z = zFromS(-3182); // 806.7
 const RUSSELL_N = RUSSELL_Z - 12.2;
 const RUSSELL_S = RUSSELL_Z + 12.2;
-/** Ground-level half-width of the Welcome sign median island (inner-lane cars run from |x| ≈ 2.17). */
-const ISLAND = 2.1;
-
-// Floor layers (keep a few cm apart so distant floors do not z-fight)
-const L0 = 0.014;
-const L1 = 0.034;
-const L2 = 0.05;
-
-// ---------------------------------------------------------------- helpers
-const UP = new THREE.Vector3(0, 1, 0);
-const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-
-function prepGeo(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
-  if (!g.attributes.normal) g.computeVertexNormals();
-  if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-  if (!g.index) {
-    const n = g.attributes.position.count;
-    const idx: number[] = new Array(n);
-    for (let i = 0; i < n; i++) idx[i] = i;
-    g.setIndex(idx);
-  }
-  g.clearGroups();
-  return g;
-}
-
-const _dir = new THREE.Vector3();
-const _q = new THREE.Quaternion();
-/** Cylinder from a to c (radius r at a, rTop at c). */
-function beamGeo(a: THREE.Vector3, c: THREE.Vector3, r: number, seg = 6, rTop = r): THREE.BufferGeometry {
-  _dir.subVectors(c, a);
-  const len = Math.max(0.001, _dir.length());
-  const g = new THREE.CylinderGeometry(rTop, r, len, seg, 1);
-  _q.setFromUnitVectors(UP, _dir.divideScalar(len));
-  g.applyQuaternion(_q);
-  g.translate((a.x + c.x) / 2, (a.y + c.y) / 2, (a.z + c.z) / 2);
-  return g;
-}
-
-/** Collects many small pieces and emits one merged mesh per material (keeps the mesh count low). */
-class Merger {
-  private readonly lists = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; cast: boolean }>();
-  add(g: THREE.BufferGeometry, m: THREE.Material, cast = false): void {
-    let e = this.lists.get(m);
-    if (!e) {
-      e = { geos: [], cast: false };
-      this.lists.set(m, e);
-    }
-    e.geos.push(prepGeo(g));
-    e.cast ||= cast;
-  }
-  /** Box centred at (x, y, z). */
-  box(m: THREE.Material, x: number, y: number, z: number, w: number, h: number, d: number, ry = 0, cast = false): void {
-    const g = new THREE.BoxGeometry(w, h, d);
-    if (ry) g.rotateY(ry);
-    g.translate(x, y, z);
-    this.add(g, m, cast);
-  }
-  beam(m: THREE.Material, a: THREE.Vector3, c: THREE.Vector3, r: number, seg = 6, rTop = r, cast = false): void {
-    this.add(beamGeo(a, c, r, seg, rTop), m, cast);
-  }
-  at(m: THREE.Material, g: THREE.BufferGeometry, x: number, y: number, z: number, ry = 0, cast = false): void {
-    if (ry) g.rotateY(ry);
-    g.translate(x, y, z);
-    this.add(g, m, cast);
-  }
-  /** Emit into the static root (default) or straight into the scene (for animated materials). */
-  flush(b: WorldBuilder, toScene = false): THREE.Mesh[] {
-    const out: THREE.Mesh[] = [];
-    for (const [m, e] of this.lists) {
-      if (!e.geos.length) continue;
-      const merged = mergeGeometries(e.geos, false);
-      for (const g of e.geos) g.dispose();
-      if (!merged) continue;
-      merged.computeBoundingSphere();
-      const me = new THREE.Mesh(merged, m);
-      me.castShadow = e.cast;
-      me.receiveShadow = true;
-      if (toScene) b.scene.add(me);
-      else b.add(me);
-      out.push(me);
-    }
-    this.lists.clear();
-    return out;
-  }
-}
-
-const paverTex = new Map<string, THREE.CanvasTexture>();
-function paving(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, base = '#cdbfa6', joint = '#a99a82', tile = 4, y = L0): void {
-  const w = Math.abs(x1 - x0);
-  const d = Math.abs(z1 - z0);
-  let t = paverTex.get(base + joint);
-  if (!t) {
-    t = makePaverTexture(base, joint, 4);
-    paverTex.set(base + joint, t);
-  }
-  const tex = t.clone();
-  tex.needsUpdate = true;
-  tex.repeat.set(w / tile, d / tile);
-  b.floor((x0 + x1) / 2, (z0 + z1) / 2, w, d, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }), y);
-}
-
-function ground(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, color: number, y = L0, rough = 0.95): void {
-  b.floor((x0 + x1) / 2, (z0 + z1) / 2, Math.abs(x1 - x0), Math.abs(z1 - z0), mat(color, rough), y);
-}
-
-function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  draw(c.getContext('2d')!, w, h);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
 
 /** Strip-side LED marquee: the board faces ±z (Boulevard traffic), spanning `w` along x. */
 function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: number, h: number, poleH: number, frame = 0x18181c): void {
@@ -186,15 +72,6 @@ function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: numbe
   b.add(mesh(new THREE.BoxGeometry(1.4, poleH, 1.4), dark, x, poleH / 2, z, true));
   b.collider(x - 0.8, x + 0.8, z - 0.8, z + 0.8, 0, poleH + h, true);
   b.every((_dt, t) => led.draw(t));
-}
-
-/** A palm into a merger (shared palm pieces: ringed trunk, alpha-tested frond crown, dates). */
-function palmInto(mg: Merger, x: number, z: number, h: number, seed: number, y0 = 0): void {
-  for (const p of palmPieces(h, false, seed)) {
-    const g = p.geo.clone().applyMatrix4(p.matrix);
-    g.translate(x, y0, z);
-    mg.add(g, p.mat, p.cast);
-  }
 }
 
 /** Raised gravel bed with agave rosettes (desert landscaping). */
@@ -1382,7 +1259,8 @@ function buildLuxor(b: WorldBuilder): void {
   const mg = new Merger();
 
   // Black-glass pyramid
-  const skin = facadeMaterial(b, { wall: '#0d1116', mullion: '#1a2129', glass: '#0a0d12', lit: '#ffcf8a', cols: 16, rows: 14, style: 2, seed: 401 }, half * 2, Math.hypot(h, half), { metal: 0.85, rough: 0.12, glow: 1.0 });
+  // (scaled so the room windows come out about as small as the real pyramid's 30 floors of them)
+  const skin = facadeMaterial(b, { wall: '#0d1116', mullion: '#1a2129', glass: '#0a0d12', lit: '#ffcf8a', cols: 16, rows: 14, style: 2, seed: 401 }, half * 2 * 2.4, Math.hypot(h, half) * 2.4, { metal: 0.85, rough: 0.12, glow: 0.62 });
   // Skin with a doorway notch on the east face; hollow inside (the atrium, grandLuxor.ts)
   const pyr = new THREE.Mesh(luxorSkinGeometry(half, h), skin);
   pyr.position.set(px, 0, pz);
@@ -1435,7 +1313,7 @@ function buildLuxor(b: WorldBuilder): void {
   mg.box(sandDark, -45.6, 5.55, pz, 1.4, 0.5, 14.5);
   b.add(mesh(new THREE.BoxGeometry(0.2, 0.25, 6.4), basic(0xffd9a0), -45.95, 4.5, pz));
 
-  buildSphinx(b, mg, -28.6, zFromS(-2173));
+  buildSphinx(b, mg, -30.2, zFromS(-2173));
   // Obelisk with glowing hieroglyphs
   const glyphs = canvasTex(256, 1024, (ctx, w, hh) => {
     ctx.fillStyle = '#c9ad7e';
@@ -1490,9 +1368,16 @@ function buildLuxor(b: WorldBuilder): void {
   );
 }
 
-/** Luxor's sandstone Sphinx facing the Boulevard (walkable plinth and paws). */
+/**
+ * Luxor's Sphinx facing the Boulevard: a recumbent lion with its forelegs stretched toward the Strip, a broad
+ * chest, and a pharaoh's head in a blue-and-gold striped nemes with the uraeus and false beard (the real one is
+ * 110 ft tall, about a third of the pyramid's height; here it keeps that ratio). Walkable plinth and paws.
+ */
 function buildSphinx(b: WorldBuilder, mg: Merger, x: number, z: number): void {
-  const sand = mat(0xd2b48a, 0.85);
+  const S = 1.3;
+  // floodlit warm at night (faked in the material: no extra scene light)
+  const sand = new THREE.MeshStandardMaterial({ color: 0xd2b48a, roughness: 0.85, emissive: 0xffc890, emissiveIntensity: 0 });
+  b.nightGlow(sand, 0.0, 0.2);
   const sandDark = mat(0xb39669, 0.85);
   const stripes = canvasTex(64, 64, (ctx, w, h) => {
     for (let y = 0; y < h; y += 8) {
@@ -1504,39 +1389,50 @@ function buildSphinx(b: WorldBuilder, mg: Merger, x: number, z: number): void {
   stripes.repeat.set(1, 3);
   const nemes = new THREE.MeshStandardMaterial({ map: stripes, roughness: 0.6 });
   const dark = mat(0x2a2218, 0.7);
-  const P = (lx: number, ly: number, lz: number) => [x + lx, ly, z + lz] as const;
-  const box = (m: THREE.Material, lx: number, ly: number, lz: number, w: number, h: number, d: number) => {
-    const [wx, wy, wz] = P(lx, ly, lz);
-    mg.box(m, wx, wy, wz, w, h, d, 0, true);
+  const goldM = mat(0xe8b93a, 0.3, 0.85);
+  /** Local (lx forward toward the Strip, ly up, lz across) → a geometry placed in the world, scaled by S. */
+  const put = (m: THREE.Material, g: THREE.BufferGeometry, lx: number, ly: number, lz: number, cast = true) => {
+    g.scale(S, S, S);
+    g.translate(x + lx * S, ly * S, z + lz * S);
+    mg.add(g, m, cast);
   };
+  const box = (m: THREE.Material, lx: number, ly: number, lz: number, w: number, h: number, d: number) => put(m, new THREE.BoxGeometry(w, h, d), lx, ly, lz);
+  // plinth
   box(sandDark, 0, 0.6, 0, 16.4, 1.2, 7.6);
-  b.collider(x - 8.2, x + 8.2, z - 3.8, z + 3.8, 0, 1.2);
-  box(sand, -3.6, 2.9, 0, 8.4, 3.4, 5.4);
-  const back = new THREE.CylinderGeometry(2.7, 2.7, 8.4, 16);
-  back.rotateZ(Math.PI / 2);
-  back.scale(1, 0.45, 1);
-  mg.at(sand, back, x - 3.6, 4.6, z);
-  for (const s of [-1, 1]) mg.add(new THREE.SphereGeometry(1.6, 12, 8).scale(1.3, 0.9, 0.6).translate(x - 5.6, 2.8, z + s * 2.5), sand);
-  box(sand, 1.2, 3.3, 0, 2.6, 4.2, 5.0);
+  // lion body: long rounded torso, back sloping up to the shoulders, haunches
+  put(sand, new THREE.SphereGeometry(1, 20, 12).scale(4.9, 1.75, 2.5), -2.6, 2.85, 0);
+  put(sand, new THREE.SphereGeometry(1, 16, 10).scale(2.2, 1.6, 1.35), -5.4, 2.6, 2.1);
+  put(sand, new THREE.SphereGeometry(1, 16, 10).scale(2.2, 1.6, 1.35), -5.4, 2.6, -2.1);
+  // the tail curled along the right flank
+  put(sand, beamGeo(v3(-7.6, 1.5, 2.6), v3(-1.5, 1.35, 2.95), 0.18, 6), 0, 0, 0);
+  // chest and shoulders
+  put(sand, new THREE.CylinderGeometry(2.1, 2.5, 4.6, 16).scale(0.85, 1, 1.1), 1.0, 3.5, 0);
+  // forelegs stretched toward the Strip, with paws
   for (const s of [-1, 1]) {
-    box(sand, 4.2, 1.85, s * 1.75, 6.6, 1.3, 1.5);
-    box(sand, 7.6, 1.7, s * 1.75, 1.2, 1.0, 1.6);
+    put(sand, new THREE.CylinderGeometry(0.75, 0.82, 6.4, 12).rotateZ(Math.PI / 2), 4.6, 1.95, s * 1.6);
+    put(sand, new THREE.SphereGeometry(0.9, 12, 8).scale(1.1, 0.75, 1), 7.6, 1.85, s * 1.6);
   }
-  box(sand, 2.0, 6.6, 0, 2.3, 2.5, 2.3);
-  box(nemes, 1.8, 8.1, 0, 2.7, 0.6, 2.9);
-  box(nemes, 0.9, 6.2, 0, 1.2, 2.6, 2.7);
-  for (const s of [-1, 1]) box(nemes, 2.55, 5.6, s * 1.42, 0.6, 2.6, 0.62);
-  box(sand, 3.3, 6.55, 0, 0.36, 0.52, 0.36);
-  for (const s of [-1, 1]) box(dark, 3.17, 7.1, s * 0.45, 0.06, 0.18, 0.42);
-  box(dark, 3.17, 6.05, 0, 0.06, 0.08, 0.6);
-  box(nemes, 3.0, 4.9, 0, 0.45, 1.1, 0.5);
-  box(mat(0xe8b93a, 0.3, 0.85), 3.17, 7.85, 0, 0.12, 0.5, 0.22);
-  mg.beam(sand, v3(x - 7.8, 1.6, z + 2.6), v3(x - 1, 1.4, z + 2.85), 0.18, 6);
-  b.collider(x - 7.8, x + 2.5, z - 2.7, z + 2.7, 1.2, 5.8, true);
-  b.collider(x + 0.7, x + 3.2, z - 1.5, z + 1.5, 5.4, 8.4, true);
-  for (const s of [-1, 1]) b.collider(x + 0.9, x + 8.2, z + s * 1.75 - 0.8, z + s * 1.75 + 0.8, 1.2, 2.5);
-  b.pickup(x + 7.4, 2.95, z - 1.75, 3, 'Sphinx Paw Offering Pack', false);
-  b.zone('Great Sphinx of Luxor', x - 8.2, x + 8.2, z - 3.8, z + 3.8);
+  // head: the face, the nemes headdress spreading over the shoulders in two striped lappets, its crown fold
+  put(sand, new THREE.BoxGeometry(2.0, 2.4, 2.1), 2.2, 6.75, 0);
+  put(sand, new THREE.SphereGeometry(1.05, 14, 10).scale(1.0, 1.1, 1.0), 2.35, 6.9, 0);
+  put(nemes, new THREE.CylinderGeometry(1.25, 1.9, 2.7, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 1.25), 1.7, 7.2, 0);
+  put(nemes, new THREE.SphereGeometry(1.3, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1.2), 1.75, 8.5, 0);
+  for (const s of [-1, 1]) put(nemes, new THREE.BoxGeometry(0.75, 3.0, 0.55).rotateX(s * 0.12), 2.55, 5.6, s * 1.45);
+  put(nemes, new THREE.BoxGeometry(1.4, 2.2, 2.6), 0.8, 6.2, 0);
+  // face: nose, eyes (kohl), mouth, false beard, the gold uraeus cobra on the brow
+  put(sand, new THREE.BoxGeometry(0.42, 0.55, 0.38), 3.45, 6.75, 0);
+  for (const s of [-1, 1]) put(dark, new THREE.BoxGeometry(0.06, 0.18, 0.46), 3.33, 7.25, s * 0.46);
+  put(dark, new THREE.BoxGeometry(0.06, 0.08, 0.62), 3.33, 6.25, 0);
+  put(nemes, new THREE.BoxGeometry(0.42, 1.2, 0.48), 3.1, 5.15, 0);
+  put(goldM, new THREE.BoxGeometry(0.14, 0.55, 0.24), 3.35, 8.15, 0);
+  // colliders (scaled with it)
+  const C = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, wall: boolean) => b.collider(x + x0 * S, x + x1 * S, z + z0 * S, z + z1 * S, y0 * S, y1 * S, wall);
+  C(-8.2, 8.2, -3.8, 3.8, 0, 1.2, false);
+  C(-7.8, 2.5, -2.7, 2.7, 1.2, 4.6, true);
+  C(0.7, 3.4, -1.6, 1.6, 4.6, 9.2, true);
+  for (const s of [-1, 1]) C(1.5, 8.5, s * 1.6 - 0.85, s * 1.6 + 0.85, 1.2, 2.7, false);
+  b.pickup(x + 7.6 * S, 2.75 * S + 0.1, z - 1.6 * S, 3, 'Sphinx Paw Offering Pack', false);
+  b.zone('Great Sphinx of Luxor', x - 8.2 * S, x + 8.2 * S, z - 3.8 * S, z + 3.8 * S);
 }
 
 // ================================================================ Mandalay Bay / W / Four Seasons
@@ -1562,6 +1458,8 @@ function buildMandalay(b: WorldBuilder): void {
   const tcx = -66;
   const tcz = 671;
   const angs = [Math.PI / 3 - 0.25, Math.PI - 0.25, (5 * Math.PI) / 3 - 0.25];
+  const goldLine = new THREE.MeshStandardMaterial({ color: 0xf2c46a, emissive: 0xffc04a, emissiveIntensity: 0.05, roughness: 0.4, metalness: 0.5 });
+  b.nightGlow(goldLine, 0.05, 1.5);
   angs.forEach((a, i) => {
     for (const [r0, r1, hh] of [
       [0, 15, 46],
@@ -1570,6 +1468,19 @@ function buildMandalay(b: WorldBuilder): void {
     ]) {
       const rm = (r0 + r1) / 2;
       tower(b, { x: tcx + Math.cos(a) * rm, z: tcz + Math.sin(a) * rm, w: r1 - r0, d: 11, h: hh, facade: { ...gold, seed: 412 + i * 3 + r0 }, rotY: -a, metal: 0.85, rough: 0.18, minimal: true, accent: 0xffe6a0, wash: 0xffc860, washZone: 18, washStrength: 1.0 });
+    }
+    for (const [r0, r1, hh] of [
+      [0, 15, 46],
+      [13, 22, 40],
+      [20, 28, 32],
+    ]) {
+      void r0;
+      for (const s of [-1, 1]) {
+        const cx = tcx + Math.cos(a) * r1 - Math.sin(a) * 5.56 * s;
+        const cz = tcz + Math.sin(a) * r1 + Math.cos(a) * 5.56 * s;
+        mg.box(goldLine, cx, (12.2 + hh) / 2, cz, 0.14, hh - 12.2, 0.14);
+      }
+      mg.box(goldLine, tcx + Math.cos(a) * (r1 - 0.05), hh + 0.06, tcz + Math.sin(a) * (r1 - 0.05), 0.14, 0.14, 11.2, -a);
     }
     if (i !== 1) {
       const dx = Math.cos(a);
@@ -1708,7 +1619,9 @@ function buildAllegiant(b: WorldBuilder): void {
   const body = mesh(new THREE.CylinderGeometry(34, 30, 24, 56, 1), shell, x, 12, z);
   body.scale.set(1.12, 1, 1);
   b.add(body);
-  const rib = mat(0x2a2d33, 0.4, 0.8);
+  // the ribs carry the white LED lines that trace the black shell at night (YESCO)
+  const rib = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.4, metalness: 0.8, emissive: 0xeef4ff, emissiveIntensity: 0 });
+  b.nightGlow(rib, 0.0, 1.1);
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2;
     mg.beam(rib, v3(x + Math.cos(a) * 30.2 * 1.12, 0, z + Math.sin(a) * 30.2), v3(x + Math.cos(a) * 34.2 * 1.12, 24, z + Math.sin(a) * 34.2), 0.3, 4);
@@ -2347,7 +2260,7 @@ function buildEastLots(b: WorldBuilder): void {
   const a1 = zFromS(-2364) - 0.4;
   ground(b, 19.4, xE, a0, a1, 0xa89272);
   scatter(a0, a1, 40, 0.11);
-  chainLink(b, mg, 19.7, a0 + 2, 19.7, 574);
+  chainLink(b, mg, 19.7, 555, 19.7, 574); // (ampm + ARCO on the Reno Ave corner north of here: southFronts.ts)
   chainLink(b, mg, 19.7, 582, 19.7, a1 - 2);
   billboard(b, mg, 32, 560, 'INJURED? CALL 702-555-0188', 'THE CAT LAWYERS • WE FIGHT FOR YOU', '#f2c230', '#111111');
   billboard(b, mg, 32, 604, 'ALL-YOU-CAN-EAT CRAB LEGS', 'BUFFET • OPEN 24 HOURS', '#7a1414', '#ffe9a0');
@@ -2357,9 +2270,9 @@ function buildEastLots(b: WorldBuilder): void {
   const d0 = zFromS(-2364); // 624.9
   const d1 = zFromS(-2770); // 715.1
   ground(b, 19.4, xFromO(414), d0, d1, 0x8f7656);
-  chainLink(b, mg, 19.7, d0 + 1, 19.7, 660);
-  chainLink(b, mg, 19.7, 672, 19.7, d1 - 1);
-  chainLink(b, mg, 19.7, d1 - 1, xE - 1, d1 - 1);
+  // frontage fence only up to the motels (3961 → the Shell at 4207 are open businesses: southFronts.ts)
+  chainLink(b, mg, 19.7, d0 + 1, 19.7, 648.2);
+  chainLink(b, mg, 46, 648.2, 46, 702);
   const fabric = mat(0xf4f4f0, 0.7, 0, { side: THREE.DoubleSide });
   for (const [tx, tz] of [
     [50, 648],
@@ -2391,8 +2304,8 @@ function buildEastLots(b: WorldBuilder): void {
     mg.beam(mat(0x8a8f94, 0.4, 0.6), v3(lx, 0, lz), v3(lx, 8, lz), 0.12, 6);
     mg.box(lampM, lx, 8.3, lz, 2.0, 0.9, 0.4);
   }
-  for (let i = 0; i < 3; i++) mg.box(mat(0x2a66cc, 0.6), 30 + i * 1.4, 1.15, 704, 1.2, 2.3, 1.2);
-  sign(b, 'EVENT PARKING', '#0a2a5a', '#ffffff', 5, 1.2, 20.6, 2.2, 666, -Math.PI / 2, 'ENTER HERE', 0.08);
+  for (let i = 0; i < 3; i++) mg.box(mat(0x2a66cc, 0.6), 60 + i * 1.4, 1.15, 704, 1.2, 2.3, 1.2);
+  sign(b, 'EVENT PARKING', '#0a2a5a', '#ffffff', 5, 1.2, 20.6, 2.2, 637, -Math.PI / 2, 'DIAMOND LOT • ENTER HERE', 0.08);
   const parked: Array<[CarKind, number, number]> = [
     ['suv', 0x1d1f24, 640],
     ['sedan', 0xd9d9d9, 646],
@@ -2411,8 +2324,10 @@ function buildEastLots(b: WorldBuilder): void {
   const c1 = RUSSELL_N - 0.2;
   ground(b, 19.4, xE, c0, c1, 0xa89272);
   scatter(c0, c1, 34, 0.53);
-  chainLink(b, mg, 19.7, c0 + 1, 19.7, c1 - 1);
-  billboard(b, mg, 32, 756, 'FOR LEASE', 'STRIP FRONTAGE • 27 ACRES', '#ffffff', '#c8202e');
+  // fenced, but open at the (closed) Diamond Inn's driveway
+  chainLink(b, mg, 19.7, 723.5, 19.7, 759.5);
+  chainLink(b, mg, 19.7, 784.5, 19.7, c1 - 1);
+  billboard(b, mg, 32, 752, 'FOR LEASE', 'STRIP FRONTAGE • 27 ACRES', '#ffffff', '#c8202e');
   b.zone('Vacant Lot (Hacienda)', 19, xE, c0, c1);
   mg.flush(b);
 }
@@ -2423,11 +2338,9 @@ function buildPinballAndDream(b: WorldBuilder): void {
   ground(b, 19.2, 70, RUSSELL_S, 869.5, 0x9a8c74);
   // Pinball Hall of Fame
   const pz = zFromS(-3325); // 838.4
-  b.box(52, 0, pz, 24, 7.5, 17, mat(0x4a5f8a, 0.6, 0.4), true);
-  mg.box(mat(0xff4fd8, 0.5, 0.2), 52, 6.8, pz, 24.3, 0.5, 17.3);
-  mg.box(mat(0x2a2a30, 0.7), 52, 7.6, pz, 24.4, 0.25, 17.4);
-  sign(b, 'PINBALL HALL OF FAME', '#120a2a', '#ff4fd8', 15, 2.0, 39.85, 5.2, pz, -Math.PI / 2, 'FREE ADMISSION • PLAY THE CLASSICS');
-  b.add(mesh(new THREE.BoxGeometry(0.15, 2.6, 4), basic(0xffe9a0), 39.95, 1.3, pz));
+  // white "airplane hangar" (its red PINBALL facade and the roadside sign are in southFronts.ts)
+  b.box(52, 0, pz, 24, 7.5, 17, mat(0xf1efe8, 0.8), true);
+  mg.box(mat(0xc8202a, 0.6), 52, 7.55, pz, 24.3, 0.3, 17.3);
   mg.box(mat(0x1a1a20, 0.4, 0.6), 38.6, 3.1, pz, 2.8, 0.3, 6);
   ground(b, 22, 39.6, 828, 848.5, 0x2e2e33, L1, 0.85);
   for (let z = 830; z <= 847; z += 3.4) b.floor(30.8, z, 7.4, 0.12, basic(0xf2f0ea), L2);
@@ -2442,109 +2355,14 @@ function buildPinballAndDream(b: WorldBuilder): void {
     b.add(cc.group, 31, 0, z, Math.PI / 2);
     b.collider(28.4, 33.6, z - 1.1, z + 1.1, 0, 1.6);
   }
-  // Fun pylon sign with a bouncing chrome ball
-  const pinTex = canvasTex(512, 340, (ctx, w, h) => {
-    const gr = ctx.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, '#2a0a4a');
-    gr.addColorStop(1, '#0a0418');
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = '#ffd23a';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(6, 6, w - 12, h - 12);
-    const cols = ['#ff3b3b', '#ff9a2a', '#ffe23a', '#3bff7a', '#3ad8ff', '#b06cff', '#ff4fd8'];
-    ctx.font = 'bold 92px "Arial Black", Impact, sans-serif';
-    ctx.textBaseline = 'middle';
-    let x = 34;
-    'PINBALL'.split('').forEach((ch, i) => {
-      ctx.fillStyle = cols[i % cols.length];
-      ctx.shadowColor = cols[i % cols.length];
-      ctx.shadowBlur = 16;
-      ctx.fillText(ch, x, 110);
-      x += ctx.measureText(ch).width + 4;
-    });
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ffe23a';
-    ctx.shadowColor = '#ffe23a';
-    ctx.font = 'bold 50px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('HALL OF FAME', w / 2, 200);
-    ctx.fillStyle = '#ffffff';
-    for (const s of [-1, 1]) {
-      ctx.save();
-      ctx.translate(w / 2 + s * 90, 280);
-      ctx.rotate(s * -0.35);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 70, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  });
-  const pinMat = new THREE.MeshBasicMaterial({ map: pinTex });
-  const dark = mat(0x18181c, 0.5, 0.4);
-  const signX = 26;
-  const signZ = 827.4;
-  const board = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 0.6), [dark, dark, dark, dark, pinMat, pinMat]);
-  board.position.set(signX, 8, signZ);
-  b.add(board);
-  mg.box(dark, signX, 3, signZ, 0.8, 6, 0.8, 0, true);
-  b.collider(signX - 0.5, signX + 0.5, signZ - 0.5, signZ + 0.5, 0, 10, true);
-  const ball = mesh(new THREE.SphereGeometry(0.85, 20, 14), mat(0xe8ecf2, 0.05, 1), signX, 10.9, signZ);
-  b.scene.add(ball);
-  b.every((_dt, t) => {
-    ball.position.y = 10.9 + Math.abs(Math.sin(t * 2.4)) * 1.8;
-    ball.position.x = signX + Math.sin(t * 0.9) * 1.6;
-  });
   b.pickup(39.2, 0.45, pz + 3, 2, 'Pinball Wizard Pack', false);
-  b.building(52, pz, 24, 17, '#4a5f8a', 'Pinball HoF');
+  b.building(52, pz, 24, 17, '#f1efe8', 'Pinball HoF');
   b.zone('Pinball Hall of Fame', 19, 66, 826, 848.5);
 
-  // Dream Las Vegas — stalled steel skeleton
-  const rust = mat(0x7a3e22, 0.92, 0.35);
-  const slab = mat(0x9a968e, 0.9);
+  // Dream Las Vegas: the site stalled at its foundations in 2023 (southFronts.ts builds what's there now)
   const dz = zFromS(-3408); // 856.9
-  const xs = [25, 31, 37, 43, 49, 55, 61];
-  const zs = [dz - 6.5, dz - 2.2, dz + 2.2, dz + 6.5];
-  const floors = (i: number, j: number) => 2 + ((i * 3 + j * 5) % 4) - (i === 0 || i === 6 ? 1 : 0);
-  const FL = 4.2;
-  xs.forEach((x, i) =>
-    zs.forEach((z, j) => {
-      const hgt = floors(i, j) * FL;
-      mg.box(rust, x, hgt / 2, z, 0.45, hgt, 0.45, 0, true);
-      b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, hgt, true);
-      for (let k = 0; k < 4; k++) mg.beam(mat(0x4a2a1a, 0.9, 0.3), v3(x - 0.15 + (k % 2) * 0.3, hgt, z - 0.15 + (k >> 1) * 0.3), v3(x - 0.15 + (k % 2) * 0.3, hgt + 1.1, z - 0.15 + (k >> 1) * 0.3), 0.02, 3);
-    })
-  );
-  for (let lvl = 1; lvl <= 4; lvl++) {
-    const y = lvl * FL;
-    xs.forEach((x, i) =>
-      zs.forEach((z, j) => {
-        if (i < xs.length - 1 && floors(i, j) >= lvl && floors(i + 1, j) >= lvl) mg.box(rust, (x + xs[i + 1]) / 2, y - 0.25, z, 6, 0.5, 0.3);
-        if (j < zs.length - 1 && floors(i, j) >= lvl && floors(i, j + 1) >= lvl) mg.box(rust, x, y - 0.25, (z + zs[j + 1]) / 2, 0.3, 0.5, zs[j + 1] - z);
-      })
-    );
-  }
-  b.box(43.5, FL, dz, 38.5, 0.3, 13.4, slab, false, true);
-  b.box(37, FL * 2, dz - 2.2, 12.5, 0.3, 9, slab, false, true);
-  stairs(b, 64.6, dz - 7.5, '+z', 2.4, FL + 0.3, 9, slab);
-  b.box(63.2, FL, dz + 1.9, 1.6, 0.3, 3.2, slab, false, false);
-  // Rusty, idle tower crane
-  const idle = mat(0x8a5a2a, 0.9, 0.3);
-  for (const [cx, cz] of [
-    [-0.9, -0.9],
-    [0.9, -0.9],
-    [-0.9, 0.9],
-    [0.9, 0.9],
-  ]) mg.box(idle, 33 + cx, 15, dz + 9.5 + cz, 0.2, 30, 0.2);
-  for (let y = 0; y < 30; y += 3) mg.box(idle, 33, y, dz + 9.5, 2, 0.12, 2);
-  mg.box(idle, 45, 31, dz + 9.5, 34, 1.0, 1.0);
-  mg.box(mat(0x555555, 0.8), 25, 30.4, dz + 9.5, 4, 2.4, 2.2);
-  b.collider(32, 34, dz + 8.5, dz + 10.5, 0, 30, true);
-  chainLink(b, mg, 21.4, dz - 8.4, 21.4, dz - 1);
-  chainLink(b, mg, 21.4, dz + 1.5, 21.4, dz + 8.4);
-  for (const z of [dz - 5, dz + 5]) sign(b, 'DREAM', '#4a4a48', '#d8d0c0', 5, 1.2, 21.25, 1.4, z, -Math.PI / 2, 'LAS VEGAS • COMING SOON', 0.05);
   mg.flush(b);
-  b.building(43, dz, 38, 14, '#7a3e22', 'Dream (stalled)');
+  b.building(43, dz, 38, 14, '#8a6e4e', 'Dream site (stalled)');
   b.zone('Dream Las Vegas (stalled construction)', 19, 66, 848.5, 869.5);
 }
 
@@ -2607,6 +2425,9 @@ function buildBaliHai(b: WorldBuilder): void {
     [z0 + 9, 870],
     [876, 958],
   ]) b.box(-20.4, 0, (a + c) / 2, 0.9, 1.0, c - a, hedge, false, false);
+  // Roadside billboards along the course frontage (the south Strip is lined with them)
+  billboard(b, mg, -31, 866, 'HELICOPTER TOURS', 'GRAND CANYON • THE STRIP AT NIGHT', '#0a2a4a', '#ffd23a');
+  billboard(b, mg, -31, 918, 'WORLD’S LARGEST GIFT SHOP', 'NORTH STRIP • OPEN 8 AM – MIDNIGHT', '#f2f2ee', '#c8202e');
   // Golf cart
   const cart = new THREE.Group();
   cart.add(mesh(new THREE.BoxGeometry(1.2, 0.5, 2.2), mat(0xf4f4f0, 0.5), 0, 0.6, 0, true));
@@ -2619,236 +2440,6 @@ function buildBaliHai(b: WorldBuilder): void {
   b.building(-104, 834, 16, 14, '#d8c8a8', 'Bali Hai');
   b.feature({ kind: 'park', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, color: '#5f8a3a', label: 'Bali Hai Golf' });
   b.zone('Bali Hai Golf Club', x0, x1, z0, z1);
-}
-
-// ================================================================ Welcome to Fabulous Las Vegas sign
-function welcomeFace(back: boolean): THREE.CanvasTexture {
-  return canvasTex(1024, 688, (ctx, w, h) => {
-    const hex = (inset: number) => {
-      ctx.beginPath();
-      ctx.moveTo(inset * 1.6, h * 0.25 + inset * 0.4);
-      ctx.lineTo(w / 2, inset);
-      ctx.lineTo(w - inset * 1.6, h * 0.25 + inset * 0.4);
-      ctx.lineTo(w - inset * 1.6, h * 0.75 - inset * 0.4);
-      ctx.lineTo(w / 2, h - inset);
-      ctx.lineTo(inset * 1.6, h * 0.75 - inset * 0.4);
-      ctx.closePath();
-    };
-    ctx.clearRect(0, 0, w, h);
-    hex(0);
-    ctx.fillStyle = '#d7262e';
-    ctx.fill();
-    hex(30);
-    ctx.fillStyle = '#f6f1e4';
-    ctx.fill();
-    hex(38);
-    ctx.strokeStyle = '#d7262e';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (!back) {
-      const letters = 'WELCOME';
-      for (let i = 0; i < 7; i++) {
-        const cx = w / 2 + (i - 3) * w * 0.106;
-        const cy = h * 0.205 + Math.abs(i - 3) * h * 0.032;
-        const r = w * 0.047;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#b9bcc4';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(cx, cy, r * 0.86, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.fillStyle = '#d7262e';
-        ctx.font = `bold ${Math.round(r * 1.25)}px Georgia, serif`;
-        ctx.fillText(letters[i], cx, cy + 3);
-      }
-      ctx.fillStyle = '#1f5fae';
-      ctx.font = 'italic bold 76px "Brush Script MT", "Segoe Script", cursive';
-      ctx.fillText('to Fabulous', w / 2, h * 0.405);
-      ctx.font = 'bold 172px "Arial Black", Impact, sans-serif';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = 12;
-      ctx.strokeStyle = '#ffffff';
-      ctx.strokeText('LAS VEGAS', w / 2, h * 0.6, w * 0.86);
-      ctx.fillStyle = '#d7262e';
-      ctx.shadowColor = 'rgba(80,0,0,0.5)';
-      ctx.shadowBlur = 6;
-      ctx.fillText('LAS VEGAS', w / 2, h * 0.6, w * 0.86);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#1f5fae';
-      ctx.font = 'bold 52px Georgia, serif';
-      ctx.fillText('NEVADA', w / 2, h * 0.815);
-    } else {
-      ctx.fillStyle = '#1f5fae';
-      ctx.font = 'italic bold 118px "Brush Script MT", "Segoe Script", cursive';
-      ctx.fillText('Drive Carefully', w / 2, h * 0.37, w * 0.8);
-      ctx.fillStyle = '#d7262e';
-      ctx.font = 'bold 104px "Arial Black", Impact, sans-serif';
-      ctx.fillText('Come Back Soon', w / 2, h * 0.63, w * 0.84);
-    }
-  });
-}
-
-function buildWelcomeSign(b: WorldBuilder): void {
-  const zSign = zFromS(-3635); // 907.3
-  const zLot0 = zFromS(-3687); // 918.9
-  const zLot1 = zFromS(-3804); // 944.9
-  const zIsl0 = 890.6;
-  const zIsl1 = 951.4;
-  const mg = new Merger();
-
-  // Island: raised curbs, paved photo plaza, the small median lot, a planted tip
-  const curb = mat(0xd8d2c4, 0.8);
-  for (const s of [-1, 1]) {
-    for (const [a, c] of s < 0
-      ? [
-          [zIsl0, zLot1 - 5],
-          [zLot1 + 0.6, zIsl1],
-        ]
-      : [[zIsl0, zIsl1]]) b.box(s * (ISLAND - 0.12), 0, (a + c) / 2, 0.24, 0.2, c - a, curb, false, false);
-  }
-  b.box(0, 0, zIsl0 + 0.12, ISLAND * 2, 0.2, 0.24, curb, false, false);
-  b.box(0, 0, zIsl1 - 0.12, ISLAND * 2, 0.2, 0.24, curb, false, false);
-  b.box(0, 0, zLot0 - 1.2, ISLAND * 2 - 0.4, 0.15, 0.24, curb, false, false);
-  paving(b, -ISLAND + 0.24, ISLAND - 0.24, zIsl0 + 0.24, zLot0 - 1.3, '#e2d8c4', '#bfb39c', 2, L1);
-  ground(b, -ISLAND + 0.24, ISLAND - 0.24, zLot0 - 1.1, zLot1 + 0.4, 0x2e2e33, L1, 0.85);
-  ground(b, -ISLAND + 0.24, ISLAND - 0.24, zLot1 + 0.6, zIsl1 - 0.24, 0x5f7d45, L1, 0.95);
-  for (let z = zLot0 + 1; z <= zLot1; z += 6.2) b.floor(-0.2, z, ISLAND * 2 - 0.8, 0.12, mat(0xdedcd4, 0.85), L2);
-  sign(b, 'WELCOME SIGN PARKING', '#0a2a5a', '#ffffff', 3.2, 0.7, 0, 1.4, zLot1 + 1.6, 0, '15 MIN • PHOTO STOP', 0.06);
-  mg.beam(mat(0x8c8f94, 0.4, 0.6), v3(0, 0, zLot1 + 1.65), v3(0, 1.05, zLot1 + 1.65), 0.04, 4);
-  const parked: Array<[CarKind, number, number]> = [
-    ['sedan', 0xe8e8ea, zLot0 + 4],
-    ['suv', 0x1d1f24, zLot0 + 10.2],
-    ['limo', 0xf4f4f4, zLot0 + 17.6],
-  ];
-  for (const [k, c, z] of parked) {
-    const cc = car(k, c);
-    bakeGroup(cc.group);
-    b.add(cc.group, -0.25, 0, z, 0);
-    b.collider(-1.2, 0.7, z - cc.length / 2, z + cc.length / 2, 0, 1.55);
-  }
-  palmInto(mg, 0, 893.6, 6.4, 301);
-  palmInto(mg, 0, 899.6, 7.2, 302);
-  palmInto(mg, 0, zIsl1 - 2.2, 6.8, 303);
-
-  // The sign (life-size): lozenge face, silver dollars, star, chaser bulbs, two poles
-  const W = 5.8;
-  const H = 3.9;
-  const cy = 4.45;
-  const outline: Array<[number, number]> = [
-    [0, 0.25],
-    [0.5, 0],
-    [1, 0.25],
-    [1, 0.75],
-    [0.5, 1],
-    [0, 0.75],
-  ];
-  const toLocal = ([u, vv]: [number, number]) => new THREE.Vector2((u - 0.5) * W, (0.5 - vv) * H);
-  const shape = new THREE.Shape(outline.map(toLocal));
-  const remapUV = (g: THREE.BufferGeometry) => {
-    const p = g.attributes.position;
-    const uvs = new Float32Array(p.count * 2);
-    for (let i = 0; i < p.count; i++) {
-      uvs[i * 2] = p.getX(i) / W + 0.5;
-      uvs[i * 2 + 1] = p.getY(i) / H + 0.5;
-    }
-    g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    return g;
-  };
-  const faceMat = (back: boolean) => {
-    const t = welcomeFace(back);
-    const m = new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.0, roughness: 0.5 });
-    b.nightGlow(m, 0.0, 0.5);
-    return m;
-  };
-  const signG = new THREE.Group();
-  const body = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false });
-  body.translate(0, 0, -0.15);
-  signG.add(mesh(body, mat(0xc81e28, 0.5, 0.2), 0, 0, 0, true));
-  const front = remapUV(new THREE.ShapeGeometry(shape));
-  signG.add(mesh(front, faceMat(false), 0, 0, 0.16));
-  const backG = remapUV(new THREE.ShapeGeometry(shape));
-  const backM = mesh(backG, faceMat(true), 0, 0, -0.16);
-  backM.rotation.y = Math.PI;
-  signG.add(backM);
-  // Eight-point star on a post
-  const star = (R: number, r: number) => {
-    const pts: THREE.Vector2[] = [];
-    for (let i = 0; i < 16; i++) {
-      const a = Math.PI / 2 + (i / 16) * Math.PI * 2;
-      const rr = i % 2 ? r : R;
-      pts.push(new THREE.Vector2(Math.cos(a) * rr, Math.sin(a) * rr));
-    }
-    return new THREE.Shape(pts);
-  };
-  const starY = H / 2 + 1.15;
-  const sy = new THREE.ExtrudeGeometry(star(0.86, 0.46), { depth: 0.1, bevelEnabled: false });
-  sy.translate(0, starY, -0.05);
-  signG.add(mesh(sy, mat(0xf2c230, 0.4, 0.4)));
-  const sr = new THREE.ExtrudeGeometry(star(0.72, 0.38), { depth: 0.16, bevelEnabled: false });
-  sr.translate(0, starY, -0.08);
-  signG.add(mesh(sr, mat(0xd7262e, 0.4, 0.2)));
-  signG.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8), mat(0xe8e4da, 0.5, 0.3), 0, H / 2 + 0.3, 0));
-  b.add(signG, 0, cy, zSign);
-  for (const s of [-1, 1]) {
-    mg.add(new THREE.CylinderGeometry(0.16, 0.18, 3.2, 12).translate(s * 1.45, 1.6, zSign), mat(0xe8e4da, 0.5, 0.3), true);
-    b.collider(s * 1.45 - 0.2, s * 1.45 + 0.2, zSign - 0.2, zSign + 0.2, 0, 3.2, true);
-    b.add(planter(1.1, 1.1, 0xff3b5c), s * 1.45, 0, zSign + 0.8);
-    mg.box(mat(0x2a2a30, 0.5, 0.6), s * 1.5, 0.25, zSign + 3.4, 0.45, 0.5, 0.45);
-  }
-  b.collider(-W / 2, W / 2, zSign - 0.2, zSign + 0.2, cy - H / 2, cy + H / 2 + 2, true);
-
-  // Chaser bulbs around the rim on both faces + the star tips
-  const bulbMats = [0, 1, 2].map(() => new THREE.MeshBasicMaterial({ color: 0xe8dcc0 }));
-  const verts = outline.map(([u, vv]) => {
-    const p = toLocal([u, vv]);
-    return p.multiplyScalar(0.955);
-  });
-  let bi = 0;
-  for (let e = 0; e < verts.length; e++) {
-    const a = verts[e];
-    const c = verts[(e + 1) % verts.length];
-    const n = Math.max(2, Math.round(a.distanceTo(c) / 0.3));
-    for (let k = 0; k < n; k++) {
-      const p = a.clone().lerp(c, k / n);
-      for (const fz of [0.19, -0.19]) mg.add(new THREE.SphereGeometry(0.065, 6, 4).translate(p.x, cy + p.y, zSign + fz), bulbMats[bi % 3]);
-      bi++;
-    }
-  }
-  for (let i = 0; i < 8; i++) {
-    const a = Math.PI / 2 + (i / 8) * Math.PI * 2;
-    for (const fz of [0.12, -0.12]) mg.add(new THREE.SphereGeometry(0.06, 6, 4).translate(Math.cos(a) * 0.8, cy + starY + Math.sin(a) * 0.8, zSign + fz), bulbMats[i % 3]);
-  }
-  const on = new THREE.Color(0xfff1b8);
-  const off = new THREE.Color(0x6a5a30);
-  const dim = new THREE.Color(0xe8dcc0);
-  b.every((_dt, t, night) => {
-    const k = Math.floor(t * 7) % 3;
-    bulbMats.forEach((m, i) => {
-      if (night < 0.3) m.color.copy(dim);
-      else m.color.copy(i === k ? off : on);
-    });
-  });
-  // Ground flood aimed up at the face, like the real sign's. A spot, not a point light: a point light this low
-  // lit the pavement and the photo line ~25x brighter than the sign and washed out the first steps of a new game.
-  b.spot(0xfff2d8, 8, 14, new THREE.Vector3(0, 0.25, zSign + 3.4), new THREE.Vector3(0, cy + 0.3, zSign), 0.42, 0.55, 0);
-  mg.flush(b);
-
-  b.zone('Welcome to Fabulous Las Vegas Sign', -ISLAND - 0.6, ISLAND + 0.6, zIsl0, zLot0 - 1.2);
-  b.zone('Welcome Sign Parking Lot', -ISLAND - 0.6, ISLAND + 0.6, zLot0 - 1.2, zIsl1);
-  b.staticMarkers.push({ x: 0, z: zSign, color: '#ff3b3b', glyph: '★', size: 3.2 });
-  b.pickup(1.45, 1.05, zSign + 0.8, 3, 'Welcome Sign Selfie Pack', false);
-  // The photo line + the regulars posing out front
-  b.crowd.performers.push({ kind: 'elvis', x: -1.0, z: zSign + 1.9, facing: 0 }, { kind: 'showgirl', x: 1.0, z: zSign + 1.7, facing: 0 });
-  const queue: Array<'camera' | 'cig' | 'yard-drink' | 'bag'> = ['camera', 'camera', 'yard-drink', 'cig', 'camera', 'bag'];
-  queue.forEach((prop, i) => {
-    const x = i % 2 ? 0.55 : -0.45;
-    const z = zSign + 5.2 + i * 1.05;
-    b.crowd.tourists.push({ pts: [[x, z], [x + 0.12, z + 0.3]], prop });
-  });
 }
 
 // ================================================================ Sidewalk crowds
