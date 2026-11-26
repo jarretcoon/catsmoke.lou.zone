@@ -8,6 +8,11 @@ export class SoundFX {
     SoundFX.current = this;
   }
 
+  /** Tab hidden: silence everything (a running car engine would drone on); the next sound resumes it. */
+  public setPaused(paused: boolean): void {
+    if (this.ctx) void (paused ? this.ctx.suspend() : this.ctx.resume());
+  }
+
   private ensureCtx(): AudioContext | null {
     if (!this.enabled) return null;
     if (!this.ctx) {

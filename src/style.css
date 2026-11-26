@@ -31,6 +31,26 @@ body {
   background: #090b1a;
   color: var(--text-main);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+}
+
+/* With a mouse the whole UI scales with the window: compact at 1280 px, roomier at 1080p and 1440p. */
+@media (pointer: fine) {
+  html {
+    font-size: clamp(14.5px, 0.4vw + 9.8px, 20px);
+  }
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .game-root {
@@ -40,6 +60,7 @@ body {
   content-visibility: auto;
   contain-intrinsic-size: 100dvw 100dvh;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #game-canvas {
@@ -48,76 +69,95 @@ body {
   height: 100%;
   outline: none;
   cursor: grab;
+  touch-action: none;
 }
 
-#game-canvas:active {
+#game-canvas.is-dragging {
   cursor: grabbing;
 }
 
+/* The title card (and the intro comic) own the screen: no game HUD behind them. */
+.game-root.is-title :is(.hud-top, .hud-bottom, .hud-menu-btn, .hud-context, .touch-stick, .touch-jump, .toast-banner, .pop-layer, .mission-dialog) {
+  visibility: hidden;
+}
+
+/* In-game HUD panels: no backdrop blur (re-blurring the moving 3D view under a dozen panels every frame costs
+   real GPU time at 1440p); a slightly denser glass reads just as well. */
 .hud-top {
   position: absolute;
-  top: 0.9rem;
-  left: 0.9rem;
-  right: 0.9rem;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 0.65rem;
+  gap: 0.75rem;
   pointer-events: none;
+  z-index: 5;
+}
+
+.hud-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .hud-brand {
   background: var(--bg-glass);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--border-glass);
   border-radius: 14px;
-  padding: 0.6rem 0.95rem;
+  padding: 0.5rem 0.85rem 0.55rem;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
-}
-
-.hud-brand h1 {
-  margin: 0;
-  font-size: clamp(0.95rem, 0.85rem + 0.7vw, 1.4rem);
-  letter-spacing: 0.03em;
-  color: hsl(var(--hud-hue) 92% 66%);
+  max-width: min(25rem, 44vw);
 }
 
 .zone-label {
-  margin: 0.15rem 0 0;
-  font-size: clamp(0.74rem, 0.7rem + 0.25vw, 0.88rem);
-  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: hsl(var(--hud-hue) 92% 70%);
 }
 
 .hud-stats {
   display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
 }
 
 .stat-pill {
-  background: var(--bg-glass);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-glass);
-  border-radius: 12px;
-  padding: 0.45rem 0.78rem;
+  padding: 0.38rem 0.8rem 0.42rem;
   display: flex;
   flex-direction: column;
-  min-width: 5.2rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  min-width: 4.7rem;
+}
+
+.stat-pill + .stat-pill {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stat-pill--state {
+  min-width: 8rem;
 }
 
 .stat-label {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   color: var(--text-muted);
 }
 
 .stat-value {
-  font-size: clamp(0.9rem, 0.82rem + 0.35vw, 1.12rem);
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-main);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-value--cash {
@@ -126,16 +166,184 @@ body {
 
 .hud-bottom {
   position: absolute;
-  bottom: 0.9rem;
+  bottom: max(0.8rem, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.55rem;
-  width: min(96dvw, 66rem);
+  gap: 0.5rem;
+  width: min(96dvw, 72rem);
   pointer-events: none;
   z-index: 10;
+}
+
+/* ---------- Key hints (desktop): one quiet line, clickable, hide with × or K ---------- */
+.key-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.1rem;
+  max-width: calc(100% - 9rem);
+  padding: 0.22rem 0.3rem;
+  background: rgba(10, 12, 22, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  pointer-events: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.kh {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kh kbd + kbd {
+  margin-left: -0.18rem;
+}
+
+button.kh {
+  cursor: pointer;
+}
+
+button.kh:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.kh.is-hot {
+  color: #ffe89e;
+  background: rgba(255, 210, 77, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 210, 77, 0.55);
+}
+
+.kh.is-hot kbd {
+  background: rgba(255, 210, 77, 0.25);
+  border-color: rgba(255, 210, 77, 0.6);
+  color: #fff3c4;
+}
+
+.kh-close {
+  appearance: none;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-left: 0.15rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font: 700 0.9rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.kh-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--text-main);
+}
+
+/* ---------- Menu button: bottom-right on desktop, top-right on touch ---------- */
+.hud-menu-btn {
+  position: absolute;
+  right: max(0.8rem, env(safe-area-inset-right));
+  bottom: max(0.8rem, env(safe-area-inset-bottom));
+  z-index: 11;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.85rem 0.45rem 0.75rem;
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  background: var(--bg-glass);
+  color: var(--text-main);
+  font: 700 0.82rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hud-menu-btn:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+.hud-menu-icon {
+  width: 0.95rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor;
+}
+
+/* ---------- Touch: one context button beside Jump ---------- */
+.hud-context {
+  position: absolute;
+  right: calc(max(1rem, env(safe-area-inset-right)) + 92px);
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 40px);
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: 2px solid rgba(255, 222, 180, 0.75);
+  background: radial-gradient(circle at 35% 28%, rgba(255, 168, 90, 0.96), rgba(200, 74, 22, 0.94));
+  color: #fff;
+  font: 800 0.8rem/1 system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  z-index: 12;
+  transition: transform 0.08s ease, background 0.2s ease;
+}
+
+.hud-context-icon {
+  font-size: 1.85rem;
+  line-height: 1;
+}
+
+.hud-context.is-down {
+  transform: scale(0.93);
+}
+
+.hud-context:is([data-kind="gamble"], [data-kind="shop"], [data-kind="vip"], [data-kind="drink"], [data-kind="eat"]) {
+  border-color: rgba(255, 232, 140, 0.85);
+  background: radial-gradient(circle at 35% 28%, rgba(255, 214, 92, 0.97), rgba(176, 116, 14, 0.95));
+}
+
+.hud-context:is([data-kind="ride"], [data-kind="hop-off"], [data-kind="bail"], [data-kind="get-up"]) {
+  border-color: rgba(170, 225, 255, 0.85);
+  background: radial-gradient(circle at 35% 28%, rgba(96, 190, 255, 0.97), rgba(36, 84, 196, 0.95));
+}
+
+.hud-context:is([data-kind="beg"], [data-kind="pose"], [data-kind="mission"]) {
+  border-color: rgba(180, 255, 200, 0.85);
+  background: radial-gradient(circle at 35% 28%, rgba(110, 230, 140, 0.97), rgba(26, 128, 70, 0.95));
+}
+
+.hud-context[data-kind="steal"] {
+  border-color: rgba(255, 180, 180, 0.85);
+  background: radial-gradient(circle at 35% 28%, rgba(255, 110, 110, 0.97), rgba(160, 24, 40, 0.95));
+}
+
+.hud-context[data-kind="vape"] {
+  border-color: rgba(150, 240, 255, 0.85);
+  background: radial-gradient(circle at 35% 28%, rgba(80, 210, 240, 0.97), rgba(74, 62, 198, 0.95));
 }
 
 .hud-actions {
@@ -206,31 +414,53 @@ kbd {
   background: rgba(18, 24, 42, 0.94);
   border: 1px solid var(--casino-gold);
   border-radius: 999px;
-  padding: 0.45rem 1.05rem;
-  font-size: 0.88rem;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.92rem;
   font-weight: 700;
+  line-height: 1.35;
   color: #ffe89e;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   pointer-events: none;
   text-align: center;
+  animation: prompt-in 0.18s ease-out;
+}
+
+.prompt-pill kbd {
+  color: #fff3c4;
+  background: rgba(255, 210, 77, 0.22);
+  border-color: rgba(255, 210, 77, 0.55);
+}
+
+.pp-icon {
+  font-size: 1.1em;
+}
+
+@keyframes prompt-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 .toast-banner {
   position: absolute;
-  top: 5.2rem;
+  top: calc(max(0.75rem, env(safe-area-inset-top)) + 3.9rem);
   left: 50%;
   transform: translateX(-50%) translateY(-8px);
   background: rgba(18, 22, 34, 0.92);
   border: 1px solid var(--accent);
   border-radius: 999px;
-  padding: 0.45rem 1.05rem;
-  font-size: 0.88rem;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1.35;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
   text-align: center;
-  max-width: 90dvw;
+  width: max-content;
+  max-width: min(36rem, 46vw);
+  z-index: 6;
 }
 
 .toast-banner.is-visible {
@@ -241,6 +471,9 @@ kbd {
 .controls-popover {
   margin: auto;
   max-width: min(31rem, 92dvw);
+  max-height: 92dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
   background: rgba(14, 16, 28, 0.96);
   color: var(--text-main);
   border: 1px solid var(--border-glass);
@@ -271,6 +504,218 @@ kbd {
   margin: 0 0 0.95rem;
   font-size: 0.84rem;
   color: var(--text-muted);
+}
+
+/* ---------- The menu (Esc / Menu button): actions (touch), controls, settings ---------- */
+.game-menu {
+  width: min(58rem, 94vw);
+  max-width: none;
+  max-height: min(92dvh, 52rem);
+  padding: 1.1rem 1.4rem 1.2rem;
+  background: linear-gradient(180deg, rgba(26, 18, 34, 0.97), rgba(12, 13, 24, 0.97));
+}
+
+.game-menu:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  animation: menu-in 0.16s ease-out;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+.game-menu::backdrop {
+  background: rgba(4, 4, 10, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.menu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.menu-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #ff8ad8;
+}
+
+.game-menu h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.35rem;
+  color: #ffd24d;
+  text-shadow: 0 0 14px rgba(255, 180, 60, 0.35);
+}
+
+.menu-x {
+  appearance: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  font: 700 0.95rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.menu-x:hover {
+  border-color: var(--accent);
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1rem 1.6rem;
+}
+
+.menu-section h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.menu-section--actions {
+  grid-column: 1 / -1;
+}
+
+.hud--fine .menu-section--actions,
+.hud--touch .key-table,
+.hud--touch .setting-row--fine {
+  display: none;
+}
+
+.menu-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.menu-actions .action-btn {
+  justify-content: space-between;
+  min-height: 2.9rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 14px;
+  font-size: 0.9rem;
+}
+
+.key-table {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.42rem 0.9rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.86rem;
+  align-items: baseline;
+}
+
+.key-table dt {
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.key-table dd {
+  margin: 0;
+}
+
+/* Settings: one row per setting (the brightness slider and anything else added here gets its own row too). */
+.controls-footer {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  min-height: 2.3rem;
+}
+
+.setting-name {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.setting-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border-glass);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: 600 0.8rem/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: 0.5rem 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seg button + button {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.seg button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.seg button[aria-pressed="true"] {
+  background: linear-gradient(135deg, rgba(255, 130, 48, 0.95), rgba(208, 72, 24, 0.95));
+  color: #fff;
+}
+
+.action-btn--danger {
+  border-color: rgba(255, 120, 120, 0.5);
+  color: #ffc0c0;
+}
+
+.menu-foot {
+  position: sticky;
+  bottom: -1.2rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 0 -1.4rem -1.2rem;
+  padding: 0.8rem 1.4rem 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 13, 24, 0.97);
+}
+
+.menu-foot .action-btn {
+  padding: 0.55rem 1.1rem;
+}
+
+@media (max-width: 760px) {
+  .menu-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .casino-dialog {
@@ -506,10 +951,15 @@ kbd {
   gap: 0.5rem;
 }
 
+.hud-map-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
 .goal-tracker {
-  margin: 0.35rem 0 0;
-  max-width: 22rem;
-  font-size: 0.74rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.76rem;
   line-height: 1.35;
   color: #ffd98a;
 }
@@ -523,11 +973,9 @@ kbd {
 }
 
 .minimap {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  width: 150px;
-  height: 150px;
+  display: block;
+  width: 9.5rem;
+  height: 9.5rem;
   border-radius: 14px;
   border: 1px solid var(--border-glass);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -537,19 +985,16 @@ kbd {
 }
 
 .minimap--full {
-  width: min(320px, 46dvw);
-  height: min(320px, 46dvw);
+  width: min(20rem, 46dvw);
+  height: min(20rem, 46dvw);
 }
 
 .heat-meter {
-  position: absolute;
-  right: calc(150px + 0.6rem);
-  top: calc(100% + 0.5rem);
   background: var(--bg-glass);
   border: 1px solid rgba(255, 80, 80, 0.6);
   border-radius: 12px;
   padding: 0.35rem 0.7rem;
-  width: 150px;
+  width: 9.5rem;
 }
 
 .heat-bar {
@@ -568,14 +1013,16 @@ kbd {
 }
 
 /* ---------- Title screen ---------- */
+/* The live Strip turns slowly behind the card (hud.ts circles the camera around Lou). */
 .title-screen {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: radial-gradient(circle at 50% 30%, rgba(60, 22, 70, 0.55), rgba(6, 7, 16, 0.88) 70%);
-  backdrop-filter: blur(3px);
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(20, 8, 30, 0.2), rgba(6, 7, 16, 0.82) 72%),
+    linear-gradient(180deg, rgba(6, 7, 16, 0.35), transparent 30%, transparent 70%, rgba(6, 7, 16, 0.6));
   z-index: 30;
 }
 
@@ -584,13 +1031,22 @@ kbd {
 }
 
 .title-card {
-  max-width: 34rem;
+  max-width: 36rem;
   text-align: center;
-  background: rgba(14, 14, 26, 0.86);
+  background: linear-gradient(180deg, rgba(24, 14, 34, 0.9), rgba(12, 12, 24, 0.9));
   border: 1px solid rgba(255, 196, 120, 0.4);
-  border-radius: 20px;
-  padding: 1.6rem 1.5rem 1.3rem;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+  border-radius: 22px;
+  padding: 1.7rem 1.8rem 1.3rem;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 90, 180, 0.08) inset;
+  backdrop-filter: blur(6px);
+  animation: title-in 0.5s ease-out;
+}
+
+@keyframes title-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }
 
 .title-kicker {
@@ -602,10 +1058,38 @@ kbd {
 }
 
 .title-card h1 {
-  margin: 0.3rem 0 0.6rem;
-  font-size: clamp(1.7rem, 1.3rem + 2vw, 2.6rem);
-  color: #ffd24d;
-  text-shadow: 0 0 18px rgba(255, 180, 60, 0.55), 0 0 2px #fff;
+  margin: 0.35rem 0 0;
+  font-size: clamp(2rem, 1.3rem + 2.6vw, 3.3rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: #ffe27a;
+  text-shadow: 0 0 6px rgba(255, 220, 120, 0.9), 0 0 22px rgba(255, 160, 40, 0.65), 0 0 46px rgba(255, 90, 30, 0.35);
+  animation: neon-flicker 7s infinite;
+}
+
+/* Now and then the sign stutters like an old tube. */
+@keyframes neon-flicker {
+  0%,
+  91%,
+  93.5%,
+  96%,
+  100% {
+    opacity: 1;
+  }
+  92%,
+  95% {
+    opacity: 0.72;
+  }
+}
+
+.title-tagline {
+  margin: 0.3rem 0 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #ff6cc4;
+  text-shadow: 0 0 10px rgba(255, 60, 170, 0.75);
 }
 
 .title-sub {
@@ -613,6 +1097,61 @@ kbd {
   font-size: 0.92rem;
   line-height: 1.5;
   color: var(--text-muted);
+}
+
+.title-keys {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 1rem;
+  margin: 1rem 0 0;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.title-keys li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.title-keys kbd + kbd {
+  margin-left: -0.15rem;
+}
+
+.title-touch {
+  display: none;
+  margin: 1rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.hud--touch .title-keys {
+  display: none;
+}
+
+.hud--touch .title-touch {
+  display: block;
+}
+
+.title-actions .action-btn:focus-visible {
+  outline: 2px solid #ffe27a;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-card h1,
+  .title-card,
+  .game-menu:popover-open,
+  .prompt-pill {
+    animation: none;
+  }
 }
 
 .title-save {
@@ -674,12 +1213,6 @@ kbd {
 
 .goal--done strong {
   color: #6ef58f;
-}
-
-.controls-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
 }
 
 /* ---------- Blackjack & craps ---------- */
@@ -760,15 +1293,15 @@ kbd {
   margin-top: 0;
 }
 
-/* ---------- Touch controls ---------- */
+/* ---------- Touch controls: stick bottom-left; Jump and the context button bottom-right ---------- */
 .touch-stick {
   position: absolute;
-  left: max(1rem, env(safe-area-inset-left));
-  bottom: 7.5rem;
-  width: 120px;
-  height: 120px;
+  left: max(1.1rem, env(safe-area-inset-left));
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 0.6rem);
+  width: 128px;
+  height: 128px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.1));
   border: 2px solid rgba(255, 255, 255, 0.22);
   touch-action: none;
   z-index: 12;
@@ -778,51 +1311,145 @@ kbd {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 52px;
-  height: 52px;
-  margin: -26px 0 0 -26px;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
   border-radius: 50%;
-  background: rgba(255, 160, 70, 0.7);
+  background: rgba(255, 160, 70, 0.72);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 
 .touch-jump {
   position: absolute;
   right: max(1rem, env(safe-area-inset-right));
-  bottom: 8rem;
-  width: 78px;
-  height: 78px;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 140, 59, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(30, 34, 52, 0.72);
   color: #fff;
-  font-weight: 800;
+  font: 800 0.9rem/1 system-ui, sans-serif;
   touch-action: none;
   z-index: 12;
 }
 
+.touch-jump:active {
+  background: rgba(255, 140, 59, 0.7);
+}
+
+/* Touch layout: the prompt rides above the thumbs, the menu button takes the top-right corner. */
+.hud--touch .hud-bottom {
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 150px);
+  width: min(92vw, 30rem);
+}
+
+.hud--touch .prompt-pill {
+  font-size: 0.86rem;
+  padding: 0.42rem 0.95rem;
+  border-radius: 18px;
+}
+
+.hud--touch .hud-top {
+  right: calc(max(0.6rem, env(safe-area-inset-right)) + 3.3rem);
+  top: max(0.6rem, env(safe-area-inset-top));
+  left: max(0.6rem, env(safe-area-inset-left));
+  gap: 0.5rem;
+}
+
+.hud--touch .hud-menu-btn {
+  top: max(0.6rem, env(safe-area-inset-top));
+  right: max(0.6rem, env(safe-area-inset-right));
+  bottom: auto;
+  width: 2.8rem;
+  height: 2.8rem;
+  padding: 0;
+  justify-content: center;
+}
+
+.hud--touch .hud-menu-text {
+  display: none;
+}
+
+.hud--touch .toast-banner {
+  top: calc(var(--hud-top-h, 8rem) + 0.5rem);
+  max-width: 92vw;
+  border-radius: 18px;
+}
+
+.hud--touch .mission-dialog {
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 150px);
+}
+
+/* Narrow (phones): stats across the top, then where Lou is, then mission / score on the left and the map on the right. */
 @media (max-width: 720px) {
-  .heat-meter {
-    right: calc(110px + 0.6rem);
+  .hud-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "stats stats"
+      "brand brand"
+      "mission map"
+      "degen map"
+      ". wanted";
+    align-items: start;
+    gap: 0.45rem 0.5rem;
   }
-  .hud-stats .stat-pill {
-    min-width: 4.2rem;
-    padding: 0.35rem 0.55rem;
+  .hud-left,
+  .hud-right {
+    display: contents;
   }
-  .minimap {
-    width: 110px;
-    height: 110px;
+  .hud-stats {
+    grid-area: stats;
+  }
+  .hud-brand {
+    grid-area: brand;
+    max-width: none;
+    padding: 0.38rem 0.7rem 0.42rem;
+  }
+  .hud-left .mission-hud {
+    grid-area: mission;
+  }
+  .hud-left .degen-hud {
+    grid-area: degen;
+    justify-self: start;
+  }
+  .hud-map-row {
+    grid-area: map;
+    justify-self: end;
+  }
+  .hud-right .wanted-hud {
+    grid-area: wanted;
+    justify-self: end;
+  }
+  .zone-label {
+    font-size: 0.86rem;
   }
   .goal-tracker {
-    max-width: 60dvw;
+    font-size: 0.72rem;
+  }
+  .stat-pill--state {
+    display: none;
+  }
+  .stat-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.3rem 0.55rem 0.34rem;
+  }
+  .stat-value {
+    font-size: 0.95rem;
+  }
+  .minimap {
+    width: 7.2rem;
+    height: 7.2rem;
+  }
+  .heat-meter {
+    width: 7.2rem;
   }
 }
 
 /* ---------- Chaos HUD: degen points, wanted stars, popups ---------- */
 .degen-hud {
-  position: absolute;
-  left: 0.9rem;
-  top: 9.6rem;
   display: grid;
   gap: 0.05rem;
   padding: 0.45rem 0.8rem;
@@ -856,10 +1483,8 @@ kbd {
   box-shadow: 0 0 18px rgba(125, 255, 176, 0.35);
 }
 .wanted-hud {
-  position: absolute;
-  right: 0.9rem;
-  top: calc(9.6rem + 150px);
   font-size: 1.7rem;
+  line-height: 1;
   letter-spacing: 0.08em;
   color: #ffd24d;
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.9), 0 0 4px #000;
@@ -916,12 +1541,12 @@ kbd {
   }
 }
 @media (max-width: 720px) {
-  .degen-hud {
-    top: 12rem;
-  }
   .wanted-hud {
-    top: calc(12rem + 110px);
     font-size: 1.3rem;
+  }
+  .degen-hud {
+    min-width: 0;
+    padding: 0.35rem 0.65rem;
   }
 }
 
@@ -1226,12 +1851,9 @@ kbd {
 }
 
 /* ---------- Missions ---------- */
+/* Sits in the HUD's left column, under where Lou is (hud.ts moves it there), like a quest tracker. */
 .mission-hud {
-  position: absolute;
-  left: 50%;
-  top: 0.9rem;
-  transform: translateX(-50%);
-  max-width: min(30rem, 60dvw);
+  max-width: min(25rem, 44vw);
   display: grid;
   gap: 0.1rem;
   padding: 0.45rem 0.9rem;
@@ -1240,9 +1862,13 @@ kbd {
   border: 1px solid #5cff8a;
   color: #eafff0;
   font-size: 0.82rem;
-  text-align: center;
   pointer-events: none;
   z-index: 11;
+}
+@media (max-width: 720px) {
+  .mission-hud {
+    max-width: none;
+  }
 }
 .mission-hud b {
   color: #5cff8a;
