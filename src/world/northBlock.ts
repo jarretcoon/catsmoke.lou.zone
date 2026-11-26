@@ -582,3 +582,165 @@ export function buildNorthNeighbours(b: WorldBuilder, zDr: number, zEnd: number)
   b.zone("Former Wet 'n Wild site (vacant)", 19, 100, zEnd, ez0);
 }
 
+
+// =============================================================== east side: the strip mall north of Convention Center Dr
+/**
+ * Between Convention Center Dr and the Peppermill (east side, opposite Resorts World): a one-storey
+ * row of everyday stores with a parking row in front — Walgreens on the corner, Denny's (24/7),
+ * 7-Eleven and Ross, north to the Peppermill — plus the multi-tenant pylon by the sidewalk.
+ * zS = the south end (Convention Center Dr side, larger z), zN = the north end.
+ */
+export function buildEastStripMall(b: WorldBuilder, zS: number, zN: number): void {
+  const objs: THREE.Object3D[] = [];
+  const x0 = 33.5; // shopfronts face west, to the Strip
+  const depth = 13;
+  const H = 5.6;
+  const glass = shopGlass(b);
+  type Store = { w: number; wall: number; band?: number; sign: (w: number) => THREE.Object3D; zone: string; stripes?: number[] };
+  const stores: Store[] = [
+    {
+      w: 4.6,
+      wall: 0xd9c9ab,
+      sign: (w) => letters(b, 'Walgreens', w - 0.6, 1.3, { style: 'script', fill: '#e31837', bg: '#ffffff', sub: 'PHARMACY • 24 HOURS', subFill: '#e31837', scale: 0.62 }),
+      zone: 'Walgreens (24 hours)',
+    },
+    {
+      w: 4.2,
+      wall: 0xefe4cc,
+      band: 0xffc20e,
+      sign: (w) => letters(b, "Denny's", w - 0.8, 1.25, { style: 'block', fill: '#e2231a', bg: '#ffc20e', sub: 'ALWAYS OPEN', subFill: '#e2231a', scale: 0.62 }),
+      zone: "Denny's (24/7)",
+    },
+    {
+      w: 3.8,
+      wall: 0xf6f6f2,
+      stripes: [0xf58025, 0x008163, 0xee2526],
+      sign: (w) => letters(b, '7-ELEVEN', w - 0.7, 1.0, { style: 'block', fill: '#ffffff', bg: '#008163', rule: '#f58025' }),
+      zone: '7-Eleven',
+    },
+    {
+      w: zS - zN - 12.6 - 0.4,
+      wall: 0xf4f4f0,
+      sign: (w) => letters(b, 'Ross', Math.min(4, w - 0.6), 1.35, { style: 'block', fill: '#1f4e9c', sub: 'DRESS FOR LESS', subFill: '#1f4e9c', scale: 0.62 }),
+      zone: 'Ross Dress for Less',
+    },
+  ];
+  let z = zS - 0.2;
+  for (const st of stores) {
+    const zc = z - st.w / 2;
+    // shell (back + party walls) with a parapet, glass shopfront, sign band, little awning
+    b.box(x0 + depth / 2, 0, zc, depth, H, st.w - 0.06, mat(st.wall, 0.85), true);
+    objs.push(boxM(0.08, 2.9, st.w - 1.0, glass, x0 - 0.05, 1.55, zc));
+    if (st.band) objs.push(boxM(0.22, 1.5, st.w, mat(st.band, 0.6), x0 - 0.12, 4.35, zc));
+    if (st.stripes) st.stripes.forEach((c, i) => objs.push(boxM(0.2, 0.28, st.w, mat(c, 0.6), x0 - 0.12, 5.25 - i * 0.3, zc)));
+    objs.push(boxM(1.2, 0.12, st.w - 0.4, mat(0x3a3c42, 0.6, 0.3), x0 - 0.6, 3.15, zc));
+    const sign = st.sign(st.w);
+    b.add(sign, x0 - 0.25, st.stripes ? 3.9 : 4.35, zc, -HALF_PI);
+    b.zone(st.zone, 19, x0 + depth, z - st.w, z);
+    z -= st.w;
+  }
+  b.building(x0 + depth / 2, (zS + zN) / 2, depth, zS - zN, '#d9c9ab', 'Walgreens · Denny’s · 7-Eleven · Ross');
+  // multi-tenant pylon by the sidewalk (cabinets face up and down the Strip)
+  const px = 21.3;
+  const pz = zS - 2.2;
+  const pyH = 9.6;
+  objs.push(boxM(0.6, pyH, 0.6, mat(0x5a5e66, 0.4, 0.6), px, pyH / 2, pz));
+  b.collider(px - 0.3, px + 0.3, pz - 0.3, pz + 0.3, 0, pyH, true);
+  const tenants: Array<[string, string, string]> = [
+    ['Walgreens', '#ffffff', '#e31837'],
+    ["Denny's", '#e2231a', '#ffc20e'],
+    ['7-ELEVEN', '#ffffff', '#008163'],
+    ['Ross', '#1f4e9c', '#ffffff'],
+  ];
+  tenants.forEach(([t, fg, bg], i) => {
+    const cab = letters(b, t, 3.0, 0.95, { style: t === 'Walgreens' ? 'script' : 'block', fill: fg, bg, rule: '#d8d8d8' }, 0.4);
+    b.add(cab, px, pyH - 0.7 - i * 1.1, pz, 0);
+    objs.push(boxM(3.1, 1.0, 0.4, mat(0x2a2c32, 0.5, 0.3), px, pyH - 0.7 - i * 1.1, pz));
+  });
+  merge(b, objs, false);
+}
+
+/**
+ * The wall behind the porte-cochère: a red screen across the front of the big top with narrow,
+ * intersecting bulb arches rising nearly to the roof, the door opening between the pink pylons, and a
+ * side door on the south with a neon clown over it. ex = the big top's front (door) x, cz = door axis.
+ */
+export function porteCochereWall(b: WorldBuilder, ex: number, cz: number): void {
+  const x = ex + 0.45;
+  const H = 9.3;
+  const open = 5.4; // pylons + door between ±open
+  const half = 10.5;
+  const red = mat(0xb8123e, 0.55);
+  const objs: THREE.Object3D[] = [];
+  for (const s of [-1, 1]) {
+    const zc = cz + s * (open + half) / 2;
+    objs.push(boxM(0.4, H, half - open, red, x, H / 2, zc));
+    b.collider(x - 0.2, x + 0.2, Math.min(zc - (half - open) / 2, zc + (half - open) / 2), Math.max(zc - (half - open) / 2, zc + (half - open) / 2), 0, H, true);
+  }
+  objs.push(boxM(0.4, H - 7.4, open * 2, red, x, 7.4 + (H - 7.4) / 2, cz));
+  // south side door (dark glass) under the neon clown
+  const dz = cz + 7.9;
+  objs.push(boxM(0.08, 2.6, 2.2, mat(0x101418, 0.15, 0.5), x + 0.22, 1.3, dz));
+  objs.push(boxM(0.2, 0.25, 2.6, mat(0xd8a838, 0.3, 0.85), x + 0.25, 2.7, dz));
+  merge(b, objs, false);
+  // intersecting bulb arches across the whole screen (one chase-bulb mesh, facing the Strip)
+  const arches = new THREE.Group();
+  const aw = 1.5; // half-width of each narrow arch
+  for (let k = -6; k <= 6; k++) {
+    const zc = k * 1.62;
+    if (Math.abs(zc) < open + 0.2 && Math.abs(zc) > 0.5) continue; // the doorway itself stays clear
+    const pts: Array<[number, number]> = [];
+    const top = H - 0.5;
+    const spring = top - aw * 1.6;
+    pts.push([zc - aw, Math.abs(zc) < open ? 7.6 : 0.2]);
+    for (let i = 0; i <= 12; i++) {
+      const a = Math.PI - (i / 12) * Math.PI;
+      pts.push([zc + Math.cos(a) * aw, spring + Math.sin(a) * aw * 1.6]);
+    }
+    pts.push([zc + aw, Math.abs(zc) < open ? 7.6 : 0.2]);
+    arches.add(bulbPath(pts, false, 0.36, 0.16, 0));
+  }
+  arches.rotation.y = HALF_PI;
+  arches.position.set(x + 0.22, 0, cz);
+  b.add(arches);
+  // the neon clown over the south door
+  const clown = neonFace(b, 2.6, 2.6, (ctx, w, h) => {
+    const cx = w / 2;
+    const cy = h * 0.56;
+    const r = w * 0.27;
+    const ring = (p: Path2D, c: string) => neonStroke(ctx, p, c, Math.max(2, w * 0.016));
+    const face = new Path2D();
+    face.arc(cx, cy, r, 0, Math.PI * 2);
+    ring(face, '#ffffff');
+    const hat = new Path2D();
+    hat.moveTo(cx - r * 0.75, cy - r * 0.8);
+    hat.lineTo(cx + r * 0.1, cy - r * 2.0);
+    hat.lineTo(cx + r * 0.75, cy - r * 0.8);
+    ring(hat, '#ff4fd8');
+    for (const s of [-1, 1]) {
+      const hair = new Path2D();
+      hair.arc(cx + s * r * 1.15, cy - r * 0.1, r * 0.38, 0, Math.PI * 2);
+      ring(hair, '#ff8a1a');
+      const eye = new Path2D();
+      eye.arc(cx + s * r * 0.38, cy - r * 0.28, r * 0.12, 0, Math.PI * 2);
+      ring(eye, '#3a8bff');
+    }
+    const nose = new Path2D();
+    nose.arc(cx, cy + r * 0.05, r * 0.16, 0, Math.PI * 2);
+    ring(nose, '#ff2030');
+    const smile = new Path2D();
+    smile.arc(cx, cy + r * 0.1, r * 0.55, 0.15 * Math.PI, 0.85 * Math.PI);
+    ring(smile, '#ff2030');
+  });
+  b.add(clown, x + 0.25, 4.6, dz, HALF_PI);
+  const ringB = new THREE.Group();
+  const pts: Array<[number, number]> = [];
+  for (let i = 0; i <= 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    pts.push([Math.cos(a) * 1.35, Math.sin(a) * 1.35]);
+  }
+  ringB.add(bulbPath(pts, true, 0.3, 0.15, 0));
+  ringB.rotation.y = HALF_PI;
+  ringB.position.set(x + 0.24, 4.6, dz);
+  b.add(ringB);
+}

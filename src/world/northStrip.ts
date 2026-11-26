@@ -8,10 +8,10 @@ import { bigTopLight, buildBigTopInterior, buildPromenade } from './circusInteri
 import { buildLuckySign } from './luckySign';
 import { LedBoard, makeBoulevardTexture, makePaverTexture, makeSignTexture } from './textures';
 import type { FacadeSpec } from './textures';
-import { barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
+import { ashUrn, barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, newsRack, palmTree, planter } from './props';
 import type { CarKind } from './props';
 import { STRIP, xFromO, zFromS } from './strip';
-import { buildNorthNeighbours, buildPorteCochere, buildSouthNeighbours, bulbLetters, casinoEntranceClown, paved, redNeonGlow, towerValance } from './northBlock';
+import { buildEastStripMall, buildNorthNeighbours, buildPorteCochere, porteCochereWall, buildSouthNeighbours, bulbLetters, casinoEntranceClown, paved, redNeonGlow, towerValance } from './northBlock';
 import { fontainebleauSign, peppermillSign, resortsWorldPylonCrown, resortsWorldTowerSign, saharaSign, stratSign, wynnSignature } from './stripSigns';
 import { bulbPath, bulbRect, letterFace, letters, neonPanel } from './signKit';
 
@@ -787,6 +787,10 @@ function buildSlotsAFun(b: WorldBuilder): void {
   mq.add(bulbRect(4.4, 1.6, 0.4, 0.1, true, 0.3, 0.16));
   b.add(mq, fx - 1.6, 10.9, minZ + 0.6, 0);
   b.add(mesh(new THREE.BoxGeometry(0.25, 3.2, 0.25), mat(0x6a6e74, 0.4, 0.6)), fx - 1.6, 8.6, minZ + 0.6);
+  // ash urns by the pillars (Lou approves) and a news-rack row by the casino wing
+  const street: THREE.Object3D[] = [place(ashUrn(), fx + 2.1, 0, cz + 6.2), place(ashUrn(), fx + 2.1, 0, cz - 6.2), place(newsRack(), -18.5, 0, minZ - 0.9, -HALF_PI)];
+  mergeAdd(b, street, false);
+  for (const s2 of [-1, 1]) b.collider(fx + 1.85, fx + 2.35, cz + s2 * 6.2 - 0.25, cz + s2 * 6.2 + 0.25, 0, 0.85);
   // Big Bus stop pole on the curb
   b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.0, 6), mat(0x8a8d92, 0.4, 0.6)), -12.4, 1.5, -701.2);
   b.add(letters(b, 'BIG BUS', 0.62, 0.8, { style: 'block', fill: '#ffffff', bg: '#d0101c', sub: 'STOP', subFill: '#ffd23a' }, 0.04), -12.4, 2.6, -701.2, HALF_PI);
@@ -897,6 +901,7 @@ function buildCircusCircus(b: WorldBuilder): void {
   mergeAdd(b, top);
   // the 1983 YESCO porte-cochère: an arched bulb canopy over the drive (northBlock.ts)
   buildPorteCochere(b, ex + 1.0, -24.6, btz, 8.5);
+  porteCochereWall(b, ex, btz);
   // glass doors swung open against the pylons, a warm air-curtain glow, a red runner to the sidewalk
   const doorGlass = new THREE.MeshStandardMaterial({ color: 0xbfdcea, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
   for (const s of [-1, 1]) for (const k of [0, 1]) b.add(mesh(new THREE.BoxGeometry(1.6, 3.6, 0.05), doorGlass, ex + 1.1 + k * 0.06, 1.85, btz + s * (doorW / 2 - 0.15 - k * 0.1)));
@@ -1458,8 +1463,12 @@ function buildPeppermill(b: WorldBuilder): void {
   const bcz = (bzS + bzN) / 2;
   const H = 5.4;
   const t = 0.8;
-  parkingLot(b, 23.5, 100, Z_CONV - 10.5, -644.4);
-  parkCars(b, stallSpots(23.5, 100, Z_CONV - 10.5, -644.4), 3, 2);
+  // the strip mall between Convention Center Dr and the Peppermill (northBlock.ts), its lot in front and behind
+  parkingLot(b, 23.5, 33.2, Z_CONV - 10.5, -644.4);
+  parkCars(b, stallSpots(23.5, 33.2, Z_CONV - 10.5, -644.4), 3, 2);
+  parkingLot(b, 47, 100, Z_CONV - 10.5, -644.4);
+  parkCars(b, stallSpots(47, 100, Z_CONV - 10.5, -644.4), 3, 5);
+  buildEastStripMall(b, Z_CONV - 10.5, -644.4);
   b.floor(21.5, (Z_CONV - 10.5 + -668) / 2, 4, Z_CONV - 10.5 + 668, mat(0x5f7d45, 0.95), 0.018);
   plaza(b, 23.5, bx0, -644.4, -668, '#cdbfd6', '#a998b8');
   parkingLot(b, bx1 + 1, 100, -644.4, -668);
@@ -1557,7 +1566,7 @@ function buildPeppermill(b: WorldBuilder): void {
 
   // Pole sign with the chasing neon bands
   const sx = 21.3;
-  const sz = Z_CONV - 13.5;
+  const sz = -647.6; // in front of the restaurant, north of the strip mall
   b.box(sx, 0, sz, 0.9, 9.6, 0.9, mat(0x2a1838, 0.5, 0.4), true);
   b.add(peppermillSign(b), sx, 11.9, sz, HALF_PI); // retro script cabinet with bulbs + RESTAURANT / FIRESIDE LOUNGE tubes (stripSigns.ts)
   const bandMats = [0xff4fd8, 0xa24dff, 0x3a8bff].map((c) => new THREE.MeshBasicMaterial({ color: c }));
