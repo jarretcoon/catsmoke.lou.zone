@@ -9,6 +9,7 @@ import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
 import { flamingoSigns, harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, parisBalloonGlow, planetHollywoodSigns, venetianSigns } from './stripSigns';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
+import { palazzoFront } from './stripFronts';
 
 /**
  * East side of Las Vegas Blvd, south → north:
@@ -867,6 +868,8 @@ function buildSphere(b: WorldBuilder): void {
 // ---------------------------------------------------------------- Palazzo
 function buildPalazzo(b: WorldBuilder): void {
   b.box(34, 0, -350, 26, 9, 80, mat(0xd9c39a, 0.7), true);
+  // Arcade of lit boutique arches, pilasters with lanterns, cornice, balustrade, palms (stripFronts.ts)
+  palazzoFront(b, 21, -390, -310, 9, -340);
   palazzoSigns(b); // bronze marquee + gold letters on the podium and tower (stripSigns.ts)
   const gold = { wall: '#c8a46a', mullion: '#e0c38a', glass: '#7a5a34', lit: '#ffe6a8', cols: 12, rows: 26, style: 1 as const, seed: 141 };
   tower(b, { x: 70, z: -350, w: 24, d: 50, h: 60, facade: gold, metal: 0.4, wash: 0xffd9a0, crownGlow: 0.7 });
