@@ -456,7 +456,7 @@ function buildRunways(b: WorldBuilder, mg: Merger): void {
   tw(along(R1R, 0, 26), along(R1R, R1R.len, 26));
   tw(along(R1R, 0, 26), along(R1R, 0, 0));
   tw(along(R1R, R1R.len * 0.55, 26), along(R1R, R1R.len * 0.55, 0));
-  tw(along(R8L, 140, -26), along(R8L, R8L.len - 20, -26));
+  tw(along(R8L, 44, -26), along(R8L, R8L.len - 20, -26));
   tw(along(R8L, R8L.len - 20, -26), along(R8L, R8L.len - 20, 0));
   tw(along(R8R, 0, 26), along(R8R, R8R.len, 26));
   tw(along(R8R, R8R.len, 26), along(R8R, R8R.len, 0));
@@ -615,6 +615,20 @@ interface Parked {
   scale?: number;
 }
 const parked: Parked[] = [];
+let parkedMeshes: THREE.InstancedMesh[] = [];
+let gateSlot = -1;
+let gateShown = true;
+const gateMatrix = new THREE.Matrix4();
+const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+/** Show or empty Terminal 1's third gate (its jet is the one that pushes back and departs, then lands and taxis in). */
+function setGateParked(on: boolean): void {
+  if (on === gateShown || gateSlot < 0) return;
+  gateShown = on;
+  for (const im of parkedMeshes) {
+    im.setMatrixAt(gateSlot, on ? gateMatrix : hiddenMatrix);
+    im.instanceMatrix.needsUpdate = true;
+  }
+}
 const _m4 = new THREE.Matrix4();
 const _pos = new THREE.Vector3();
 const _scl = new THREE.Vector3();
@@ -631,9 +645,11 @@ function buildParked(b: WorldBuilder): void {
     _quat.setFromAxisAngle(UP, p.yaw);
     _m4.compose(_pos.set(p.x, 0, p.z), _quat, _scl.setScalar(p.scale ?? 1));
     for (const im of [body, accent, fixed, gear]) im.setMatrixAt(i, _m4);
+    if (i === gateSlot) gateMatrix.copy(_m4);
     body.setColorAt(i, _col.setHex(p.liv.body));
     accent.setColorAt(i, _col.setHex(p.liv.accent));
   });
+  parkedMeshes = [body, accent, fixed, gear];
   for (const im of [body, accent, fixed, gear]) {
     im.computeBoundingSphere();
     im.castShadow = false;
@@ -910,6 +926,9 @@ function buildTerminal1(b: WorldBuilder, mg: Merger): void {
   b.collider(121, 147, 849.5, 857.5, 0, 0.9, true);
   b.crowd.tourists.push({ pts: [[86, 847.8], [100, 848]], prop: 'bag' }, { pts: [[118, 848.4], [146, 848.6]], prop: 'bag' }, { pts: [[106, 844.5], [106, 855], [116, 855]], prop: 'none' });
   b.pickup(110, 0.25, 844.2, 1, 'Under a gate seat', true);
+  // A gate bar at the east end: yard drinks before the flight
+  b.collider(144.9, 146.1, 856.8, 862.6, 0, 1.15, true);
+  b.shopSpots.push({ kind: 'bar', position: v3(143.4, 0, 859.7), radius: 2.4, label: 'Terminal 1 Gate Bar' });
 
   const gate = {
     minX: x0 + 0.3,
@@ -1033,6 +1052,21 @@ function buildTerminal1(b: WorldBuilder, mg: Merger): void {
     me.position.set(x1 - 0.35, 7.2, 852);
     me.rotation.y = -Math.PI / 2;
     group.add(me);
+    // Gate bar: counter with a lit front, stools, a back bar of bottles under a neon sign
+    add(mat(0x3a2a22, 0.6), new THREE.BoxGeometry(1.1, 1.1, 5.6), 145.5, 0.55, 859.7);
+    add(mat(0xd9d4c6, 0.3, 0.2), new THREE.BoxGeometry(1.3, 0.08, 5.8), 145.5, 1.14, 859.7);
+    add(basic(0xffb347), new THREE.BoxGeometry(0.04, 0.12, 5.4), 144.93, 0.95, 859.7);
+    for (let i = 0; i < 4; i++) {
+      add(mat(0x1a1c20, 0.4, 0.6), new THREE.CylinderGeometry(0.05, 0.05, 0.75, 6), 144.3, 0.38, 857.8 + i * 1.3);
+      add(mat(0xb8202e, 0.6), new THREE.CylinderGeometry(0.24, 0.24, 0.1, 10), 144.3, 0.8, 857.8 + i * 1.3);
+    }
+    add(mat(0x2a1c16, 0.7), new THREE.BoxGeometry(0.5, 2.4, 5.6), x1 - 0.6, 1.2, 859.7);
+    for (let r = 0; r < 3; r++)
+      for (let i = 0; i < 12; i++) add(mat([0x2f7a3a, 0x8a5a1a, 0xd9d4c6, 0x5a1a1a][(i + r) % 4], 0.2, 0.1), new THREE.CylinderGeometry(0.05, 0.05, 0.3, 6), x1 - 0.75, 1.0 + r * 0.55, 857.4 + i * 0.42);
+    const barSign = neonSign('GATE BAR', '#1a0a14', '#ff4fd8', 3.2, 0.8, 'YARD DRINKS • LAST CALL', 0.1);
+    barSign.position.set(x1 - 0.5, 3.4, 859.7);
+    barSign.rotation.y = -Math.PI / 2;
+    group.add(barSign);
     // Columns
     for (const x of [86, 99, 112, 125, 138]) add(white, new THREE.CylinderGeometry(0.4, 0.4, h - 0.3, 14), x, (h - 0.3) / 2, 846.5);
     for (const x of [86, 99, 112, 125, 138]) b.collider(x - 0.4, x + 0.4, 846.1, 846.9, 0, h, true);
@@ -1065,6 +1099,7 @@ function buildGates(b: WorldBuilder, mg: Merger): void {
   const steel = mat(0x9aa0a8, 0.45, 0.55);
   const bridgeGlass = mat(0x34414e, 0.25, 0.5);
   for (const [i, gx] of T1_GATES.entries()) {
+    if (i === 2) gateSlot = parked.length;
     parked.push({ x: gx, z: GATE_NOSE_Z + 11.6, yaw: Math.PI, liv: i === 1 ? LIV.yellow : LIV.local });
     // Lead-in line + stop bar
     mg.add(flatStrip(v3(gx, 0, 904), v3(gx, 0, GATE_NOSE_Z + 3), 0.25, 0.05, 1), PAINT_YELLOW);
@@ -1096,11 +1131,13 @@ function buildGates(b: WorldBuilder, mg: Merger): void {
       mg.box(mat(0x2c6e46, 0.7), gx + 5.5, 1.25, tz + 2.6 + c * 2.6, 1.42, 0.08, 2.24);
       for (const sd of [-1, 1]) mg.box(mat([0xc8202e, 0x2d6fd8, 0x111216][(c + i) % 3], 0.5), gx + 5.5 + sd * 0.35, 0.9, tz + 2.6 + c * 2.6, 0.45, 0.4, 1.6);
     }
-    const belt = new THREE.BoxGeometry(0.9, 0.18, 7.5);
-    belt.rotateX(0.32);
-    mg.at(mat(0x1a1c20, 0.7), belt, gx + 2.2, 1.6, GATE_NOSE_Z + 6.5);
-    mg.box(mat(0xf2c400, 0.6), gx + 2.2, 0.5, GATE_NOSE_Z + 8.6, 1.4, 0.8, 3.0);
-    if (i !== 1) {
+    if (i < 2) {
+      const belt = new THREE.BoxGeometry(0.9, 0.18, 7.5);
+      belt.rotateX(0.32);
+      mg.at(mat(0x1a1c20, 0.7), belt, gx + 2.2, 1.6, GATE_NOSE_Z + 6.5);
+      mg.box(mat(0xf2c400, 0.6), gx + 2.2, 0.5, GATE_NOSE_Z + 8.6, 1.4, 0.8, 3.0);
+    }
+    if (i === 0) {
       mg.box(mat(0xf4f4f2, 0.5), gx + 3.4, 1.0, GATE_NOSE_Z + 1.6, 2.2, 1.6, 4.0);
       mg.box(mat(0xf4f4f2, 0.5), gx + 3.4, 2.9, GATE_NOSE_Z + 2.2, 2.3, 2.0, 3.0);
     }
@@ -1234,8 +1271,9 @@ interface FlyingJet {
   gear: THREE.Mesh;
   landing: THREE.BufferAttribute;
   thrust: number;
+  tug?: THREE.Object3D;
 }
-function flyingJet(scene: THREE.Scene, liv: Livery): FlyingJet {
+function flyingJet(scene: THREE.Scene, liv: Livery, scale: number, withTug = false): FlyingJet {
   const geo = jetGeo();
   const g = new THREE.Group();
   g.add(new THREE.Mesh(geo.body, new THREE.MeshStandardMaterial({ color: liv.body, roughness: 0.32, metalness: 0.25 })));
@@ -1256,10 +1294,21 @@ function flyingJet(scene: THREE.Scene, liv: Livery): FlyingJet {
   ls.add(v3(0, FUS_Y - FUS_R - 0.1, 0.5), C_RED, 1.3, 2.0, 0.9, 0.75, 0.35);
   const pts = ls.build();
   g.add(pts);
+  // Pushback tug with its tow bar on the nose gear
+  let tug: THREE.Group | undefined;
+  if (withTug) {
+    tug = new THREE.Group();
+    tug.add(mesh(new THREE.BoxGeometry(2.3, 1.1, 4.2), mat(0xf2c400, 0.6), 0, 0.75, 13.6));
+    tug.add(mesh(new THREE.BoxGeometry(1.4, 0.8, 1.2), mat(0x2a2d33, 0.4, 0.4), 0, 1.65, 14.6));
+    tug.add(mesh(beamGeo(v3(0, 0.55, 11.5), v3(0, 0.5, 8.8), 0.07, 5), mat(0x2a2d33, 0.5, 0.5)));
+    bakeGroup(tug);
+    tug.visible = false;
+    g.add(tug);
+  }
   g.visible = false;
-  g.scale.setScalar(1.3); // flying jets at a full narrow-body's size (the parked ones are squeezed to fit the gates)
+  g.scale.setScalar(scale); // the gate pair matches the parked jets; the others fly at a full narrow-body's size
   scene.add(g);
-  return { g, gear, landing: pts.geometry.getAttribute('tint') as THREE.BufferAttribute, thrust: 0 };
+  return { g, gear, landing: pts.geometry.getAttribute('tint') as THREE.BufferAttribute, thrust: 0, tug };
 }
 function setLanding(j: FlyingJet, on: boolean): void {
   const v = on ? 2.2 : 0;
@@ -1277,52 +1326,111 @@ const CYCLE = 160;
 const airportDebug: { t: number; jets?: THREE.Group[] } = { t: -1 };
 if (import.meta.env.DEV || import.meta.env.MODE === 'check') (window as unknown as { __airport: typeof airportDebug }).__airport = airportDebug;
 
+/** A taxi route: a smooth curve through the points, walked by distance. */
+class Route {
+  private readonly curve: THREE.CatmullRomCurve3;
+  readonly len: number;
+  constructor(pts: THREE.Vector3[]) {
+    this.curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    this.len = this.curve.getLength();
+  }
+  at(d: number, p: THREE.Vector3, t: THREE.Vector3): void {
+    const u = THREE.MathUtils.clamp(d / this.len, 0, 1);
+    this.curve.getPointAt(u, p);
+    this.curve.getTangentAt(u, t);
+    t.y = 0;
+    t.normalize();
+  }
+}
+
 function buildTraffic(b: WorldBuilder): void {
-  const jets = [flyingJet(b.scene, LIV.local), flyingJet(b.scene, LIV.red), flyingJet(b.scene, LIV.local), flyingJet(b.scene, LIV.navy)];
+  // jets[0] and jets[1] share Terminal 1's third gate: one lands on 26R and taxis in, the other pushes back and departs 1L
+  const jets = [flyingJet(b.scene, LIV.local, 1, true), flyingJet(b.scene, LIV.local, 1), flyingJet(b.scene, LIV.local, 1.3), flyingJet(b.scene, LIV.navy, 1.3)];
   airportDebug.jets = jets.map((j) => j.g);
   const sound = new JetSound();
   const P = new THREE.Vector3();
   const D = new THREE.Vector3();
   const west = v3(-1, 0, 0);
 
-  /** Departure: taxi onto the runway, hold, roll, rotate, climb out north-north-east. */
-  const departure = (j: FlyingJet, r: Runway, tau: number): boolean => {
-    if (tau < 0 || tau > 62) return false;
+  /** Takeoff roll from `s0` metres down the runway, rotation, climb-out; u = seconds since brakes off. */
+  const takeoff = (j: FlyingJet, r: Runway, u: number, s0: number): void => {
+    const a = 5.2;
+    const ur = 9.6; // rotate at ~50 m/s, just east of the Terminal 1 gates
     let s: number;
     let h = 0;
     let pitch = 0;
-    j.thrust = 0.25;
-    if (tau < 5) s = -16 + 3.2 * tau;
-    else if (tau < 9) {
-      s = 0;
-      j.thrust = 0.35 + (tau - 5) * 0.12;
-    } else {
-      const u = tau - 9;
-      const a = 5.2;
-      const ur = 9.6; // rotate at ~50 m/s, just east of the Terminal 1 gates
-      j.thrust = 1;
-      if (u < ur) s = 0.5 * a * u * u;
-      else {
-        const u2 = u - ur;
-        const sr = 0.5 * a * ur * ur;
-        s = sr + 50.4 * u2 + 0.7 * u2 * u2;
-        const dd = s - sr;
-        h = dd < 60 ? ((dd * dd) / 120) * 0.2 : (dd - 30) * 0.2;
-        pitch = Math.min(0.2, u2 * 0.1);
-        if (u2 > 20) j.thrust = 0.8;
-      }
+    j.thrust = 1;
+    if (u < ur) s = s0 + 0.5 * a * u * u;
+    else {
+      const u2 = u - ur;
+      const sr = s0 + 0.5 * a * ur * ur;
+      s = sr + 50.4 * u2 + 0.7 * u2 * u2;
+      const dd = s - sr;
+      h = dd < 60 ? ((dd * dd) / 120) * 0.2 : (dd - 30) * 0.2;
+      pitch = Math.min(0.2, u2 * 0.1);
+      if (u2 > 20) j.thrust = 0.8;
     }
     P.copy(r.a).addScaledVector(r.dir, s);
     P.y = h;
     pose(j, P, r.dir, pitch);
     j.gear.visible = h < 30;
     setLanding(j, h < 300);
+  };
+
+  /** Departure from the runway end: taxi on, hold, roll, climb out north-north-east. */
+  const departure = (j: FlyingJet, r: Runway, tau: number): boolean => {
+    if (tau < 0 || tau > 62) return false;
+    j.gear.visible = true;
+    if (tau < 9) {
+      P.copy(r.a).addScaledVector(r.dir, tau < 5 ? -16 + 3.2 * tau : 0);
+      pose(j, P, r.dir, 0);
+      j.thrust = tau < 5 ? 0.25 : 0.35 + (tau - 5) * 0.12;
+      setLanding(j, tau >= 5);
+    } else takeoff(j, r, tau - 9, 0);
     return true;
   };
 
-  /** Arrival: 3° approach from the east, flare, touchdown, reversers, roll out, turn off north, fade. */
-  const arrival = (j: FlyingJet, r: Runway, exitX: number, tau: number): boolean => {
-    if (tau < 0 || tau > 72) return false;
+  // Terminal 1, gate 3: pushback, engine start, taxi out on the west parallel, line up on 1L
+  const GATE = v3(T1_GATES[2], 0, GATE_NOSE_Z + 11.6);
+  const pushRoute = new Route([GATE.clone(), v3(GATE.x, 0, 889), v3(GATE.x - 1.2, 0, 897), v3(GATE.x - 5.5, 0, 901.6), v3(GATE.x - 12, 0, 903.2)]);
+  const taxiOut = new Route([v3(GATE.x - 12, 0, 903.2), v3(GATE.x - 3, 0, 903.4), v3(GATE.x + 3, 0, 906), along(R1L, 158, -26), along(R1L, 90, -26), along(R1L, 24, -26), along(R1L, 4, -21), along(R1L, 4, -9), along(R1L, 15, -1), along(R1L, 26, 0)]);
+  const LINEUP = 26;
+  const PUSH_V = 1.6;
+  const TAXI_V = 9;
+  const pushT = pushRoute.len / PUSH_V;
+  const startT = pushT + 4;
+  const taxiT = startT + taxiOut.len / TAXI_V;
+  const rollT = taxiT + 5;
+  const fromGate = (j: FlyingJet, tau: number): boolean => {
+    if (tau < 0 || tau > rollT + 55) return false;
+    j.gear.visible = true;
+    if (j.tug) j.tug.visible = tau < pushT;
+    if (tau < startT) {
+      pushRoute.at(Math.min(tau, pushT) * PUSH_V, P, D);
+      D.negate(); // pushed tail-first
+      pose(j, P, D, 0);
+      j.thrust = tau < pushT ? 0.05 : 0.18;
+      setLanding(j, false);
+    } else if (tau < taxiT) {
+      taxiOut.at((tau - startT) * TAXI_V, P, D);
+      pose(j, P, D, 0);
+      j.thrust = 0.22;
+      setLanding(j, false);
+    } else if (tau < rollT) {
+      P.copy(along(R1L, LINEUP));
+      pose(j, P, R1L.dir, 0);
+      j.thrust = 0.4 + (tau - taxiT) * 0.08;
+      setLanding(j, true);
+    } else takeoff(j, R1L, tau - rollT, LINEUP);
+    return true;
+  };
+
+  /**
+   * Arrival: 3° approach from the east, flare, touchdown, reversers, roll out, turn off north at exitX.
+   * Then `after` takes over (u = seconds since the turn-off), or the jet taxis north and fades.
+   */
+  const arrival = (j: FlyingJet, r: Runway, exitX: number, tau: number, after?: (u: number) => boolean): boolean => {
+    if (tau < 0) return false;
     const td = r.b.clone().addScaledVector(west, 70);
     const d0 = 2300;
     const v0 = 62;
@@ -1350,27 +1458,61 @@ function buildTraffic(b: WorldBuilder): void {
       pose(j, P, west, u < 1.5 ? 0.06 * (1 - u / 1.5) : 0);
       return true;
     }
-    // Turn north onto the exit at exitX, then taxi toward the gates
+    setLanding(j, false);
     const u2 = u - ue;
-    const x = td.x - sEnd;
     const arcT = (R * Math.PI) / 2 / 9;
     if (u2 < arcT) {
       const th = (u2 * 9) / R;
-      P.set(x - R * Math.sin(th), 0, td.z - R * (1 - Math.cos(th)));
+      P.set(exitX + R - R * Math.sin(th), 0, td.z - R * (1 - Math.cos(th)));
       D.set(-Math.cos(th), 0, -Math.sin(th));
-    } else {
-      P.set(x - R, 0, td.z - R - (u2 - arcT) * 9);
-      D.set(0, 0, -1);
+      pose(j, P, D, 0);
+      return true;
     }
-    pose(j, P, D, 0);
-    setLanding(j, false);
+    if (after) return after(u2 - arcT);
+    P.set(exitX, 0, td.z - R - (u2 - arcT) * 9);
+    pose(j, P, D.set(0, 0, -1), 0);
     return P.z > td.z - 150;
   };
+
+  // The 26R arrival's taxi-in: west on the 8L parallel, north up the west parallel, into gate 3
+  const tdz = R8L.b.z - 22;
+  const taxiIn = new Route([v3(420, 0, tdz), v3(419, 0, 1022.6), v3(405, 0, 1021.7), v3(130, 0, 1021.7), v3(100, 0, 1021.4), v3(90, 0, 1017.5), along(R1L, 62, -26), along(R1L, 110, -26), along(R1L, 150, -26), along(R1L, 166, -26.5), v3(GATE.x, 0, 904), v3(GATE.x, 0, 898)]);
+  const gateIn = new Route([v3(GATE.x, 0, 898), v3(GATE.x, 0, 890), GATE.clone()]);
+  const IN_V = 10;
+  const GATE_V = 2.4;
+  const ARRIVE_AT = 8;
+  const toGate = (u: number): boolean => {
+    const j = jets[1];
+    j.thrust = 0.2;
+    const d = u * IN_V;
+    if (d < taxiIn.len) {
+      taxiIn.at(d, P, D);
+      pose(j, P, D, 0);
+      return true;
+    }
+    const d2 = (u - taxiIn.len / IN_V) * GATE_V;
+    if (d2 < gateIn.len) {
+      gateIn.at(d2, P, D);
+      pose(j, P, D, 0);
+      j.thrust = 0.12;
+      return true;
+    }
+    return false;
+  };
+  // Cycle second the 26R arrival stops at gate 3 (the departure pushes back from it at second 0)
+  const parkedAt = (() => {
+    const ta = 2300 / 62;
+    const sEnd = R8L.b.x - 70 - (420 + 22);
+    const dec = (62 * 62 - 81) / (2 * sEnd);
+    return ARRIVE_AT + ta + (62 - 9) / dec + (22 * Math.PI) / 2 / 9 + taxiIn.len / IN_V + gateIn.len / GATE_V;
+  })();
 
   b.every((_dt, t) => {
     const cam = viewer.cam;
     const tc = airportDebug.t >= 0 ? airportDebug.t : t % CYCLE;
-    const vis = [departure(jets[0], R1L, tc - 2), arrival(jets[1], R8L, 420, tc - 30), departure(jets[2], R1R, tc - 82), arrival(jets[3], R8R, 420, tc - 108)];
+    const wrap = (x: number) => ((x % CYCLE) + CYCLE) % CYCLE; // the 1R departure and 26L arrival may straddle the cycle
+    const vis = [fromGate(jets[0], tc), arrival(jets[1], R8L, 420, tc - ARRIVE_AT, toGate), departure(jets[2], R1R, wrap(tc - 84)), arrival(jets[3], R8R, 420, wrap(tc - 112))];
+    setGateParked(tc >= parkedAt);
     for (let i = 0; i < jets.length; i++) {
       const j = jets[i];
       j.g.visible = vis[i] && j.g.position.distanceTo(cam) < 2600;
