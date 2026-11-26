@@ -2261,7 +2261,7 @@ function buildEastLots(b: WorldBuilder): void {
   const a1 = zFromS(-2364) - 0.4;
   ground(b, 19.4, xE, a0, a1, 0xa89272);
   scatter(a0, a1, 40, 0.11);
-  chainLink(b, mg, 19.7, a0 + 2, 19.7, 574);
+  chainLink(b, mg, 19.7, 555, 19.7, 574); // (ampm + ARCO on the Reno Ave corner north of here: southFronts.ts)
   chainLink(b, mg, 19.7, 582, 19.7, a1 - 2);
   billboard(b, mg, 32, 560, 'INJURED? CALL 702-555-0188', 'THE CAT LAWYERS • WE FIGHT FOR YOU', '#f2c230', '#111111');
   billboard(b, mg, 32, 604, 'ALL-YOU-CAN-EAT CRAB LEGS', 'BUFFET • OPEN 24 HOURS', '#7a1414', '#ffe9a0');

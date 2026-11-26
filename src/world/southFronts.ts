@@ -182,6 +182,7 @@ export function buildSouthFronts(b: WorldBuilder): void {
   diamondInn(b, atlas, mg, westFace, twoSided, steel);
   stationAndMall(b, atlas, mg, westFace, twoSided, steel);
   skyVue(b, mg);
+  arcoAmpm(b, atlas, mg, westFace, twoSided, steel);
   dreamSite(b, atlas, mg);
   shoppers(b);
   for (const m of atlas.materials) b.nightGlow(m, 0.0, 1.0);
@@ -229,7 +230,7 @@ function harleySign(b: WorldBuilder, atlas: Atlas, mg: Merger, twoSided: FaceFn,
     rect(p, 14, 178, w - 28, 68, '#111114');
     text(p, 'HARLEY-DAVIDSON', w / 2, 212, 'bold 46px Arial, sans-serif', '#f2f2ee', '#ffffff', w - 50);
     text(p, 'CYCLES', w / 2, 300, 'bold 46px Georgia, serif', '#e8701e', '#ff8a2a');
-    text(p, 'LAS VEGAS', w / 2, 362, 'bold 30px Arial, sans-serif', '#f2f2ee', '#e0e0e0');
+    text(p, 'LAS VEGAS', w / 2, 346, 'bold 24px Arial, sans-serif', '#f2f2ee', '#e0e0e0');
   });
   const x = 20.25;
   const z = 885.5;
@@ -853,4 +854,66 @@ function shoppers(b: WorldBuilder): void {
     { pts: [[16.2, 709], [23, 709], [37.6, 712.5]], prop: 'cig' },
     { pts: [[16.4, 832], [22, 832], [38.8, 838.4]], prop: 'camera' }
   );
+}
+
+/** ampm + ARCO at the SE corner of Reno Ave (3873 LVB S), the last fuel stop before the ballpark site. */
+function arcoAmpm(b: WorldBuilder, atlas: Atlas, mg: Merger, westFace: FaceFn, twoSided: FaceFn, steel: THREE.Material): void {
+  const z0 = 540.2;
+  const z1 = 554.5;
+  const cz = 546.8;
+  ground(b, 19.6, 44, z0, z1, 0x3a3a3f, L1, 0.85);
+  const white = mat(0xf4f4f2, 0.6);
+  mg.box(white, 28, 4.9, cz, 8.4, 0.7, 11.5, 0, true);
+  const band = atlas.slot(480, 44, (p) => {
+    rect(p, 0, 0, p.w, p.h, '#f4f4f2', '#d8e0ff');
+    rect(p, 0, 30, p.w, 14, '#1e4fb8', '#3a6aff');
+    text(p, 'ARCO', 90, 16, 'bold italic 26px Arial, sans-serif', '#1e4fb8', '#3a6aff');
+    text(p, 'ampm', 390, 16, 'bold 26px Arial, sans-serif', '#d6202c', '#ff3a3a');
+  });
+  westFace(band, 11.5, 0.7, 23.8, 4.9, cz);
+  const lightM = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.1 });
+  b.nightGlow(lightM, 0.1, 1.3);
+  for (const lz of [cz - 3.5, cz, cz + 3.5]) for (const lx of [26, 30]) mg.box(lightM, lx, 4.53, lz, 1.2, 0.04, 0.6);
+  for (const pz of [cz - 2.8, cz + 2.8]) {
+    for (const px of [26, 30]) {
+      mg.box(mat(0xd8d8d4, 0.6), px, 0.12, pz, 1.2, 0.24, 2.4);
+      mg.box(white, px, 1.0, pz, 0.6, 1.6, 0.9);
+      mg.box(mat(0x1e4fb8, 0.5), px, 1.55, pz, 0.62, 0.3, 0.92);
+      b.collider(px - 0.35, px + 0.35, pz - 0.5, pz + 0.5, 0, 1.8, true);
+    }
+    mg.add(new THREE.CylinderGeometry(0.2, 0.2, 4.6, 8).translate(28, 2.3, pz), white);
+  }
+  const store = atlas.slot(620, 190, (p) => {
+    stucco(p, '#f2f0ea');
+    rect(p, 0, 0, p.w, 50, '#f2f0ea');
+    text(p, 'am', 260, 28, 'bold 44px Arial, sans-serif', '#d6202c', '#ff3a3a');
+    text(p, 'pm', 340, 28, 'bold 44px Arial, sans-serif', '#1e4fb8', '#4a7aff');
+    rect(p, 0, 50, p.w, 8, '#f28a1e', '#ffa040');
+    shopWindow(p, 30, 76, 220, 100);
+    shopWindow(p, 370, 76, 220, 100);
+    rect(p, 270, 70, 80, 120, '#2a2c30');
+    rect(p, 276, 76, 68, 114, '#7a9ab0', '#c9b088');
+  });
+  b.box(39.5, 0, cz, 8, 4.2, 12, mat(0xf2f0ea, 0.85), true);
+  westFace(store, 12, 4.0, 35.5, 2.0, cz);
+  const pole = atlas.slot(260, 400, (p) => {
+    rect(p, 0, 0, p.w, p.h, '#1e4fb8', '#000');
+    rect(p, 10, 10, p.w - 20, 120, '#ffffff', '#dfe8ff');
+    text(p, 'ARCO', p.w / 2, 70, 'bold italic 76px Arial, sans-serif', '#1e4fb8', '#2a5aff');
+    for (const [i, [k, v]] of ([
+      ['REG', '4.29'],
+      ['MID', '4.59'],
+      ['PREM', '4.89'],
+    ] as const).entries()) {
+      text(p, k, 60, 170 + i * 56, 'bold 26px Arial, sans-serif', '#ffffff', '#ffffff');
+      text(p, v, 180, 170 + i * 56, 'bold 40px Arial, sans-serif', '#ffd21e', '#ffe040');
+    }
+    rect(p, 20, 330, p.w - 40, 56, '#ffffff', '#f0f0f0');
+    text(p, 'am', 100, 358, 'bold 36px Arial, sans-serif', '#d6202c', '#ff3a3a');
+    text(p, 'pm', 160, 358, 'bold 36px Arial, sans-serif', '#1e4fb8', '#4a7aff');
+  });
+  mg.beam(steel, v3(21.0, 0, 553.2), v3(21.0, 4.4, 553.2), 0.18, 8);
+  twoSided(pole, 2.4, 3.7, 21.0, 6.2, 553.2);
+  b.collider(20.8, 21.2, 553.0, 553.4, 0, 4.4, true);
+  b.zone('ampm • ARCO (Reno Ave)', 19.6, 44, z0, z1);
 }

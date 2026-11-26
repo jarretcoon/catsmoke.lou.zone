@@ -230,17 +230,18 @@ function coinAtlas(): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
           ctx.fillStyle = 'rgba(110,112,120,0.55)';
           ctx.font = 'bold 15px Georgia, serif';
           ctx.textAlign = 'center';
-          const ring = (txt: string, a0: number, span: number, r: number) => {
+          // upright letters around the top (LIBERTY) and along the bottom (the motto), as on a silver dollar
+          const ring = (txt: string, span: number, r: number, bottom: boolean) => {
             for (let k = 0; k < txt.length; k++) {
-              const a = a0 + (k / Math.max(1, txt.length - 1) - 0.5) * span;
+              const f = k / Math.max(1, txt.length - 1) - 0.5;
               ctx.save();
-              ctx.rotate(a);
-              ctx.fillText(txt[k], 0, -r);
+              ctx.rotate(bottom ? -f * span : f * span);
+              ctx.fillText(txt[k], 0, bottom ? r + 10 : -r);
               ctx.restore();
             }
           };
-          ring('LIBERTY', 0, 1.3, 88);
-          ring('IN GOD WE TRUST', Math.PI, 2.2, -100);
+          ring('LIBERTY', 1.3, 88, false);
+          ring('IN GOD WE TRUST', 2.0, 88, true);
           ctx.restore();
         }
         // the letter: orange-red paint with a neon tube traced down its strokes
