@@ -1779,7 +1779,7 @@ REAR_CONTACTS = [("Root", (0.0, 0.05, 0.130)), ("Root", (0.0, 0.12, 0.136)), ("R
                  ("Root", (0.0, 0.275, 0.235)), ("Root", (0.0, 0.29, 0.29))]
 
 
-# ---------------- Gaits: Walk, Trot and Run share one engine (gait_feet / gait_trunk / gait_tail).
+# ---------------- Gaits: Walk, Trot and Run share one engine (gait_feet / gait_trunk / gait_shoulders / gait_tail).
 # Reference: Muybridge's cat plates (Animal Locomotion, 1887: 716 walking, 718 trotting, 720 galloping) and
 # cat gait studies (Galvez-Lopez et al. 2011, Zoology 114): a cat walks in LATERAL sequence (left hind,
 # left fore, right hind, right fore; the fore lands ~25-30% of a cycle after the hind on its side) with each
@@ -1794,7 +1794,8 @@ REAR_CONTACTS = [("Root", (0.0, 0.05, 0.130)), ("Root", (0.0, 0.12, 0.136)), ("R
 #
 # per paw: touchdown phase, duty (share of the cycle the paw is down), stance centre (y from the rest sole,
 # + is backward), track half-width (x), swing lift, heel/wrist roll at toe-off, swing tuck, reach before
-# touchdown (paw pitch, degrees), outward swing bulge
+# touchdown (paw pitch, degrees) and over: how far the swing reaches past the touchdown spot before setting
+# the paw back on it (share of the sweep, default 0.10)
 GAIT_WALK = dict(D=0.30, feet={
     "BL": dict(td=0.00, duty=0.66, c=0.000, x=0.070, lift=0.034, heel=34.0, tuck=48.0, reach=-6.0),
     "FL": dict(td=0.27, duty=0.63, c=0.034, x=0.063, lift=0.044, heel=30.0, tuck=78.0, reach=-10.0),
