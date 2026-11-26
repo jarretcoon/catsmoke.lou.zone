@@ -179,7 +179,7 @@ export class Phone {
               <button type="button" class="lp-next" data-app="goals"></button>
               <button type="button" class="lp-texts" data-app="messages" aria-label="Messages"></button>
               <nav class="lp-apps" aria-label="Apps">
-                ${APPS.map((a) => `<button type="button" class="lp-app-icon lp-app-icon--${a.id}" data-app="${a.id}"><span class="lp-icon" aria-hidden="true">${a.icon}</span><span class="lp-app-label">${a.label}</span><b class="lp-badge" hidden></b></button>`).join('')}
+                ${APPS.map((a, i) => `<button type="button" class="lp-app-icon lp-app-icon--${a.id}" data-app="${a.id}"${i === 0 ? ' data-pad-first' : ''}><span class="lp-icon" aria-hidden="true">${a.icon}</span><span class="lp-app-label">${a.label}</span><b class="lp-badge" hidden></b></button>`).join('')}
               </nav>
             </div>
             <div class="lp-app">

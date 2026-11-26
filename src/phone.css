@@ -1326,6 +1326,12 @@
   margin-left: 0.25rem;
 }
 
+/* nothing to focus during the moment the lock screen shows, so a controller starts on the first app */
+.lp-screen[data-screen="lock"] .lp-homebar,
+.lou-phone:has(.lp-screen[data-screen="lock"]) .lp-away {
+  display: none;
+}
+
 .lou-phone :focus-visible {
   outline: 2px solid #ffe27a;
   outline-offset: 2px;

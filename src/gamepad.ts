@@ -41,6 +41,9 @@ export class PadControls {
   private prevButtons: boolean[] = [];
   private navCooldown = 0;
   private active = false;
+  /** Buttons that just worked a menu (closed it, pressed in it): the game ignores them until they're let go, or the
+   *  B that closed the menu would also hop on a ride, and the View that put the phone away would take it out again. */
+  private consumed = new Set<number>();
   private focused: HTMLElement | null = null;
 
   constructor(private readonly hooks: PadHooks) {
@@ -108,6 +111,7 @@ export class PadControls {
     if (!p) return;
     const pressed = p.buttons.map((b) => b.pressed || b.value > 0.5);
     const edge = (i: number) => !!pressed[i] && !this.prevButtons[i];
+    for (const i of [...this.consumed]) if (!pressed[i]) this.consumed.delete(i);
     const [lx = 0, ly = 0, rx = 0, ry = 0] = p.axes;
     const used = pressed.some(Boolean) || Math.hypot(lx, ly) > 0.3 || Math.hypot(rx, ry) > 0.3;
     if (used) this.setActive(true);
@@ -125,10 +129,12 @@ export class PadControls {
     if (intro) {
       this.releaseAll();
       if (edge(B.A)) intro.click();
+      for (const i of [B.A, B.B, B.MENU]) if (edge(i)) this.consumed.add(i);
       if (edge(B.B) || edge(B.MENU)) key('keydown', 'Escape');
     } else if (title && !title.hidden) {
       this.releaseAll();
       if (edge(B.A) || edge(B.MENU)) {
+        this.consumed.add(B.A).add(B.MENU);
         const cont = document.getElementById('btn-continue') as HTMLButtonElement | null;
         const fresh = document.getElementById('btn-new-game') as HTMLButtonElement | null;
         const btn = cont && !cont.hidden && !cont.disabled ? cont : fresh && !fresh.disabled ? fresh : null;
@@ -139,6 +145,7 @@ export class PadControls {
       this.releaseAll();
       const box = dialog ?? popover!;
       this.navigate(box, dt, lx, ly, pressed);
+      for (const i of [B.A, B.B, B.MENU, B.VIEW]) if (edge(i)) this.consumed.add(i);
       if (edge(B.A)) this.press();
       if (edge(B.B) || (edge(B.MENU) && !dialog)) {
         // requestClose() = what Esc does (the shop's own close handlers run); close() where it's missing.
@@ -164,7 +171,7 @@ export class PadControls {
     const car = this.hooks.driving();
     const map = car ? CAR : FOOT;
     const want = new Set<string>();
-    for (const [i, code] of Object.entries(map)) if (pressed[+i]) want.add(code);
+    for (const [i, code] of Object.entries(map)) if (pressed[+i] && !this.consumed.has(+i)) want.add(code);
     // Left stick: four keys (the game normalizes the diagonal); all the way out sprints.
     const dead = 0.38;
     if (lx < -dead) want.add('KeyA');
