@@ -107,6 +107,8 @@ try {
   for (const v of views) {
     const started = Date.now();
     if (v.ride) {
+      // [G] only boards once the game has started: skip the intro comic first if it's still up.
+      if (await page.evaluate(() => document.querySelector('.intro')?.hidden === false)) await page.keyboard.press('Escape');
       // Walk up to the ride (first whose id starts with v.ride) and press [G] like a player would.
       await page.evaluate((v) => {
         const g = window.__game;
