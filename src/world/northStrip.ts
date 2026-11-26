@@ -5,6 +5,7 @@ import type { WorldBuilder } from './builder';
 import { curvedTower, stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
 import { bigTopLight, buildBigTopInterior, buildPromenade } from './circusInterior';
+import { buildLuckySign } from './luckySign';
 import { LedBoard, makeBoulevardTexture, makePaverTexture, makeSignTexture } from './textures';
 import type { FacadeSpec } from './textures';
 import { barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
@@ -14,7 +15,7 @@ import { xFromO, zFromS } from './strip';
 /**
  * North Strip, Spring Mountain Rd / Sands Ave → Circus Circus (Sahara + the STRAT as backdrop).
  * West, south → north: Fashion Show + The Cloud · ex-New Frontier lot (Wynn) · Resorts World ·
- * Slots-A-Fun · Circus Circus (big top, towers, Adventuredome, the dark Lucky the Clown sign).
+ * Slots-A-Fun · Circus Circus (big top, towers, Adventuredome, the Lucky the Clown sign).
  * East, south → north: Wynn (mountain + Lake of Dreams) · Encore · Wynn Golf Club · Peppermill ·
  * Diamond Lot (ex-Riviera) · LVCC West Hall · Las Vegas Monorail · Fontainebleau.
  * Real positions come from zFromS / xFromO (the real ~28° bend north of s≈600 is ignored).
@@ -761,75 +762,6 @@ function buildSlotsAFun(b: WorldBuilder): void {
 }
 
 // =============================================================== Circus Circus
-/** The Lucky sign's CIRCUS CIRCUS marquee face: pink bulb-socket border, cream field, fat circus caps (neon unlit). */
-function luckyMarqueeTexture(): THREE.CanvasTexture {
-  return canvasTex(1024, 384, (ctx) => {
-    ctx.fillStyle = '#e8508e';
-    ctx.fillRect(0, 0, 1024, 384);
-    ctx.fillStyle = '#f6efe6';
-    ctx.fillRect(34, 34, 956, 316);
-    ctx.strokeStyle = '#d4a640';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(40, 40, 944, 304);
-    for (let x = 17; x < 1024; x += 26) {
-      for (const y of [17, 367]) {
-        ctx.fillStyle = '#3a3632';
-        ctx.beginPath();
-        ctx.arc(x, y, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#8a8478';
-        ctx.beginPath();
-        ctx.arc(x - 2, y - 2, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    for (let y = 43; y < 350; y += 26) {
-      for (const x of [17, 1007]) {
-        ctx.fillStyle = '#3a3632';
-        ctx.beginPath();
-        ctx.arc(x, y, 8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    // stars either side
-    const star = (x: number, y: number, r: number, c: string) => {
-      ctx.fillStyle = c;
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + (i * Math.PI) / 5;
-        const rr = i % 2 ? r * 0.45 : r;
-        ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
-      }
-      ctx.fill();
-    };
-    star(92, 160, 34, '#1c4fc8');
-    star(932, 160, 34, '#1c4fc8');
-    // the lettering: fat wedge-serif caps, dark-red shadow + outline, hot-pink fill, pale (unlit) neon inline
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = '900 132px "Rockwell Extra Bold", Rockwell, Clarendon, "Bookman Old Style", Georgia, serif';
-    ctx.fillStyle = 'rgba(80,10,30,0.55)';
-    ctx.fillText('CIRCUS CIRCUS', 518, 168, 760);
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#6a0a1e';
-    ctx.lineWidth = 16;
-    ctx.strokeText('CIRCUS CIRCUS', 512, 160, 760);
-    ctx.fillStyle = '#e8237a';
-    ctx.fillText('CIRCUS CIRCUS', 512, 160, 760);
-    ctx.strokeStyle = '#f6d6e2';
-    ctx.lineWidth = 4;
-    ctx.strokeText('CIRCUS CIRCUS', 512, 157, 760);
-    ctx.font = 'bold 40px Georgia, serif';
-    ctx.fillStyle = '#1c4fc8';
-    ctx.fillText('HOTEL ★ CASINO ★ ADVENTUREDOME', 512, 290, 700);
-    // sun-bleaching and grime streaks
-    for (let i = 0; i < 26; i++) {
-      ctx.fillStyle = `rgba(70,55,45,${0.04 + (i % 4) * 0.025})`;
-      ctx.fillRect((i * 67) % 980 + 34, 34, 3 + (i % 3), 40 + ((i * 29) % 200));
-    }
-  });
-}
-
 function buildCircusCircus(b: WorldBuilder): void {
   const southOfDr = Z_CCDR + 9.3;
   const northOfDr = Z_CCDR - 9.3;
@@ -944,220 +876,10 @@ function buildCircusCircus(b: WorldBuilder): void {
   buildBigTopInterior(b, { cx: btx, cz: btz, R, wallH, coneH, doorW });
   bigTopLight(b, btx, btz);
 
-  // ---- Lucky the Clown (1976, 123 ft, YESCO) — completely dark since summer 2026, electrics fried ----
-  // A faithful dark replica: twin candy-striped pylons with bulb rows, the 2008 LED reader cabinet
-  // (dead), the CIRCUS CIRCUS marquee with its scalloped big-top crown and bulb border, and Lucky on
-  // top: balancing on a star ball, waving, holding his giant swirl lollipop. Nothing lights except
-  // one bulb that still flickers, and the repair crew's work lamp.
-  const lx = -25.6;
-  const lz = -749.6;
-  const sign = new THREE.Group();
-  const signParts: THREE.Object3D[] = [];
-  const S = (o: THREE.Object3D) => {
-    sign.add(o);
-    return o;
-  };
-  const pinkS = mat(0xe8508e, 0.6);
-  const whiteS = mat(0xf2ece6, 0.6);
-  const bulbS = mat(0x6a645c, 0.3, 0.2);
-  const socketS = mat(0x3a3632, 0.6, 0.4);
-  // plinth + twin pylons, candy-striped with rows of bulbs (dark)
-  S(mesh(new THREE.BoxGeometry(9.4, 1.2, 3.0), mat(0xc8a0a8, 0.85), 0, 0.6, 0));
-  for (const x of [-3.3, 3.3]) {
-    for (let j = 0; j < 9; j++) S(mesh(new THREE.BoxGeometry(1.2, 0.9, 1.2), j % 2 ? whiteS : pinkS, x, 1.65 + j * 0.9, 0));
-    for (let j = 0; j < 20; j++) for (const zz of [-0.62, 0.62]) S(mesh(new THREE.SphereGeometry(0.08, 6, 4), bulbS, x, 1.5 + j * 0.4, zz));
-  }
-  // LED reader cabinet (2008), three dead panels each face
-  S(mesh(new THREE.BoxGeometry(10.2, 4.4, 1.1), mat(0x2a2a30, 0.5, 0.4), 0, 6.3, 0));
-  S(mesh(new THREE.BoxGeometry(10.5, 0.3, 1.25), pinkS, 0, 8.6, 0));
-  S(mesh(new THREE.BoxGeometry(10.5, 0.3, 1.25), pinkS, 0, 4.0, 0));
-  const ledTex = canvasTex(256, 128, (ctx) => {
-    ctx.fillStyle = '#08080b';
-    ctx.fillRect(0, 0, 256, 128);
-    ctx.fillStyle = '#17171d';
-    for (let y = 2; y < 128; y += 4) for (let x = 2; x < 256; x += 4) ctx.fillRect(x, y, 2, 2);
-    ctx.fillStyle = 'rgba(60,20,30,0.5)';
-    for (let i = 0; i < 9; i++) ctx.fillRect((i * 53) % 250, (i * 37) % 120, 2, 2);
-  });
-  const ledM = new THREE.MeshStandardMaterial({ map: ledTex, roughness: 0.25, metalness: 0.4 });
-  for (const zz of [-0.56, 0.56]) for (const x of [-3.25, 0, 3.25]) S(part(new THREE.PlaneGeometry(3.05, 3.7), ledM, x, 6.3, zz, zz < 0 ? Math.PI : 0));
-  // vinyl "lights out" banner zip-tied across the middle panel, facing the Strip
-  const banner = printedSign("LUCKY'S LIGHTS ARE OUT", '#f4efe4', '#b01818', 'SIGN REPAIR BIDS OPEN • HE WILL RETURN', 5.6, 1.5, 0.02);
-  b.add(banner, lx + 0.62, 6.6, lz, HALF_PI);
-  // the CIRCUS CIRCUS marquee: scalloped crown, bulb border, letters with unlit neon
-  const marqueeTex = luckyMarqueeTexture();
-  const mFace = new THREE.MeshStandardMaterial({ map: marqueeTex, roughness: 0.7 });
-  S(mesh(new THREE.BoxGeometry(12.4, 4.6, 1.4), pinkS, 0, 11.2, 0));
-  for (const zz of [-0.705, 0.705]) S(part(new THREE.PlaneGeometry(12.2, 4.4), mFace, 0, 11.2, zz, zz < 0 ? Math.PI : 0));
-  for (let i = 0; i < 12; i++) {
-    for (const zz of [-0.72, 0.72]) {
-      const sc = S(part(new THREE.CircleGeometry(0.52, 16, 0, Math.PI), i % 2 ? whiteS : pinkS, -5.7 + i * 1.04, 13.5, zz, zz < 0 ? Math.PI : 0));
-      void sc;
-    }
-  }
-  S(mesh(new THREE.BoxGeometry(12.6, 0.22, 1.5), mat(0xd4a640, 0.35, 0.8), 0, 13.55, 0));
-  for (let i = 0; i < 46; i++) {
-    const t = i / 46;
-    const per = 2 * (12.0 + 4.2);
-    let d = t * per;
-    let bx: number;
-    let by: number;
-    if (d < 12) [bx, by] = [-6 + d, 13.2];
-    else if ((d -= 12) < 4.2) [bx, by] = [6, 13.2 - d];
-    else if ((d -= 4.2) < 12) [bx, by] = [6 - d, 9.0];
-    else [bx, by] = [-6, 9.0 + (d - 12)];
-    for (const zz of [-0.74, 0.74]) S(mesh(new THREE.SphereGeometry(0.11, 6, 4), bulbS, bx, by, zz));
-  }
-  // Lucky's star ball
-  const ballTex = canvasTex(512, 256, (ctx) => {
-    const bands = ['#d0122e', '#ffffff', '#1c4fc8', '#ffffff', '#d0122e'];
-    bands.forEach((c, i) => {
-      ctx.fillStyle = c;
-      ctx.fillRect(0, (i * 256) / 5, 512, 256 / 5 + 1);
-    });
-    ctx.fillStyle = '#ffd23a';
-    for (let i = 0; i < 10; i++) {
-      const x = 25 + i * 51;
-      const y = 128;
-      ctx.beginPath();
-      for (let q = 0; q < 10; q++) {
-        const a = -Math.PI / 2 + (q * Math.PI) / 5;
-        const r = q % 2 ? 7 : 17;
-        ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-      }
-      ctx.fill();
-    }
-  });
-  S(mesh(new THREE.SphereGeometry(1.7, 24, 16), new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.5 }), 0.4, 15.35, 0));
-  // Lucky himself (feet at y 16.9): striped suit, ruffle, white face, red nose, big smile, orange hair,
-  // little star hat, waving right glove, giant swirl lollipop in the left hand
-  const L0 = 16.95;
-  const suitTex = stripeTexture('#ff4f98', '#fbf6f2', 14);
-  const suitM = new THREE.MeshStandardMaterial({ map: suitTex, roughness: 0.65 });
-  const faceM = mat(0xfff4ee, 0.55);
-  const redM = mat(0xd8101e, 0.35, 0.1);
-  const glove = mat(0xffffff, 0.6);
-  const hairM = mat(0xff6a1a, 0.85);
-  const blueM = mat(0x1c4fc8, 0.5);
-  const yellowM = mat(0xffd23a, 0.5);
-  for (const s of [-1, 1]) {
-    const shoe = S(mesh(new THREE.SphereGeometry(0.55, 14, 10), redM, s * 0.65, L0 + 0.3, 0.45));
-    shoe.scale.set(0.85, 0.55, 1.6);
-    S(mesh(new THREE.CylinderGeometry(0.42, 0.5, 2.4, 14), suitM, s * 0.6, L0 + 1.7, 0));
-  }
-  const body = S(mesh(new THREE.SphereGeometry(1.55, 20, 16), suitM, 0, L0 + 4.1, 0));
-  body.scale.set(1, 1.22, 0.85);
-  for (const [y, z] of [
-    [L0 + 4.9, 1.2],
-    [L0 + 4.2, 1.3],
-    [L0 + 3.5, 1.24],
-  ]) S(mesh(new THREE.SphereGeometry(0.26, 10, 8), yellowM, 0, y, z));
-  const ruff = S(part(new THREE.TorusGeometry(1.05, 0.42, 10, 24), whiteS, 0, L0 + 5.85, 0, 0, HALF_PI));
-  void ruff;
-  S(part(new THREE.TorusGeometry(1.42, 0.08, 6, 24), pinkS, 0, L0 + 5.85, 0, 0, HALF_PI));
-  S(mesh(new THREE.SphereGeometry(1.35, 22, 16), faceM, 0, L0 + 7.3, 0));
-  S(mesh(new THREE.SphereGeometry(0.38, 14, 10), redM, 0, L0 + 7.15, 1.33));
-  S(part(new THREE.TorusGeometry(0.62, 0.12, 8, 18, Math.PI), redM, 0, L0 + 6.95, 1.12, 0, -0.25, Math.PI));
-  S(part(new THREE.CircleGeometry(0.5, 16, Math.PI, Math.PI), mat(0xb0101e, 0.6), 0, L0 + 6.72, 1.2, 0, -0.35));
-  for (const s of [-1, 1]) {
-    const dia = S(part(new THREE.SphereGeometry(0.28, 4, 2), blueM, s * 0.48, L0 + 7.65, 1.15, 0, 0, 0));
-    dia.scale.set(0.6, 1.2, 0.3);
-    S(mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(0x101010, 0.4), s * 0.48, L0 + 7.62, 1.26));
-    S(mesh(new THREE.SphereGeometry(0.22, 10, 8), mat(0xff8aa8, 0.6), s * 0.82, L0 + 7.0, 1.0)).scale.set(1, 0.7, 0.4);
-    for (const [hx, hy, hz, hr] of [
-      [1.3, 7.35, -0.1, 0.5],
-      [1.05, 8.0, -0.35, 0.45],
-      [1.45, 6.75, -0.15, 0.4],
-    ]) S(mesh(new THREE.SphereGeometry(hr, 10, 8), hairM, s * hx, L0 + hy, hz));
-  }
-  // little star hat, tipped
-  S(part(new THREE.ConeGeometry(0.62, 1.7, 16), blueM, 0.3, L0 + 9.15, -0.15, 0, 0, -0.28));
-  S(mesh(new THREE.SphereGeometry(0.22, 10, 8), yellowM, 0.55, L0 + 10.0, -0.15));
-  S(part(new THREE.TorusGeometry(0.62, 0.08, 6, 16), yellowM, 0.08, L0 + 8.4, -0.15, 0, HALF_PI, 0.28));
-  // waving right arm (raised), open glove
-  const sh = new THREE.Vector3(1.35, L0 + 5.3, 0.1);
-  const el = new THREE.Vector3(2.35, L0 + 6.5, 0.35);
-  const wr = new THREE.Vector3(2.65, L0 + 7.9, 0.5);
-  S(rod(sh, el, 0.34, suitM));
-  S(rod(el, wr, 0.3, suitM));
-  S(mesh(new THREE.SphereGeometry(0.46, 12, 10), glove, wr.x + 0.05, wr.y + 0.35, wr.z));
-  for (let f = 0; f < 4; f++) {
-    const a = -0.6 + f * 0.4;
-    S(rod(new THREE.Vector3(wr.x + 0.05, wr.y + 0.55, wr.z), new THREE.Vector3(wr.x + 0.05 + Math.sin(a) * 0.75, wr.y + 0.55 + Math.cos(a) * 0.75, wr.z + 0.05), 0.11, glove));
-  }
-  S(rod(new THREE.Vector3(wr.x - 0.25, wr.y + 0.3, wr.z), new THREE.Vector3(wr.x - 0.7, wr.y + 0.55, wr.z + 0.15), 0.12, glove));
-  // left arm out to the giant lollipop
-  const sh2 = new THREE.Vector3(-1.35, L0 + 5.3, 0.1);
-  const hd2 = new THREE.Vector3(-2.55, L0 + 5.6, 0.75);
-  S(rod(sh2, hd2, 0.34, suitM));
-  S(mesh(new THREE.SphereGeometry(0.44, 12, 10), glove, hd2.x, hd2.y, hd2.z));
-  S(rod(new THREE.Vector3(hd2.x, hd2.y - 0.4, hd2.z), new THREE.Vector3(hd2.x - 0.1, hd2.y + 2.7, hd2.z), 0.09, whiteS));
-  const lolliTex = canvasTex(256, 256, (ctx) => {
-    ctx.fillStyle = '#fff6f0';
-    ctx.beginPath();
-    ctx.arc(128, 128, 126, 0, Math.PI * 2);
-    ctx.fill();
-    const cols = ['#e8237a', '#ffd23a', '#1c4fc8', '#7ad84a'];
-    for (let i = 0; i < 4; i++) {
-      ctx.strokeStyle = cols[i];
-      ctx.lineWidth = 16;
-      ctx.beginPath();
-      for (let a = 0; a < Math.PI * 6; a += 0.05) {
-        const r = 4 + a * 6.2;
-        const aa = a + (i * Math.PI) / 2;
-        ctx.lineTo(128 + Math.cos(aa) * r, 128 + Math.sin(aa) * r);
-      }
-      ctx.stroke();
-    }
-  });
-  const lolliM = new THREE.MeshStandardMaterial({ map: lolliTex, roughness: 0.3 });
-  for (const s of [-1, 1]) S(part(new THREE.CircleGeometry(1.25, 32), lolliM, hd2.x - 0.1, hd2.y + 3.9, hd2.z + s * 0.16, s < 0 ? Math.PI : 0));
-  S(part(new THREE.CylinderGeometry(1.25, 1.25, 0.3, 32, 1, true), whiteS, hd2.x - 0.1, hd2.y + 3.9, hd2.z, 0, HALF_PI));
-  sign.position.set(lx, 0, lz);
-  sign.rotation.y = HALF_PI;
-  signParts.push(sign);
-  mergeAdd(b, signParts);
-  b.collider(lx - 0.7, lx + 0.7, lz - 4.7, lz + 4.7, 0, 1.2);
-  for (const zz of [lz - 3.3, lz + 3.3]) b.collider(lx - 0.6, lx + 0.6, zz - 0.6, zz + 0.6, 0, 9.4, true);
-  b.collider(lx - 0.7, lx + 0.7, lz - 6.3, lz + 6.3, 8.9, 13.6);
-  // the one bulb that still flickers + the crew's work lamp at night
-  const flick = new THREE.MeshBasicMaterial({ color: 0x3a3632 });
-  b.add(mesh(new THREE.SphereGeometry(0.14, 8, 6), flick, lx + 0.76, 12.1, lz + 5.9));
-  const lamp = new THREE.MeshBasicMaterial({ color: 0x3a3632 });
-  b.every((_dt, t, night) => {
-    const on = night > 0.3 && Math.sin(t * 23.7) * Math.sin(t * 7.3 + 1.1) > 0.55;
-    flick.color.setHex(on ? 0xffd27a : 0x3a3632);
-    lamp.color.setRGB(0.23 + night * 0.77, 0.22 + night * 0.73, 0.2 + night * 0.55);
-  });
-  // repair crew vibe: boom lift parked under the marquee, tape, sandwich board
-  const orange = mat(0xe8731a, 0.55, 0.3);
-  b.box(lx + 2.5, 0, lz - 4.6, 2.2, 1.4, 4.4, orange);
-  const crew: THREE.Object3D[] = [];
-  for (const dz of [-1.6, 1.6]) for (const s of [-1, 1]) crew.push(part(new THREE.CylinderGeometry(0.35, 0.35, 0.3, 10), mat(0x111216, 0.85), lx + 2.5 + s * 1.15, 0.35, lz - 4.6 + dz, 0, 0, HALF_PI));
-  crew.push(rod(new THREE.Vector3(lx + 2.5, 1.8, lz - 5), new THREE.Vector3(lx + 2.2, 9.4, lz - 2.4), 0.28, orange));
-  crew.push(mesh(new THREE.BoxGeometry(1.6, 1.1, 1.2), orange, lx + 2.0, 10.0, lz - 2.1));
-  const tape = mat(0xf2d21a, 0.6);
-  crew.push(mesh(new THREE.BoxGeometry(9, 0.08, 0.04), tape, lx + 1, 0.9, lz + 2.4), mesh(new THREE.BoxGeometry(0.04, 0.08, 9.2), tape, lx - 3.5, 0.9, lz - 2.2));
-  mergeAdd(b, crew);
-  const lampHead = mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.4, 10), lamp, lx + 1.6, 10.85, lz - 2.1);
-  lampHead.rotation.z = 0.9;
-  b.add(lampHead);
-  const bids = printedSign('SIGN REPAIR BIDS', '#f4efe4', '#b01818', 'LUCKY WILL RETURN • STAND CLEAR', 1.8, 1.1, 0.06);
-  for (const s of [-1, 1]) {
-    const board = bids.clone();
-    board.rotation.order = 'YXZ';
-    board.rotation.set(-s * 0.22, HALF_PI, 0);
-    b.add(board, -21.2 + s * 0.22, 0.62, -759);
-  }
-  b.collider(-21.6, -20.8, -760, -758, 0, 1.2, true);
-  for (let i = 0; i < 4; i++) {
-    const cone = new THREE.Group();
-    cone.add(mesh(new THREE.ConeGeometry(0.2, 0.7, 8), mat(0xff6a00, 0.6), 0, 0.35, 0));
-    cone.add(mesh(new THREE.BoxGeometry(0.42, 0.04, 0.42), mat(0x222222, 0.7), 0, 0.02, 0));
-    b.prop(cone, lx + 1 + (i % 2 ? 4.6 : -4.6), lz + (i < 2 ? 2.4 : -6.8), 0.22, 0.7, 'cone');
-  }
-  b.pickup(lx + 2.1, 1.85, lz - 5.4, 3, "Sign Electrician's Lunch-Pail Pack", false);
-  b.zone('Lucky the Clown Sign (dark since summer 2026)', -31, -19.5, -757, northOfDr);
+  // ---- Lucky the Clown (YESCO, 1976): the classic sign, lit — see luckySign.ts ----
+  buildLuckySign(b, -25.6, -751.8);
+  b.pickup(-24.8, 1.25, -751.9, 3, "Lucky's Planter Stash", false);
+  b.zone('Lucky the Clown Sign', -31, -19.5, -759, northOfDr);
 
   b.zone('Circus Circus', -100, -19, -790, northOfDr);
   b.zone('Circus Circus', -84, -19, southOfDr, -697);
