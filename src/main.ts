@@ -30,6 +30,9 @@ import { INDOOR_ZONE } from './world/builder';
 import { hiddenIndoors } from './world/grandInteriors';
 import { Ambience } from './ambience';
 import { STRIP } from './world/strip';
+import { GraphicsQuality, type Quality } from './quality';
+import { Hud, menuOpen } from './hud';
+import { installMouseCamera } from './mouseCam';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game-canvas');
@@ -94,28 +97,16 @@ const driving = new PlayerDriving();
 const DRIVER_LINES = ['MY UBER!! A CAT TOOK MY UBER!', 'Hey! That is a rental!', 'Was that cat SMOKING?!', 'I just got this detailed!', 'Somebody call Animal Control!'];
 
 // ---------------------------------------------------------------- graphics quality + bloom
-type Quality = 'low' | 'medium' | 'high';
-const QUALITY_KEY = 'smoking-cat-sim.quality';
-let quality: Quality = (() => {
-  try {
-    const q = localStorage.getItem(QUALITY_KEY);
-    if (q === 'low' || q === 'medium' || q === 'high') return q;
-  } catch {
-    /* ignore */
-  }
-  return window.matchMedia('(pointer: coarse)').matches ? 'low' : 'high';
-})();
+// The level comes from src/quality.ts: Auto (measured from real frame times) unless the player picked one.
+let quality: Quality = 'high';
 let composer: EffectComposer | null = null;
 /** Scales the distance culling of props, pickups, guards and vehicles (Low graphics = 0.7). */
 let dynCullScale = 1;
 let bloom: UnrealBloomPass | null = null;
 let grade: ShaderPass | null = null;
 const look = { exposure: 1.12, bloomStrength: 0.6, bloomThreshold: 0.9 };
-const btnQuality = document.createElement('button');
-btnQuality.type = 'button';
-btnQuality.className = 'action-btn';
-document.querySelector('#controls-popover .controls-footer')?.prepend(btnQuality);
-mountBrightnessSlider(document.querySelector('#controls-popover .controls-footer'));
+// The slider goes before its anchor: anchor it on the menu's first setting row so it's the top row of Settings.
+mountBrightnessSlider(document.querySelector('#controls-popover .controls-footer > .setting-row'));
 
 function applyQuality(): void {
   renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : quality === 'medium' ? Math.min(window.devicePixelRatio, 1.25) : 1);
@@ -162,18 +153,49 @@ function applyQuality(): void {
   setFurQuality(quality);
   composer?.setPixelRatio(renderer.getPixelRatio());
   composer?.setSize(window.innerWidth, window.innerHeight);
-  btnQuality.textContent = `Graphics: ${quality === 'high' ? 'High (bloom)' : quality === 'medium' ? 'Medium' : 'Low (fast)'}`;
 }
-btnQuality.addEventListener('click', () => {
-  quality = quality === 'high' ? 'medium' : quality === 'medium' ? 'low' : 'high';
+/**
+ * Shadows on/off changes every lit material's shader, and building them all at once froze the game for seconds
+ * (35 s on a busy PC) the first time anyone picked Low. Build that level's shaders in the background first
+ * (KHR_parallel_shader_compile) while the current level keeps drawing; the switch itself is then instant.
+ */
+function prewarmQuality(q: Quality): Promise<void> {
+  const shadows = q !== 'low';
+  if (renderer.shadowMap.enabled === shadows) return Promise.resolve();
+  const was = renderer.shadowMap.enabled;
+  const sunWas = world.sun.castShadow;
+  const rtWas = renderer.getRenderTarget();
+  // Medium / High draw through the bloom composer's render target (shaders without tone mapping); Low draws
+  // straight to the canvas. Compile the variants that level will really use.
+  const rt = q === 'low' ? null : new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+  renderer.shadowMap.enabled = shadows;
+  world.sun.castShadow = shadows;
+  renderer.setRenderTarget(rt);
+  let programs: { isReady(): boolean }[] = [];
   try {
-    localStorage.setItem(QUALITY_KEY, quality);
-  } catch {
-    /* ignore */
+    programs = [...renderer.compile(scene, camera)]
+      .map((m) => (renderer.properties.get(m) as { currentProgram?: { isReady(): boolean } }).currentProgram)
+      .filter((p): p is { isReady(): boolean } => !!p);
+  } finally {
+    renderer.setRenderTarget(rtWas);
+    rt?.dispose();
+    renderer.shadowMap.enabled = was;
+    world.sun.castShadow = sunWas;
   }
-  applyQuality();
-});
-applyQuality();
+  return new Promise((resolve) => {
+    const check = () => (programs.every((p) => p.isReady()) ? resolve() : window.setTimeout(check, 50));
+    check();
+  });
+}
+const graphics = new GraphicsQuality(
+  (q) => {
+    quality = q;
+    applyQuality();
+  },
+  // Measure only real play: past the title screen, menu closed, no shop or casino open.
+  () => started && !menuOpen() && !document.querySelector('dialog[open]'),
+  prewarmQuality
+);
 
 const catHolder = new THREE.Group();
 catHolder.position.fromArray(S.position);
@@ -450,7 +472,7 @@ const restaurants = new RestaurantSystem(scene, crowd, world.restaurants, {
   sfxCash: () => sfx.playCash(),
   sfxBad: () => sfx.playBusted(),
 });
-const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen();
+const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen();
 
 // ---------------------------------------------------------------- chaos: score + wanted level
 const degen = new DegenScore(
@@ -1307,8 +1329,6 @@ let camYaw = S === saved ? catYaw + Math.PI : Math.PI;
 let camPitch = 0.26;
 let camDist = 4.2;
 let isDragging = false;
-let lastPointerX = 0;
-let lastPointerY = 0;
 const camTarget = catHolder.position.clone().add(new THREE.Vector3(0, 0.8, 0));
 /** How far along the boom the camera may sit (1 = full distance), eased back out after a wall pulls it in. */
 let camClip = 1;
@@ -1371,30 +1391,17 @@ function boomHit(ax: number, ay: number, az: number, bx: number, by: number, bz:
   return best;
 }
 
-canvas.addEventListener('pointerdown', (e) => {
-  isDragging = true;
-  lastPointerX = e.clientX;
-  lastPointerY = e.clientY;
-  canvas.setPointerCapture(e.pointerId);
+// Drag to orbit, smooth wheel / pinch zoom (src/mouseCam.ts).
+const orbitCamera = (dYaw: number, dPitch: number) => {
+  camYaw += dYaw;
+  camPitch = THREE.MathUtils.clamp(camPitch + dPitch, 0.04, 1.2);
+};
+installMouseCamera(canvas, {
+  orbit: orbitCamera,
+  getDist: () => camDist,
+  setDist: (d) => (camDist = d),
+  setDragging: (on) => (isDragging = on),
 });
-window.addEventListener('pointermove', (e) => {
-  if (!isDragging) return;
-  camYaw -= (e.clientX - lastPointerX) * 0.0065;
-  camPitch = THREE.MathUtils.clamp(camPitch + (e.clientY - lastPointerY) * 0.005, 0.04, 1.2);
-  lastPointerX = e.clientX;
-  lastPointerY = e.clientY;
-});
-window.addEventListener('pointerup', () => {
-  isDragging = false;
-});
-canvas.addEventListener(
-  'wheel',
-  (e) => {
-    e.preventDefault();
-    camDist = THREE.MathUtils.clamp(camDist + e.deltaY * 0.003, 1.8, 16);
-  },
-  { passive: false }
-);
 
 // Touch: virtual stick + jump for phones/tablets
 const stick = { x: 0, y: 0, id: -1 };
@@ -1475,11 +1482,34 @@ btnSound.addEventListener('click', () => {
   btnSound.textContent = sfx.enabled ? 'Sound: On' : 'Sound: Off';
 });
 
+// Key hints, context button, menu, title screen (src/hud.ts).
+new Hud({
+  started: () => started,
+  context: () => ({
+    prompt: promptEl.hidden ? '' : (promptEl.textContent ?? ''),
+    riding: !!riding,
+    driving: driving.active,
+    eating: restaurants.cat.state === 'eating',
+    vape: S.deviceMode === 'vape',
+  }),
+  orbit: orbitCamera,
+  graphics,
+  ambience,
+  sfx,
+});
+
+// Dragging a window edge fires dozens of resizes a second: resize the buffers once per frame at most.
+let resizeQueued = false;
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  composer?.setSize(window.innerWidth, window.innerHeight);
+  if (resizeQueued) return;
+  resizeQueued = true;
+  requestAnimationFrame(() => {
+    resizeQueued = false;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer?.setSize(window.innerWidth, window.innerHeight);
+  });
 });
 window.addEventListener('pagehide', save);
 document.addEventListener('visibilitychange', () => {
@@ -1778,7 +1808,8 @@ function tick(now: number): void {
 }
 
 function step(now: number, render = true): void {
-  const dt = Math.max(0, Math.min(0.05, (now - lastTime) * 0.001));
+  // The menu pauses the game: the world still draws (settings show live) but its clock stands still.
+  const dt = menuOpen() ? 0 : Math.max(0, Math.min(0.05, (now - lastTime) * 0.001));
   lastTime = Math.max(lastTime, now);
   elapsed += dt;
 

@@ -57,6 +57,11 @@ export class Ambience {
     return this.on;
   }
 
+  /** Tab hidden: stop the beds (the game loop that drives them is paused too); visible again: carry on. */
+  setPaused(paused: boolean): void {
+    if (this.ctx) void (paused ? this.ctx.suspend() : this.ctx.resume());
+  }
+
   private start(): void {
     if (this.ctx) return;
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

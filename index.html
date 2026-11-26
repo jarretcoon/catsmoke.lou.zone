@@ -16,14 +16,16 @@
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
-  <main id="game-root" class="game-root">
+  <main id="game-root" class="game-root is-title">
     <canvas id="game-canvas" aria-label="Las Vegas Strip 3D Smoking Cat Simulator"></canvas>
 
     <header class="hud-top">
-      <div class="hud-brand">
-        <h1>Smoking Cat Simulator</h1>
-        <p id="zone-label" class="zone-label">Bellagio Fountains</p>
-        <p id="goal-tracker" class="goal-tracker"></p>
+      <div class="hud-left">
+        <div class="hud-brand">
+          <h1 class="sr-only">Smoking Cat Simulator</h1>
+          <p id="zone-label" class="zone-label">Bellagio Fountains</p>
+          <p id="goal-tracker" class="goal-tracker"></p>
+        </div>
       </div>
 
       <div class="hud-right">
@@ -44,60 +46,62 @@
             <span class="stat-label">Swag</span>
             <span id="swag-value" class="stat-value stat-value--swag">0</span>
           </div>
-          <div class="stat-pill">
+          <div class="stat-pill stat-pill--state">
             <span class="stat-label">State</span>
             <span id="state-value" class="stat-value">Smoking</span>
           </div>
         </div>
-        <div id="heat-meter" class="heat-meter" hidden>
-          <span class="stat-label">Security Heat</span>
-          <div class="heat-bar"><div id="heat-fill" class="heat-fill"></div></div>
+        <div class="hud-map-row">
+          <div id="heat-meter" class="heat-meter" hidden>
+            <span class="stat-label">Security Heat</span>
+            <div class="heat-bar"><div id="heat-fill" class="heat-fill"></div></div>
+          </div>
+          <canvas id="minimap" class="minimap" width="200" height="200" aria-label="Strip minimap"></canvas>
         </div>
-        <canvas id="minimap" class="minimap" width="200" height="200" aria-label="Strip minimap"></canvas>
       </div>
     </header>
 
     <div id="toast-banner" class="toast-banner" aria-live="polite"></div>
 
     <div class="hud-bottom">
-      <div id="prompt-pill" class="prompt-pill" aria-live="polite" hidden></div>
+      <!-- main.ts writes the prompt here (screen readers read it); hud.ts shows it with key chips in #prompt-view. -->
+      <div id="prompt-pill" class="prompt-pill sr-only" aria-live="polite" hidden></div>
+      <div id="prompt-view" class="prompt-pill" aria-hidden="true" hidden></div>
 
-      <nav class="hud-actions" aria-label="Cat Actions">
-        <button id="btn-puff" type="button" class="action-btn action-btn--primary">
-          Smoke / Vape <kbd>E</kbd>
-        </button>
-        <button id="btn-device" type="button" class="action-btn action-btn--vape">
-          Mode: Cig <kbd>V</kbd>
-        </button>
-        <button id="btn-beg" type="button" class="action-btn">
-          Beg / Meow <kbd>B</kbd>
-        </button>
-        <button id="btn-steal" type="button" class="action-btn">
-          Steal Cigs <kbd>Q</kbd>
-        </button>
-        <button id="btn-dance" type="button" class="action-btn">
-          Dance <kbd>X</kbd>
-        </button>
-        <button id="btn-bus" type="button" class="action-btn action-btn--bus">
-          Ride <kbd>G</kbd>
-        </button>
-        <button id="btn-interact" type="button" class="action-btn action-btn--casino">
-          Gamble / Shop <kbd>F</kbd>
-        </button>
-        <button id="btn-mood" type="button" class="action-btn">
-          Mojave Day <kbd>T</kbd>
-        </button>
-        <button type="button" class="action-btn" popovertarget="goals-popover">
-          Goals <kbd>J</kbd>
-        </button>
-        <button id="btn-sound" type="button" class="action-btn">
-          Sound: On
-        </button>
-        <button type="button" class="action-btn" popovertarget="controls-popover">
-          Controls <kbd>?</kbd>
-        </button>
-      </nav>
+      <div id="key-hints" class="key-hints" role="toolbar" aria-label="Keys" hidden>
+        <span class="kh"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span>
+        <span class="kh"><kbd>Shift</kbd> Sprint</span>
+        <span class="kh"><kbd>Space</kbd> Jump</span>
+        <button type="button" class="kh" data-key="KeyE"><kbd>E</kbd> <span data-label>Smoke</span></button>
+        <button type="button" class="kh" data-key="KeyB"><kbd>B</kbd> <span data-label>Beg</span></button>
+        <button type="button" class="kh" data-key="KeyQ"><kbd>Q</kbd> <span data-label>Steal</span></button>
+        <button type="button" class="kh" data-key="KeyX"><kbd>X</kbd> <span data-label>Dance</span></button>
+        <button type="button" class="kh" data-key="KeyG"><kbd>G</kbd> <span data-label>Ride</span></button>
+        <button type="button" class="kh" data-key="KeyF"><kbd>F</kbd> <span data-label>Use</span></button>
+        <button type="button" class="kh" data-open-menu><kbd>Esc</kbd> Menu</button>
+        <button type="button" class="kh-close" aria-label="Hide key hints (K)" title="Hide key hints (K)">×</button>
+      </div>
+      <!-- Shown instead of the keys while a controller is in use (src/gamepad.ts). -->
+      <div id="pad-hints" class="key-hints pad-hints" aria-hidden="true" hidden>
+        <span class="kh"><b class="pad pad--stick">L</b> Move</span>
+        <span class="kh"><b class="pad pad--stick">R</b> Look</span>
+        <span class="kh"><b class="pad pad--a">A</b> Jump</span>
+        <span class="kh"><b class="pad pad--x">X</b> Smoke</span>
+        <span class="kh"><b class="pad pad--y">Y</b> Use</span>
+        <span class="kh"><b class="pad pad--b">B</b> Ride</span>
+        <span class="kh"><b class="pad pad--sh">LB</b> Beg</span>
+        <span class="kh"><b class="pad pad--sh">RB</b> Steal</span>
+        <span class="kh"><b class="pad pad--sh">RT</b> Dance</span>
+        <span class="kh"><b class="pad pad--sh">☰</b> Menu</span>
+      </div>
     </div>
+
+    <button id="hud-menu-btn" type="button" class="hud-menu-btn" popovertarget="controls-popover" aria-label="Menu">
+      <span class="hud-menu-icon" aria-hidden="true"></span><span class="hud-menu-text">Menu</span>
+    </button>
+    <button id="hud-context" type="button" class="hud-context" hidden>
+      <span class="hud-context-icon" aria-hidden="true">🚬</span><span class="hud-context-label">Smoke</span>
+    </button>
 
     <div id="touch-stick" class="touch-stick" hidden aria-hidden="true">
       <div id="touch-knob" class="touch-knob"></div>
@@ -108,6 +112,7 @@
       <div class="title-card">
         <p class="title-kicker">Las Vegas Blvd • Welcome sign to Slots-A-Fun</p>
         <h1 id="title-heading">Smoking Cat Simulator</h1>
+        <p class="title-tagline">Las Vegas Strip</p>
         <p class="title-sub">Lou is a sixteen-pound brown tabby and a gigantic cat degen. Hustle tourists, rip vape clouds, ride the Deuce, fight for In-N-Out tables, jack cars, outrun Animal Control and earn your way into the VIP lounge.</p>
         <p id="title-save-info" class="title-save" hidden></p>
         <div class="title-actions">
@@ -115,25 +120,127 @@
           <button id="btn-new-game" type="button" class="action-btn action-btn--casino">New Game</button>
         </div>
         <p id="title-loading" class="title-loading">Loading the Strip…</p>
+        <ul class="title-keys" aria-label="Controls">
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</li>
+          <li><kbd>Shift</kbd> Sprint</li>
+          <li><kbd>E</kbd> Smoke</li>
+          <li><kbd>B</kbd> Beg</li>
+          <li><kbd>F</kbd> Gamble &amp; shop</li>
+          <li><kbd>Mouse</kbd> Look</li>
+          <li><kbd>Esc</kbd> Menu</li>
+          <li>🎮 Controllers work too</li>
+        </ul>
+        <p class="title-touch">Left thumb walks, drag anywhere to look, pinch to zoom. The big button does whatever fits where Lou is.</p>
       </div>
     </section>
 
-    <section id="controls-popover" popover="auto" class="controls-popover" aria-label="Game Controls">
-      <h2>Smoking Cat Simulator — Las Vegas Strip</h2>
-      <ul class="controls-list">
-        <li><strong>Prowl / Sprint:</strong> <code>W A S D</code> (or Arrows) + <code>Shift</code> • <strong>Jump:</strong> <code>Space</code></li>
-        <li><strong>Smoke Cig or Rip Vape Cloud:</strong> <code>E</code> • <strong>Switch Cig ↔ Vape:</strong> <code>V</code></li>
-        <li><strong>Panhandle / Pose for photos:</strong> <code>B</code> • <strong>Steal Cigs:</strong> <code>Q</code> (casino guards will chase you!) • <strong>Sidewalk dance for tips:</strong> <code>X</code></li>
-        <li><strong>Ride The Deuce, High Roller or a Gondola:</strong> <code>G</code></li>
-        <li><strong>Gamble, Shop, VIP Lounge:</strong> <code>F</code></li>
-        <li><strong>Time of Day:</strong> <code>T</code> • <strong>Goals:</strong> <code>J</code> • <strong>Minimap:</strong> <code>M</code> • <strong>Background sound:</strong> <code>N</code> • <strong>Reset:</strong> <code>R</code></li>
-      </ul>
-      <p class="controls-tip">
-        Tips get bigger as your <strong>Swag</strong> goes up — buy shades, hats and chains at the Forum Shops boutique by Caesars. Win $500 at the tables (or rock 5 Swag) to get past the velvet rope at the Cosmopolitan's VIP lounge. Your progress saves automatically.
-      </p>
-      <div class="controls-footer">
-        <button id="btn-reset-save" type="button" class="action-btn">Start Over</button>
-        <button type="button" class="action-btn" popovertarget="controls-popover" popovertargetaction="hide">Close</button>
+    <section id="controls-popover" popover="auto" class="controls-popover game-menu" aria-labelledby="menu-heading">
+      <div class="menu-head">
+        <div>
+          <p class="menu-kicker">Paused</p>
+          <h2 id="menu-heading">Smoking Cat Simulator</h2>
+        </div>
+        <button type="button" class="menu-x" popovertarget="controls-popover" popovertargetaction="hide" aria-label="Close menu">✕</button>
+      </div>
+
+      <div class="menu-grid">
+        <section class="menu-section menu-section--actions" aria-labelledby="menu-actions-h">
+          <h3 id="menu-actions-h">Actions</h3>
+          <nav class="hud-actions menu-actions" aria-label="Cat Actions">
+            <button id="btn-puff" type="button" class="action-btn action-btn--primary" data-close>
+              Smoke / Vape <kbd>E</kbd>
+            </button>
+            <button id="btn-device" type="button" class="action-btn action-btn--vape">
+              Mode: Cig <kbd>V</kbd>
+            </button>
+            <button id="btn-beg" type="button" class="action-btn" data-close>
+              Beg / Meow <kbd>B</kbd>
+            </button>
+            <button id="btn-steal" type="button" class="action-btn" data-close>
+              Steal Cigs <kbd>Q</kbd>
+            </button>
+            <button id="btn-dance" type="button" class="action-btn" data-close>
+              Dance <kbd>X</kbd>
+            </button>
+            <button id="btn-bus" type="button" class="action-btn action-btn--bus" data-close>
+              Ride <kbd>G</kbd>
+            </button>
+            <button id="btn-interact" type="button" class="action-btn action-btn--casino" data-close>
+              Gamble / Shop <kbd>F</kbd>
+            </button>
+            <button type="button" class="action-btn" data-key="KeyC" data-close>Pounce <kbd>C</kbd></button>
+            <button type="button" class="action-btn" data-key="KeyZ" data-close>Flop <kbd>Z</kbd></button>
+            <button type="button" class="action-btn" data-key="KeyH" data-close>Honk <kbd>H</kbd></button>
+            <button type="button" class="action-btn" data-key="KeyM">Map size <kbd>M</kbd></button>
+            <button type="button" class="action-btn" data-key="KeyR" data-close>Back to the fountains <kbd>R</kbd></button>
+          </nav>
+        </section>
+
+        <section class="menu-section menu-section--controls" aria-labelledby="menu-controls-h">
+          <h3 id="menu-controls-h">How to play</h3>
+          <dl class="key-table">
+            <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</dt><dd>Prowl (<kbd>Shift</kbd> sprint)</dd>
+            <dt><kbd>Space</kbd></dt><dd>Jump</dd>
+            <dt><kbd>Mouse</kbd> drag · wheel</dt><dd>Look around · zoom</dd>
+            <dt><kbd>E</kbd></dt><dd>Smoke a cig, or hold to rip a vape cloud</dd>
+            <dt><kbd>V</kbd> · <kbd>1</kbd>–<kbd>4</kbd></dt><dd>Switch cig ↔ vape · vape tricks</dd>
+            <dt><kbd>B</kbd></dt><dd>Panhandle / pose for photos</dd>
+            <dt><kbd>Q</kbd></dt><dd>Steal cigs (casino guards will chase you!)</dd>
+            <dt><kbd>X</kbd> · <kbd>C</kbd> · <kbd>Z</kbd></dt><dd>Dance for tips · pounce · flop</dd>
+            <dt><kbd>G</kbd></dt><dd>Ride the Deuce, High Roller, a gondola… or jack a car</dd>
+            <dt><kbd>F</kbd></dt><dd>Gamble, shop, eat, VIP lounge, missions</dd>
+            <dt><kbd>H</kbd></dt><dd>Honk (while driving)</dd>
+            <dt><kbd>T</kbd> · <kbd>J</kbd> · <kbd>M</kbd></dt><dd>Time of day · goals · minimap</dd>
+            <dt><kbd>N</kbd> · <kbd>K</kbd> · <kbd>R</kbd></dt><dd>Background sound · key hints · reset spot</dd>
+            <dt>🎮 Controller</dt><dd>Left stick walk · right stick look · A jump · X smoke · Y use · B ride · LB beg · RB steal · LT pounce · RT dance · Start menu</dd>
+          </dl>
+          <p class="controls-tip">
+            Tips get bigger as your <strong>Swag</strong> goes up — buy shades, hats and chains at the Forum Shops boutique by Caesars. Win $500 at the tables (or rock 5 Swag) to get past the velvet rope at the Cosmopolitan's VIP lounge. Your progress saves automatically.
+          </p>
+        </section>
+
+        <section class="menu-section menu-section--settings" aria-labelledby="menu-settings-h">
+          <h3 id="menu-settings-h">Settings</h3>
+          <div class="controls-footer">
+            <div class="setting-row">
+              <span class="setting-name">Graphics</span>
+              <div id="quality-seg" class="seg" role="group" aria-label="Graphics quality">
+                <button type="button" data-quality="auto">Auto</button>
+                <button type="button" data-quality="low">Low</button>
+                <button type="button" data-quality="medium">Medium</button>
+                <button type="button" data-quality="high">High</button>
+              </div>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Sound</span>
+              <div class="setting-btns">
+                <button id="btn-sound" type="button" class="action-btn">Sound: On</button>
+                <button id="btn-ambience" type="button" class="action-btn">Background: On <kbd>N</kbd></button>
+              </div>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Time of day</span>
+              <button id="btn-mood" type="button" class="action-btn">Mojave Day <kbd>T</kbd></button>
+            </div>
+            <div class="setting-row setting-row--fine">
+              <span class="setting-name">Key hints</span>
+              <button id="btn-hints" type="button" class="action-btn">Shown <kbd>K</kbd></button>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Screen</span>
+              <button id="btn-fullscreen" type="button" class="action-btn">Full screen</button>
+            </div>
+            <div class="setting-row">
+              <span class="setting-name">Saved game</span>
+              <button id="btn-reset-save" type="button" class="action-btn action-btn--danger">Start Over</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="menu-foot">
+        <button type="button" class="action-btn" popovertarget="goals-popover">Goals <kbd>J</kbd></button>
+        <button type="button" class="action-btn action-btn--primary" popovertarget="controls-popover" popovertargetaction="hide" data-pad-first>Resume <kbd>Esc</kbd></button>
       </div>
     </section>
 

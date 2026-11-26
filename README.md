@@ -13,6 +13,13 @@ the High Roller and a gondola. Play for tips, and stay ahead of casino security.
 - Beg or pose for photos: `B`. Steal cigs: `Q`. Dance for tips: `X`.
 - Ride: `G`. Gamble, shop or enter the VIP lounge: `F`.
 - Time of day: `T`. Goals: `J`. Minimap: `M`. Background sound: `N`. Reset: `R`.
+- Pounce: `C`. Flop: `Z`. Honk while driving: `H`. Vape tricks: `1`–`4`.
+- Camera: drag with the mouse to look around, the wheel zooms.
+- Menu (pauses the game; controls, graphics, sound, full screen): `Esc`. Key hints on/off: `K`.
+- On a phone: the stick walks, drag anywhere to look, pinch to zoom; the big button does whatever fits
+  where Lou is (ride, gamble, shop, beg, smoke…) and the menu button has the rest.
+- Graphics start on Auto: the game times its own frames and picks High, Medium or Low. Pick one in the
+  menu to keep it.
 
 ## Run it locally
 
