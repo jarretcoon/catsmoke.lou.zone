@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SoundFX } from './audio';
 import { bakeGroup } from './meshBake';
 import type { Rideable, RideView } from './rides';
 import type { VegasWorldContext } from './vegasWorld';
@@ -553,7 +554,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
         return 'Lou is already on a ride.';
       }
       if (job.service === service) {
-        reportJob(true);
+        reportJob();
         return job.phase === 'waiting' ? `Your ${name} is here — hop in the back with [G].` : `Your ${name} is on the way — about ${Math.round(etaOf(job))} s.`;
       }
       cancel('Switched rides');
@@ -782,6 +783,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     if (j.service === 'uber') {
       const fare = arrived ? j.fare : Math.max(4, Math.round(j.fare * (1 - left / Math.max(1, j.path.len)) * 4) / 4);
       const paid = h.pay(fare);
+      if (paid > 0) SoundFX.current?.playCash();
       const d = j.car.driver;
       label = paid >= fare - 0.001 ? `$${fare.toFixed(2)} paid. ${d?.name ?? 'Your driver'} rated Lou ★★★★★` : `Lou paid $${paid.toFixed(2)} of $${fare.toFixed(2)} and a hairball. ${d?.name ?? 'Your driver'} rated Lou ★★★`;
       lastExitMsg = arrived ? `${d?.name ?? 'Uber'}: “Here we are, ${j.dest!.name}!” ${label}.` : `Lou bailed out early. ${label}.`;
@@ -794,13 +796,12 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     leave(j, arrived ? 2.5 : 0);
   }
 
-  function reportJob(force = false): void {
+  function reportJob(): void {
     if (!job) return;
     const j = job;
     if (j.phase === 'arriving') emit(j.service, 'arriving', etaOf(j), j.pickup.spot ? j.pickup.spot.name : 'Pulling up by you');
     else if (j.phase === 'waiting') emit(j.service, 'arrived', 0, j.car.driver ? `${j.car.driver.name} is waiting in the ${j.car.desc}` : 'Your Waymo is here (the dome says LOU)');
     else if (j.phase === 'riding') emit(j.service, 'riding', etaOf(j), `→ ${j.dest?.name ?? ''}`);
-    void force;
   }
 
   /** Destinations from here: the stop the camera faces first (nearest within 30°), then the rest by distance. */
@@ -1060,6 +1061,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
         chooseDests(j);
         reportJob();
         const where = j.pickup.spot ? ` at ${j.pickup.spot.name.split(' · ')[0]}` : '';
+        if (c.driver && lou().distanceTo(c.tc.mesh.position) < 60) SoundFX.current?.playHonk(); // the driver lets you know
         h.toast(c.driver ? `${c.driver.name} pulled up${where} — hop in the back with [G].` : `Your Waymo pulled up${where} (the dome says LOU) — hop in the back with [G].`, 3600);
       } else if (lou().distanceTo(c.tc.mesh.position) > 330) cancel('Lou wandered off');
     } else if (j.phase === 'waiting') {

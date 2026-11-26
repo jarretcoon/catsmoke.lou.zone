@@ -495,7 +495,7 @@ function buildBody(s: Spec, kind: BodyKind, open = false): Parts {
   // Body shell (with real wheel arches) and the cabin (tapered for tumblehome)
   p.raw(paint, smooth(extrudeSide(bodyShape(s), s.W, 0.07)));
   if (open) {
-    openCabin(p, s, paint, trim);
+    openCabin(p, s, paint, trim, kind === 'ojai');
   } else if (kind !== 'van') {
     const cab = extrudeSide(cabinShape(s), s.W - 2 * s.tumble, 0.07);
     const pos = cab.attributes.position as THREE.BufferAttribute;
@@ -638,7 +638,7 @@ const wsAt = (s: Spec, y: number) => lerp(s.ws0, s.ws1, (y - s.belt) / (s.roof -
 const rwAt = (s: Spec, y: number) => lerp(s.rw0, s.rw1, (y - s.belt) / (s.roof - s.belt));
 
 /** Hollow greenhouse: roof panel, body-colour A/C pillars, black B pillars, a dark cabin floor. */
-function openCabin(p: Parts, s: Spec, paint: THREE.Material, trim: THREE.Material): void {
+function openCabin(p: Parts, s: Spec, paint: THREE.Material, trim: THREE.Material, blackPillars = false): void {
   const zf = wsAt(s, s.roof);
   const zr = rwAt(s, s.roof);
   p.add(paint, new RoundedBoxGeometry(cabinHalf(s, s.roof) * 2 + 0.03, 0.11, zf - zr + 0.08, 2, 0.04), 0, s.roof - 0.05, (zf + zr) / 2);
@@ -648,7 +648,7 @@ function openCabin(p: Parts, s: Spec, paint: THREE.Material, trim: THREE.Materia
     // window surrounds: black header rail under the roof edge and a bright belt strip along the sill
     strut(p, blk, V(side * (cabinHalf(s, yTop) + 0.004), yTop - 0.02, wsAt(s, yTop) - 0.1), V(side * (cabinHalf(s, yTop) + 0.004), yTop - 0.02, rwAt(s, yTop) + 0.1), 0.03, 0.05);
     strut(p, BRIGHT(), V(side * (cabinHalf(s, s.belt) + 0.012), s.belt + 0.02, wsAt(s, s.belt) - 0.08), V(side * (cabinHalf(s, s.belt) + 0.012), s.belt + 0.02, rwAt(s, s.belt) + 0.08), 0.02, 0.025);
-    strut(p, paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, wsAt(s, s.belt) - 0.03), V(side * (cabinHalf(s, yTop) - 0.02), yTop, wsAt(s, yTop) - 0.03), 0.07, 0.11);
+    strut(p, blackPillars ? blk : paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, wsAt(s, s.belt) - 0.03), V(side * (cabinHalf(s, yTop) - 0.02), yTop, wsAt(s, yTop) - 0.03), 0.07, 0.11);
     for (const z of s.posts) strut(p, trim, V(side * (cabinHalf(s, s.belt) - 0.01), s.belt, z), V(side * (cabinHalf(s, yTop) - 0.01), yTop, z), 0.06, 0.1);
     strut(p, paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, rwAt(s, s.belt) + 0.05), V(side * (cabinHalf(s, yTop) - 0.02), yTop, rwAt(s, yTop) + 0.05), 0.07, 0.18);
   }
@@ -770,6 +770,12 @@ function rideGeo(model: RideModel, brand: RideBrand): RideGeo {
   let kit: ReturnType<typeof waymoKit> | null = null;
   if (brand === 'waymo') kit = waymoKit(p, s, paintMat(0xffffff));
   else tradeDress(p, s, brand);
+  if (model === 'ojai') {
+    // the Ojai's face: a full-width light bar across the nose and a black lower fascia band
+    const fz = s.L / 2;
+    p.raw(lampMat(), aquad(V(0, s.nose - 0.11, fz + 0.028), ...FRONT(s.W / 2 - 0.16, 0.022), R.head));
+    p.add(std(0x0d0f12, 0.3, 0.2), new THREE.BoxGeometry(s.W - 0.3, 0.12, 0.04), 0, s.clear + 0.26, fz + 0.02);
+  }
   if (model === 'suv') {
     // roof rails like the traffic SUV
     for (const side of [-1, 1]) p.add(TRIM(), new RoundedBoxGeometry(0.06, 0.06, 2.6, 1, 0.025), side * (cabinHalf(s, s.roof) - 0.12), s.roof + 0.05, -0.85);

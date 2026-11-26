@@ -28,8 +28,8 @@
     { "id": "slots-block-night", "label": "McDonald’s + Slots-A-Fun (night)", "time": "night", "tp": [-14, 0.3, -703], "cam": [1.15, 0.12, 15], "maxCalls": 830 },
     { "id": "welcome-close-night", "label": "First steps under the Welcome sign (night)", "time": "night", "tp": [1.5, 0.3, 907.8], "cam": [0, 0.12, 4.2], "maxCalls": 1340 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 },
-    { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-1.12, 0.1, 8], "maxCalls": 1500 },
-    { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 1000 },
+    { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-0.95, 0.1, 8.5], "maxCalls": 1500 },
+    { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 880 },
     { "id": "waymo-ride-night", "label": "Lou in the back of a Waymo (night)", "time": "night", "ride": "rideshare-demo-ride", "maxCalls": 1250 }
   ]
 }
