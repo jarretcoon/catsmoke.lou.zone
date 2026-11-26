@@ -8,6 +8,7 @@
  *
  * Every action stays on its key exactly as before: the context button and the clickable hints just press that key.
  */
+import { PadControls } from './gamepad';
 import type { GraphicsQuality, QualityChoice } from './quality';
 
 export interface HudContext {
@@ -118,6 +119,22 @@ function contextAction(c: HudContext): Action {
   return m ? actionForKey(m[1], c) : smoke(c);
 }
 
+/** Which controller button does each key (src/gamepad.ts), and its chip colour. */
+const PAD_GLYPHS: Record<string, [string, string]> = {
+  E: ['X', 'x'],
+  F: ['Y', 'y'],
+  G: ['B', 'b'],
+  B: ['LB', 'sh'],
+  Q: ['RB', 'sh'],
+  X: ['RT', 'sh'],
+  C: ['LT', 'sh'],
+  H: ['X', 'x'],
+  V: ['◀', 'sh'],
+  Z: ['▶', 'sh'],
+  T: ['▲', 'sh'],
+  M: ['▼', 'sh'],
+};
+
 const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 
 export class Hud {
@@ -127,9 +144,11 @@ export class Hud {
   private readonly prompt = $('prompt-pill');
   private readonly promptView = $('prompt-view');
   private readonly hints = $('key-hints');
+  private readonly padHints = $('pad-hints');
   private readonly ctxBtn = $<HTMLButtonElement>('hud-context');
   private readonly title = $('title-screen');
   private hintsOn = load(HINTS_KEY) !== 'off';
+  private padActive = false;
   private ctx: HudContext = { prompt: '', riding: false, driving: false, eating: false, vape: false };
   private ctxAction: Action | null = null;
   private heldKey: string | null = null;
@@ -144,6 +163,19 @@ export class Hud {
     this.setupContextButton();
     this.setupKeys();
     this.setupFocusAndVisibility();
+    new PadControls({
+      started: () => this.hooks.started(),
+      driving: () => this.hooks.context().driving,
+      orbit: (y, p) => this.hooks.orbit(y, p),
+      openMenu: () => this.openMenu(),
+      onActive: (on) => {
+        this.padActive = on;
+        this.root.classList.toggle('input-pad', on);
+        this.setHints(this.hintsOn);
+        this.promptView.innerHTML = '';
+        this.renderPrompt();
+      },
+    });
     new MutationObserver(() => this.renderPrompt()).observe(this.prompt, { attributes: true, attributeFilter: ['hidden'], childList: true, characterData: true, subtree: true });
     this.decorateKeys($('toast-banner'));
     this.decorateKeys($('goal-tracker'));
@@ -311,9 +343,11 @@ export class Hud {
   }
 
   private setHints(on: boolean): void {
+    if (on !== this.hintsOn) store(HINTS_KEY, on ? 'on' : 'off');
     this.hintsOn = on;
-    store(HINTS_KEY, on ? 'on' : 'off');
-    this.hints.hidden = this.touch || !on;
+    // With a controller in hand the strip shows its buttons instead of keys.
+    this.hints.hidden = this.touch || !on || this.padActive;
+    this.padHints.hidden = !on || !this.padActive;
   }
 
   // ---------------------------------------------------------------- context (touch button, prompt, hint highlight)
@@ -371,8 +405,17 @@ export class Hud {
     this.renderPrompt();
   }
 
-  /** "[F]" in game text: a key chip with a keyboard, the context button's icon on touch (there are no keys). */
+  /**
+   * "[F]" in game text: a key chip with a keyboard, the controller button while a controller is in use, and the
+   * context button's icon on touch (there are no keys).
+   */
   private keysToHtml(text: string): string {
+    if (!this.touch && this.padActive) {
+      return esc(text).replace(/\[([A-Z0-9])\]/g, (m, k: string) => {
+        const p = PAD_GLYPHS[k];
+        return p ? `<b class="pad pad--${p[1]}">${p[0]}</b>` : `<kbd>${k}</kbd>`;
+      });
+    }
     if (!this.touch) return esc(text).replace(/\[([A-Z0-9])\]/g, '<kbd>$1</kbd>');
     const icon = (k: string) => `<span class="pp-icon">${actionForKey(k, { ...this.ctx, prompt: text }).icon}</span>`;
     const html = esc(text)

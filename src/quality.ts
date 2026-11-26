@@ -8,8 +8,9 @@
  *   (shaders compile, the area streams in), then times real frames for a few seconds: the requestAnimationFrame
  *   timestamps of the actual render loop, so it measures exactly what the player gets.
  * - Median frame 25 ms or better (40+ fps): keep. Slower: one level down, measure again, and so on.
- *   If going down didn't help and the frames sit at a steady 30 fps (a browser's battery saver caps it there),
- *   it goes back up once and stops testing, so it never flickers between levels.
+ *   If even Low sits at a dead-steady 30 fps (a browser's battery saver caps it there), it goes back to where it
+ *   started and stops testing, so it never flickers between levels.
+ * - A switch builds the new level's shaders in the background first (main.ts prewarmQuality), so it doesn't freeze.
  * - After that it keeps watching and only ever steps DOWN: under ~33 fps for 20 seconds straight (and nothing
  *   changed in the last minute) = one level down. Never up on its own.
  *
@@ -65,15 +66,20 @@ export class GraphicsQuality {
   private lastNow = -1;
   private activeTime = 0;
   private samples: number[] = [];
-  /** The level we just stepped down from and its median, to check the step helped. */
-  private before: { level: Quality; ms: number } | null = null;
+  /** The first level this test found too slow, and its median: where to go back to if a cap is to blame. */
+  private firstSlow: { level: Quality; ms: number } | null = null;
   private slowWindows = 0;
   private sinceChange = 0;
+  /** Bumped on every requested change; a change still preparing when a newer one arrives is dropped. */
+  private token = 0;
+  private preparing = false;
   private readonly listeners = new Set<() => void>();
 
   constructor(
     private readonly apply: (q: Quality) => void,
-    private readonly active: () => boolean
+    private readonly active: () => boolean,
+    /** Get a level ready without stalling (build its shaders in the background); resolves when it can switch. */
+    private readonly prepare: (q: Quality) => Promise<void> = () => Promise.resolve()
   ) {
     const coarse = window.matchMedia('(pointer: coarse)').matches;
     this.start = coarse ? 'medium' : 'high';
@@ -123,15 +129,29 @@ export class GraphicsQuality {
   choose(choice: QualityChoice): void {
     this.choice = choice;
     write(KEY, choice === 'auto' ? null : choice);
-    this.before = null;
+    this.firstSlow = null;
     if (choice === 'auto') {
       write(AUTO_KEY, null);
       this.phase = this.automated ? 'off' : 'test';
-      this.set(this.start);
+      this.change(this.start);
     } else {
       this.phase = 'off';
-      this.set(choice);
+      this.change(choice);
     }
+    for (const fn of this.listeners) fn();
+  }
+
+  /** Prepare the level (shaders build in the background, the current level keeps drawing), then switch. */
+  private change(q: Quality, then?: () => void): void {
+    const token = ++this.token;
+    this.preparing = true;
+    const ready = Promise.race([this.prepare(q).catch(() => undefined), new Promise((r) => window.setTimeout(r, 60000))]);
+    void ready.then(() => {
+      if (token !== this.token) return;
+      this.preparing = false;
+      this.set(q);
+      then?.();
+    });
   }
 
   private remembered(): { level: Quality; capped: boolean } | null {
@@ -160,23 +180,22 @@ export class GraphicsQuality {
   /** Done testing: keep this level, remember it, and from now on only watch for a sustained slump. */
   private settle(capped = false): void {
     this.phase = capped ? 'off' : 'watch';
-    this.before = null;
+    this.firstSlow = null;
     this.activeTime = 0;
     this.samples = [];
     this.slowWindows = 0;
     write(AUTO_KEY, JSON.stringify({ level: this.level, at: Date.now(), capped }));
   }
 
-  private stepDown(ms: number): void {
+  private stepDown(): void {
     const i = ORDER.indexOf(this.level);
     if (i <= 0) return this.settle();
-    this.before = { level: this.level, ms };
     this.phase = 'test';
-    this.set(ORDER[i - 1]);
+    this.change(ORDER[i - 1]);
   }
 
   private frame(now: number): void {
-    if (this.phase === 'off' || document.hidden || !this.active()) {
+    if (this.phase === 'off' || this.preparing || document.hidden || !this.active()) {
       this.lastNow = -1;
       return;
     }
@@ -195,18 +214,24 @@ export class GraphicsQuality {
     this.activeTime = WARMUP_S;
 
     if (this.phase === 'test') {
-      if (this.before && ms > this.before.ms * 0.95 && spread < 4 && Math.abs(ms - 33.3) < 2.5) {
-        // Lower quality and still a dead-steady 30 fps: a frame-rate cap, not the GPU. Go back up once, stop testing.
-        const back = this.before.level;
-        this.before = null;
-        this.set(back);
-        return this.settle(true);
-      }
       if (ms <= OK_MS) return this.settle();
-      return this.stepDown(ms);
+      this.firstSlow ??= { level: this.level, ms };
+      if (this.level !== 'low') return this.stepDown();
+      // Low and still slow. If it sits at a dead-steady 30 fps all the way down, a frame-rate cap is in charge
+      // (a battery saver), not the GPU: go back to where it started and stop testing. (One level down showing no
+      // gain proves nothing: on a 60 Hz screen a GPU-bound game snaps to 30 fps until it's fast enough for 60.)
+      const first = this.firstSlow;
+      const capped = spread < 4 && Math.abs(ms - 33.3) < 2.5 && ms > first.ms * 0.95 && first.level !== 'low';
+      this.firstSlow = null;
+      if (!capped) return this.settle();
+      this.phase = 'off';
+      return this.change(first.level, () => this.settle(true));
     }
     // watch: down only, after a sustained slump, never soon after a change
     this.slowWindows = ms > WATCH_SLOW_MS ? this.slowWindows + 1 : 0;
-    if (this.slowWindows >= WATCH_SLOW_WINDOWS && this.sinceChange > WATCH_COOLDOWN_S && this.level !== 'low') this.stepDown(ms);
+    if (this.slowWindows >= WATCH_SLOW_WINDOWS && this.sinceChange > WATCH_COOLDOWN_S && this.level !== 'low') {
+      this.firstSlow = { level: this.level, ms };
+      this.stepDown();
+    }
   }
 }

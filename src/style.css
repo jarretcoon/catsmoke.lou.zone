@@ -235,6 +235,52 @@ button.kh:hover {
   color: #fff3c4;
 }
 
+/* Controller buttons, in the colours players know (A green, B red, X blue, Y yellow). */
+.pad {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  font: 800 0.66rem/1 system-ui, sans-serif;
+  color: #10131c;
+  background: #cfd3dc;
+}
+
+.pad--a {
+  background: #6fdc7c;
+}
+
+.pad--b {
+  background: #ff6b6b;
+}
+
+.pad--x {
+  background: #5fb2ff;
+}
+
+.pad--y {
+  background: #ffd45c;
+}
+
+.pad--stick {
+  background: none;
+  color: var(--text-main);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.55);
+}
+
+.pad--sh {
+  border-radius: 6px;
+}
+
+/* Where the controller's cursor is in a menu, shop or casino table. */
+.pad-focus {
+  outline: 2px solid #ffe27a !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 16px rgba(255, 226, 122, 0.45) !important;
+}
+
 .kh-close {
   appearance: none;
   width: 1.45rem;

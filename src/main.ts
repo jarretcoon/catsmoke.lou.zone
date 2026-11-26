@@ -148,13 +148,47 @@ function applyQuality(): void {
   composer?.setPixelRatio(renderer.getPixelRatio());
   composer?.setSize(window.innerWidth, window.innerHeight);
 }
+/**
+ * Shadows on/off changes every lit material's shader, and building them all at once froze the game for seconds
+ * (35 s on a busy PC) the first time anyone picked Low. Build that level's shaders in the background first
+ * (KHR_parallel_shader_compile) while the current level keeps drawing; the switch itself is then instant.
+ */
+function prewarmQuality(q: Quality): Promise<void> {
+  const shadows = q !== 'low';
+  if (renderer.shadowMap.enabled === shadows) return Promise.resolve();
+  const was = renderer.shadowMap.enabled;
+  const sunWas = world.sun.castShadow;
+  const rtWas = renderer.getRenderTarget();
+  // Medium / High draw through the bloom composer's render target (shaders without tone mapping); Low draws
+  // straight to the canvas. Compile the variants that level will really use.
+  const rt = q === 'low' ? null : new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+  renderer.shadowMap.enabled = shadows;
+  world.sun.castShadow = shadows;
+  renderer.setRenderTarget(rt);
+  let programs: { isReady(): boolean }[] = [];
+  try {
+    programs = [...renderer.compile(scene, camera)]
+      .map((m) => (renderer.properties.get(m) as { currentProgram?: { isReady(): boolean } }).currentProgram)
+      .filter((p): p is { isReady(): boolean } => !!p);
+  } finally {
+    renderer.setRenderTarget(rtWas);
+    rt?.dispose();
+    renderer.shadowMap.enabled = was;
+    world.sun.castShadow = sunWas;
+  }
+  return new Promise((resolve) => {
+    const check = () => (programs.every((p) => p.isReady()) ? resolve() : window.setTimeout(check, 50));
+    check();
+  });
+}
 const graphics = new GraphicsQuality(
   (q) => {
     quality = q;
     applyQuality();
   },
   // Measure only real play: past the title screen, menu closed, no shop or casino open.
-  () => started && !menuOpen() && !document.querySelector('dialog[open]')
+  () => started && !menuOpen() && !document.querySelector('dialog[open]'),
+  prewarmQuality
 );
 
 const catHolder = new THREE.Group();

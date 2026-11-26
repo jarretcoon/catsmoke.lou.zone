@@ -81,6 +81,19 @@
         <button type="button" class="kh" data-open-menu><kbd>Esc</kbd> Menu</button>
         <button type="button" class="kh-close" aria-label="Hide key hints (K)" title="Hide key hints (K)">×</button>
       </div>
+      <!-- Shown instead of the keys while a controller is in use (src/gamepad.ts). -->
+      <div id="pad-hints" class="key-hints pad-hints" aria-hidden="true" hidden>
+        <span class="kh"><b class="pad pad--stick">L</b> Move</span>
+        <span class="kh"><b class="pad pad--stick">R</b> Look</span>
+        <span class="kh"><b class="pad pad--a">A</b> Jump</span>
+        <span class="kh"><b class="pad pad--x">X</b> Smoke</span>
+        <span class="kh"><b class="pad pad--y">Y</b> Use</span>
+        <span class="kh"><b class="pad pad--b">B</b> Ride</span>
+        <span class="kh"><b class="pad pad--sh">LB</b> Beg</span>
+        <span class="kh"><b class="pad pad--sh">RB</b> Steal</span>
+        <span class="kh"><b class="pad pad--sh">RT</b> Dance</span>
+        <span class="kh"><b class="pad pad--sh">☰</b> Menu</span>
+      </div>
     </div>
 
     <button id="hud-menu-btn" type="button" class="hud-menu-btn" popovertarget="controls-popover" aria-label="Menu">
@@ -115,6 +128,7 @@
           <li><kbd>F</kbd> Gamble &amp; shop</li>
           <li><kbd>Mouse</kbd> Look</li>
           <li><kbd>Esc</kbd> Menu</li>
+          <li>🎮 Controllers work too</li>
         </ul>
         <p class="title-touch">Left thumb walks, drag anywhere to look, pinch to zoom. The big button does whatever fits where Lou is.</p>
       </div>
@@ -178,6 +192,7 @@
             <dt><kbd>H</kbd></dt><dd>Honk (while driving)</dd>
             <dt><kbd>T</kbd> · <kbd>J</kbd> · <kbd>M</kbd></dt><dd>Time of day · goals · minimap</dd>
             <dt><kbd>N</kbd> · <kbd>K</kbd> · <kbd>R</kbd></dt><dd>Background sound · key hints · reset spot</dd>
+            <dt>🎮 Controller</dt><dd>Left stick walk · right stick look · A jump · X smoke · Y use · B ride · LB beg · RB steal · LT pounce · RT dance · Start menu</dd>
           </dl>
           <p class="controls-tip">
             Tips get bigger as your <strong>Swag</strong> goes up — buy shades, hats and chains at the Forum Shops boutique by Caesars. Win $500 at the tables (or rock 5 Swag) to get past the velvet rope at the Cosmopolitan's VIP lounge. Your progress saves automatically.
@@ -225,7 +240,7 @@
 
       <div class="menu-foot">
         <button type="button" class="action-btn" popovertarget="goals-popover">Goals <kbd>J</kbd></button>
-        <button type="button" class="action-btn action-btn--primary" popovertarget="controls-popover" popovertargetaction="hide">Resume <kbd>Esc</kbd></button>
+        <button type="button" class="action-btn action-btn--primary" popovertarget="controls-popover" popovertargetaction="hide" data-pad-first>Resume <kbd>Esc</kbd></button>
       </div>
     </section>
 
