@@ -12,6 +12,7 @@ import { palmPieces } from './props';
 import { beamMaterial } from './skyLife';
 import { buildLuxorAtrium, luxorColliders, luxorSkinGeometry } from './grandLuxor';
 import { xFromO, zFromS } from './strip';
+import { excaliburSigns, excaliburTowerLetters, luxorPyramidLetters, luxorSigns, mandalaySigns, mandalayTowerLetters } from './stripSigns';
 
 /**
  * South Strip, north → south: Park MGM & The Park · New York-New York (Big Apple Coaster) ·
@@ -1051,19 +1052,10 @@ function buildExcalibur(b: WorldBuilder): void {
     }
   }
   // On the north tower's Strip-facing face (normal = local +x rotated by −0.45)
-  b.add(neonSign('EXCALIBUR', '#2a0a0a', '#ffd24d', 9, 1.8), -92 + Math.cos(0.45) * 5.85, 30, 481 + Math.sin(0.45) * 5.85, Math.PI / 2 - 0.45);
+  b.add(excaliburTowerLetters(b), -92 + Math.cos(0.45) * 5.95, 30, 481 + Math.sin(0.45) * 5.95, Math.PI / 2 - 0.45);
 
-  // Frontage: LED marquee, palms, planters
-  ledPylon(
-    b,
-    new LedBoard('EXCALIBUR', ['TOURNAMENT OF KINGS', 'THUNDER FROM DOWN UNDER', 'FUN DUNGEON MIDWAY', 'ROUND TABLE BUFFET'], ['#b3121f', '#1f3f86', '#d4a640', '#2a7a3a']),
-    -23.4,
-    476,
-    7.2,
-    11,
-    7
-  );
-  turret(b, mg, -23.4, 476, 1.0, 1.2, red, 18.6);
+  // Frontage: the castle-gate LED marquee (stripSigns.ts), palms, planters
+  excaliburSigns(b, -23.4, 476);
   let seed = 40;
   for (const z of [482, 496, 506, 516, 526]) palmInto(mg, -23.2, z, 7 + (seed % 3) * 0.6, seed++);
   for (const z of [477, 497, 509, 521]) palmInto(mg, -31.5, z, 6.5, seed++);
@@ -1317,11 +1309,11 @@ function buildLuxor(b: WorldBuilder): void {
   ]) mg.beam(edgeGlow, v3(px + cxx * half, 0.1, pz + czz * half), v3(px, h, pz), 0.12, 4);
   mg.at(mat(0x3a4250, 0.1, 0.9), new THREE.ConeGeometry(2.2 * Math.SQRT2, 2.6, 4).rotateY(Math.PI / 4), px, h - 1.1, pz);
   // LUXOR letters lying on the east face
-  const luxSign = neonSign('LUXOR', '#05060a', '#ffe9b0', 13, 2.6, undefined, 0.2);
+  const luxSign = luxorPyramidLetters(b); // gold letters + warm neon tubes (stripSigns.ts)
   luxSign.rotation.y = Math.PI / 2;
   luxSign.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.atan2(half, h)));
   const fy = 15;
-  b.add(luxSign, px + half - (fy / h) * half + 0.22, fy + 0.16, pz);
+  b.add(luxSign, px + half - (fy / h) * half + 0.1, fy + 0.08, pz);
 
   // The Sky Beam
   const beamMat = beamMaterial(0xfff6dc, 0.7);
@@ -1390,15 +1382,7 @@ function buildLuxor(b: WorldBuilder): void {
   mg.at(mat(0xe8b93a, 0.3, 0.85), new THREE.ConeGeometry(1.25 * Math.SQRT2, 2.4, 4).rotateY(Math.PI / 4), -26, 1.4 + 17 + 1.2, obZ);
   b.collider(-27.7, -24.3, obZ - 1.7, obZ + 1.7, 1.4, 20.6, true);
 
-  ledPylon(
-    b,
-    new LedBoard('LUXOR', ['CARROT TOP LIVE', 'TITANIC: THE ARTIFACT EXHIBITION', 'FANTASY • 18+', 'THE SKY BEAM IS ON'], ['#1f3f86', '#c9a04a', '#7a1c6a', '#0a6a7a']),
-    -23.4,
-    604,
-    7,
-    11,
-    6.5
-  );
+  luxorSigns(b, -23.4, 604); // sandstone Egyptian pylon with the LED board and gold LUXOR (stripSigns.ts)
   let seed = 60;
   for (const z of [534, 554, 569, 595, 613]) palmInto(mg, -23.2, z, 7.2, seed++);
   for (const z of [556, 596]) palmInto(mg, -36, z, 6.6, seed++);
@@ -1498,7 +1482,7 @@ function buildMandalay(b: WorldBuilder): void {
     if (i !== 1) {
       const dx = Math.cos(a);
       const dz = Math.sin(a);
-      sign(b, 'MANDALAY BAY', '#2a1a06', '#fff6dc', 9.5, 2.2, tcx + dx * 22.35, 36, tcz + dz * 22.35, Math.atan2(dx, dz));
+      b.add(mandalayTowerLetters(b), tcx + dx * 22.05, 36, tcz + dz * 22.05, Math.atan2(dx, dz));
     }
   });
 
@@ -1511,15 +1495,7 @@ function buildMandalay(b: WorldBuilder): void {
   }
   b.add(mesh(new THREE.BoxGeometry(0.15, 3.4, 8), basic(0xffd9a0), -45.95, 1.7, 662));
   ground(b, -24, -40, 655, 669, 0x2b2b30, L1, 0.85);
-  ledPylon(
-    b,
-    new LedBoard('MANDALAY BAY', ['MICHELOB ULTRA ARENA', 'SHARK REEF AQUARIUM', 'MANDALAY BAY BEACH', 'HOUSE OF BLUES'], ['#c9a04a', '#0f6a7a', '#d0502a', '#2a3a8a']),
-    -23.4,
-    650,
-    7,
-    11,
-    7
-  );
+  mandalaySigns(b, -23.4, 650); // gold-leaf pylon under a pagoda cap (stripSigns.ts)
 
   // Tropical lagoon + waterfall on the frontage
   const water = new THREE.MeshStandardMaterial({ color: 0x1f8a9a, roughness: 0.05, metalness: 0.4, emissive: 0x0a4050, emissiveIntensity: 0.4 });

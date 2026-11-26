@@ -10,7 +10,8 @@ import type { FacadeSpec } from './textures';
 import { barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
 import type { CarKind } from './props';
 import { xFromO, zFromS } from './strip';
-import { wynnSignature } from './stripSigns';
+import { fontainebleauSign, peppermillSign, resortsWorldPylonCrown, resortsWorldTowerSign, saharaSign, stratSign, wynnSignature } from './stripSigns';
+import { neonPanel } from './signKit';
 
 /**
  * North Strip, Spring Mountain Rd / Sands Ave → Circus Circus (Sahara + the STRAT as backdrop).
@@ -577,8 +578,9 @@ function buildResortsWorld(b: WorldBuilder): void {
   // Red glass, black frames, red LED corners; the giant LED wrap faces the Strip on the south wing
   curvedTower(b, -20, -604, 60, Math.PI * 0.87, Math.PI * 1.13, 5, 14, 60, skinA, 0.7, { rough: 0.2, ledFins: false, edgeLed: 0xff2430, wash: 0xff3030, ledWrap: { y0: 23, y1: 50, face: 'back', dir: [0, 1] } });
   curvedTower(b, -25, -650, 66, Math.PI * 0.88, Math.PI * 1.12, 5, 14, 64, { ...skinA, glass: '#4e0e0c', seed: 303 }, 0.7, { rough: 0.2, ledFins: false, edgeLed: 0xff2430, wash: 0xff3030 });
-  b.add(neonSign('RESORTS WORLD', '#140404', '#ff4a3a', 16, 2.4), -72.6, 55, -604, HALF_PI);
-  b.add(neonSign('RESORTS WORLD', '#140404', '#ffffff', 16, 2.4), -83.6, 59, -650, HALF_PI);
+  // Tower crowns: the red lotus + thin white RESORTS WORLD (stripSigns.ts)
+  b.add(resortsWorldTowerSign(b, 18, 2.6), -72.45, 55, -604, HALF_PI);
+  b.add(resortsWorldTowerSign(b, 18, 2.6), -83.45, 59, -650, HALF_PI);
 
   // Podium + the giant LED wall facing the Strip
   b.box(-48, 0, -628, 36, 22, 80, mat(0x4a1612, 0.35, 0.55), true);
@@ -595,6 +597,7 @@ function buildResortsWorld(b: WorldBuilder): void {
   }
   const pylonLed = new LedBoard('RESORTS WORLD', ['LAS VEGAS', 'CASINO • HOTELS • DINING', 'ZOUK • AYU', '24/7'], ['#e0102a', '#ff6a00', '#b0005a', '#ffb000']);
   ledPylon(b, pylonLed, -21.4, -588, 18, 7, 0x3a1410);
+  resortsWorldPylonCrown(b, -21.4, -588, 2.6 + 18, 7); // black crown with the lotus wordmark over the board
 
   // Red lanterns + palms down the plaza
   const red = basic(0xff2a1a);
@@ -1707,7 +1710,7 @@ function buildPeppermill(b: WorldBuilder): void {
   mergeAdd(b, strips, false);
   b.add(mesh(new THREE.BoxGeometry(3.6, 0.35, 6.4), mat(0x1a1020, 0.5, 0.4), bx0 - 1.8, 3.7, bcz, true));
   b.add(mesh(new THREE.BoxGeometry(3.4, 0.05, 6.0), basic(0xff9ae8), bx0 - 1.8, 3.5, bcz));
-  b.add(neonSign('Peppermill', '#2a0a3a', '#ff6ad5', 6, 1.1, undefined, 0.15), bx0 - 0.3, 4.5, bcz, -HALF_PI);
+  b.add(neonPanel(b, 'Peppermill', 6, 1.1, { style: 'script', color: '#ff5ad8', fill: '#ff9ae8', bg: 0x2a0a3a, depth: 0.15, size: 0.9 }), bx0 - 0.3, 4.5, bcz, -HALF_PI);
 
   // Restaurant half: booths + neon cherry-blossom trees
   const room: THREE.Object3D[] = [];
@@ -1766,7 +1769,7 @@ function buildPeppermill(b: WorldBuilder): void {
   const sx = 21.3;
   const sz = Z_CONV - 13.5;
   b.box(sx, 0, sz, 0.9, 9.6, 0.9, mat(0x2a1838, 0.5, 0.4), true);
-  b.add(neonSign('PEPPERMILL', '#1c0630', '#ff7ae0', 6.5, 2.2, 'RESTAURANT • FIRESIDE LOUNGE', 0.4), sx, 11.0, sz, HALF_PI);
+  b.add(peppermillSign(b), sx, 11.9, sz, HALF_PI); // retro script cabinet with bulbs + RESTAURANT / FIRESIDE LOUNGE tubes (stripSigns.ts)
   const bandMats = [0xff4fd8, 0xa24dff, 0x3a8bff].map((c) => new THREE.MeshBasicMaterial({ color: c }));
   bandMats.forEach((m, i) => b.add(mesh(new THREE.BoxGeometry(0.5, 0.32, 6.2), m, sx, 9.3 - i * 0.5, sz)));
   b.every((_dt, tt) => {
@@ -2133,7 +2136,7 @@ function buildFontainebleau(b: WorldBuilder): void {
   b.every((_dt, t, night) => {
     crownMat.color.setHSL(0.6 + 0.07 * Math.sin(t * 0.25), 0.1 + 0.7 * night, 0.72 + 0.1 * night);
   });
-  b.add(neonSign('FONTAINEBLEAU', '#0b1730', '#e8f2ff', 16, 2.4), fcx + fR - 7 - 0.55, fH - 6, fcz, -HALF_PI);
+  b.add(fontainebleauSign(b, 18, 3.6), fcx + fR - 7 - 0.5, fH - 6.4, fcz, -HALF_PI); // thin Didone caps + bowtie (stripSigns.ts)
 
   // Porte-cochère, signage, the bowtie, LIV
   const steel = mat(0xd9dee4, 0.2, 0.85);
@@ -2145,8 +2148,8 @@ function buildFontainebleau(b: WorldBuilder): void {
     [22.6, -772],
     [28.4, -772],
   ]) b.box(x, 0, z, 0.6, 6, 0.6, steel, true);
-  b.add(neonSign('FONTAINEBLEAU', '#0c1a33', '#ffffff', 14, 2.0, 'LAS VEGAS', 0.2), 29.8, 10, -765, -HALF_PI);
-  b.add(neonSign('LIV', '#000000', '#ffffff', 4, 1.6, 'NIGHTCLUB', 0.15), 29.8, 8.0, -786, -HALF_PI);
+  b.add(fontainebleauSign(b, 14, 2.6, 'LAS VEGAS', 0x0c1a33), 29.8, 10, -765, -HALF_PI);
+  b.add(neonPanel(b, 'LIV', 4, 1.6, { style: 'deco', color: '#ffffff', fill: '#e8e8e8', bg: 0x000000, depth: 0.15, spacing: 0.3, size: 0.8 }), 29.8, 8.0, -786, -HALF_PI);
   b.box(24, 0, -762, 0.8, 0.8, 0.8, mat(0x1c2a44, 0.5, 0.4));
   b.pickup(24, 1.25, -762, 3, "LIV Bouncer's Confiscated Pack", false);
   b.box(25, 0, -745, 2.4, 1.2, 2.4, white, true);
@@ -2185,8 +2188,8 @@ function buildNorthBackdrop(b: WorldBuilder): void {
   tower(b, { x: 38, z: sz1 + 10, w: 12, d: 24, h: 26, facade: { ...sahara, seed: 505 }, collide: false, cast: false });
   b.add(mesh(new THREE.BoxGeometry(32, 10, 58), mat(0xd9cdb8, 0.7), 40, 5, (sz0 + sz1) / 2));
   b.add(mesh(new THREE.BoxGeometry(1.6, 24, 1.6), mat(0x3a2a20, 0.5, 0.4), 22.5, 12, sz0 - 4));
-  b.add(neonSign('SAHARA', '#1a0b05', '#ffd9a8', 10, 3.2, 'LAS VEGAS'), 22.5, 24, sz0 - 4, -HALF_PI);
-  b.add(neonSign('SAHARA', '#1a0b05', '#ff6a3a', 12, 3), 46.7, 30, sz0 - 22, -HALF_PI);
+  b.add(saharaSign(b, 10, 3.2, true), 22.5, 24, sz0 - 4, -HALF_PI);
+  b.add(saharaSign(b, 12, 3, false), 46.7, 30, sz0 - 22, -HALF_PI);
 
   // The STRAT (350 m real) with its thrill rides
   const sx = xFromO(-46);
@@ -2205,10 +2208,10 @@ function buildNorthBackdrop(b: WorldBuilder): void {
   b.add(part(new THREE.TorusGeometry(9.35, 0.35, 6, 40), basic(0xff3355), sx, 109, szz, 0, HALF_PI));
   b.add(mesh(new THREE.CylinderGeometry(0.9, 1.6, 26, 10), mat(0xaaaaaa, 0.4, 0.7), sx, 129.4, szz));
   b.add(mesh(new THREE.SphereGeometry(0.5, 8, 6), basic(0xff2020), sx, 142.8, szz));
-  b.add(neonSign('THE STRAT', '#140404', '#ff3355', 8, 1.8), sx, 110.5, szz + 9.5);
+  b.add(stratSign(b, 8, 1.8, 0x140404), sx, 110.5, szz + 9.5);
   tower(b, { x: sx - 24, z: szz - 8, w: 14, d: 34, h: 26, facade: { wall: '#f2efe8', mullion: '#ffffff', glass: '#5a6a7a', lit: '#ffe6b8', cols: 10, rows: 20, seed: 511 }, collide: false, cast: false });
   b.add(mesh(new THREE.BoxGeometry(18, 9, 22), mat(0xe2dccf, 0.7), sx - 2, 4.5, szz + 16));
-  b.add(neonSign('THE STRAT', '#140404', '#ff3355', 9, 2.2, 'HOTEL • CASINO • SKYPOD'), -21.5, 9, szz + 28, HALF_PI);
+  b.add(stratSign(b, 9, 2.2, 0x140404), -21.5, 9, szz + 28, HALF_PI);
   b.add(mesh(new THREE.BoxGeometry(1.2, 8, 1.2), mat(0x2a2a30, 0.5, 0.4)), -21.5, 4, szz + 28);
   // Big Shot (up the needle), Insanity (spinning arm), X-Scream (see-saw)
   const ridesMat = mat(0xf2c230, 0.5, 0.4);
