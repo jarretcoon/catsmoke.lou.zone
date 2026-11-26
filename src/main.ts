@@ -144,7 +144,9 @@ function applyQuality(): void {
   // Post-processing renders off-screen, where the canvas's own antialiasing doesn't apply:
   // give the composer a multisampled target so edges stay smooth with bloom on.
   const samples = tier.msaa;
-  if (composer && (composer.renderTarget1.samples !== samples || composerSuper !== tier.superSample || !!ao !== tier.ao > 0)) {
+  // Supersampling up to 2x the CSS pixels in all: a high-DPI screen (pixel ratio 2) already has them.
+  const ss = Math.max(1, Math.min(tier.superSample, 2 / renderer.getPixelRatio()));
+  if (composer && (composer.renderTarget1.samples !== samples || composerSuper !== ss || !!ao !== tier.ao > 0)) {
     composer.dispose();
     composer = null;
   }
@@ -156,13 +158,13 @@ function applyQuality(): void {
     output = null;
     ao = null;
   } else if (!composer) {
-    const pr = renderer.getPixelRatio() * tier.superSample;
+    const pr = renderer.getPixelRatio() * ss;
     const w = window.innerWidth * pr;
     const h = window.innerHeight * pr;
     // Ultra's AO reads the scene's own depth: the composer's targets (it clones this one) carry a depth texture.
     const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples, ...(tier.ao > 0 ? { depthTexture: new THREE.DepthTexture(w, h) } : {}) });
     composer = new EffectComposer(renderer, rt);
-    composerSuper = tier.superSample;
+    composerSuper = ss;
     composer.addPass(new RenderPass(scene, camera));
     ao = tier.ao > 0 ? new DepthAOPass(scene, camera, w, h, tier.ao) : null;
     if (ao) composer.addPass(ao);
@@ -170,7 +172,7 @@ function applyQuality(): void {
     composer.addPass(bloom);
     grade = makeGradePass();
     composer.addPass(grade);
-    output = makeOutputPass(tier.superSample);
+    output = makeOutputPass(ss);
     composer.addPass(output);
   }
   world.setDrawDistance(tier.drawDistance);
