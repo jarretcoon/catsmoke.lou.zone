@@ -110,7 +110,8 @@ export class CatMotion {
   private readonly slots: Slot[] = [];
   private readonly slotOf = new Map<THREE.AnimationAction, Slot>();
   private readonly upper = new Map<THREE.AnimationAction, Slot>();
-  private upperSlot: Slot | null = null;
+  /** The same head-only slots as a list, with the clip each one shadows (iterated per frame without allocating). */
+  private readonly upperList: Array<{ full: THREE.AnimationAction; slot: Slot }> = [];
 
   private lock = 0;
   private fade = 0.2;
@@ -170,7 +171,9 @@ export class CatMotion {
           up.clampWhenFinished = true;
           up.play();
           up.setEffectiveWeight(0);
-          this.upper.set(act, { act: up, w: 0, target: 0 });
+          const us = { act: up, w: 0, target: 0 };
+          this.upper.set(act, us);
+          this.upperList.push({ full: act, slot: us });
         }
       }
     }
@@ -339,47 +342,43 @@ export class CatMotion {
     // ---- targets
     for (const s of this.slots) s.target = 0;
     const A = this.actions;
-    const set = (a: THREE.AnimationAction | null, w: number, fallback?: THREE.AnimationAction | null): void => {
-      const s = (a && this.slotOf.get(a)) || (fallback && this.slotOf.get(fallback));
-      if (s) s.target += w;
-    };
     const moving = pose === 'walk' || pose === 'run' || pose === 'idle';
     switch (pose) {
       case 'action':
-        set(cur, 1);
+        this.want(cur, 1);
         break;
       case 'eat':
-        set(A.Eat, 1, A.Sit ?? A.Idle);
+        this.want(A.Eat, 1, A.Sit ?? A.Idle);
         break;
       case 'drive':
-        set(A.Drive, 1, A.Sit ?? A.Idle);
+        this.want(A.Drive, 1, A.Sit ?? A.Idle);
         break;
       case 'rag':
-        set(A.Flop, 1, A.Idle);
+        this.want(A.Flop, 1, A.Idle);
         break;
       case 'seat':
-        set(A.Sit, 1, A.Idle);
+        this.want(A.Sit, 1, A.Idle);
         break;
       case 'ride':
-        set(A.Idle, 1);
+        this.want(A.Idle, 1);
         break;
       case 'air':
-        set(A.Jump, 1, A.Idle);
+        this.want(A.Jump, 1, A.Idle);
         break;
       case 'land':
-        set(A.Pounce, 1, A.Idle);
+        this.want(A.Pounce, 1, A.Idle);
         break;
       case 'snack':
-        set(A.Eat, 1, A.Idle);
+        this.want(A.Eat, 1, A.Idle);
         break;
       case 'pounce':
-        set(A.Pounce, 1, A.Idle);
+        this.want(A.Pounce, 1, A.Idle);
         break;
       case 'sit':
-        set(A.Sit, 1, A.Idle);
+        this.want(A.Sit, 1, A.Idle);
         break;
       case 'flop':
-        set(A.Flop, 1, A.Sit ?? A.Idle);
+        this.want(A.Flop, 1, A.Sit ?? A.Idle);
         break;
       default:
         break;
@@ -389,9 +388,9 @@ export class CatMotion {
       const v = this.speed;
       const still = 1 - smooth(0.08, 0.4, v);
       const r = smooth(0.7, 1.7, v);
-      set(A.Idle, still);
-      set(A.Walk, (1 - still) * (1 - r), A.Run);
-      set(A.Run, (1 - still) * r, A.Walk);
+      this.want(A.Idle, still);
+      this.want(A.Walk, (1 - still) * (1 - r), A.Run);
+      this.want(A.Run, (1 - still) * r, A.Walk);
       const fWalk = Math.min(v / (WALK_PER_CYCLE * this.baseScale), 2.8);
       const runMatched = v / (RUN_PER_CYCLE * this.baseScale);
       const fRun = runMatched < RUN_KNEE ? runMatched : RUN_KNEE + (runMatched - RUN_KNEE) * RUN_KNEE_SLOPE;
@@ -415,7 +414,7 @@ export class CatMotion {
     }
     for (const s of this.slots) s.act.setEffectiveWeight(s.w / sum);
     // head-only one-shots ride on top
-    for (const [full, u] of this.upper) {
+    for (const { full, slot: u } of this.upperList) {
       const on = headOnly && full === cur && this.lock > 0;
       const d = (on ? 1 : 0) - u.w;
       const r2 = dt / (on ? 0.12 : 0.25);
@@ -465,6 +464,12 @@ export class CatMotion {
     const sy = 1 + this.squash;
     const sxz = 1 / Math.sqrt(sy);
     m.scale.set(this.baseScale * sxz, this.baseScale * sy, this.baseScale * sxz);
+  }
+
+  /** Add weight to a clip's target this frame (or to the fallback clip if the GLB lacks it). */
+  private want(a: THREE.AnimationAction | null, w: number, fallback?: THREE.AnimationAction | null): void {
+    const s = (a && this.slotOf.get(a)) || (fallback && this.slotOf.get(fallback));
+    if (s) s.target += w;
   }
 
   private oneShotSetup(act: THREE.AnimationAction): void {
