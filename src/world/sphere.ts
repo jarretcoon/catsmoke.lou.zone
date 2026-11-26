@@ -49,7 +49,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 /** Dev-only overrides for snapshots: force an exterior show (0–7) and/or the bowl show time (s). */
 const sphereDebug = { show: -1, showT: -1 };
-if (import.meta.env.DEV) (window as unknown as { __sphere: typeof sphereDebug }).__sphere = sphereDebug;
+if (import.meta.env.DEV || import.meta.env.MODE === 'check') (window as unknown as { __sphere: typeof sphereDebug }).__sphere = sphereDebug;
 
 const rowFront = (k: number) => ROW_FRONT - ROW_D * k;
 const rowBack = (k: number) => rowFront(k) - ROW_D;

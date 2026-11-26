@@ -1,0 +1,142 @@
+name: PR checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # Required to merge into main. Builds the game, loads it in a headless browser and takes the
+    # postcard snapshots (scripts/check.mjs). Read-only: it never writes to the repo.
+    name: Game check
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install packages
+        run: bun install --frozen-lockfile
+
+      - name: Build (type-check + the live build)
+        run: bun run build
+
+      - name: Build the check copy (live build + test hooks)
+        run: bun run build:check
+
+      - name: Cache the test browser
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install the test browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Load the game and take the snapshots
+        run: node scripts/check.mjs
+
+      - name: Write the job summary
+        if: always() && hashFiles('check-out/summary.md') != ''
+        run: cat check-out/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the snapshots
+        if: always() && hashFiles('check-out/metrics.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-check
+          path: check-out
+          retention-days: 14
+
+  report:
+    # Posts the snapshots: main's go to the ci-snapshots branch as the baseline; a PR's go next to them
+    # and into one PR comment that updates on every push. Skipped for PRs from forks (no write access).
+    name: Post snapshots
+    needs: check
+    if: always() && needs.check.result != 'cancelled' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      DEST: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts
+
+      - id: art
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: game-check
+          path: check-out
+
+      - name: Publish to the ci-snapshots branch
+        id: pub
+        if: steps.art.outcome == 'success'
+        run: |
+          set -euo pipefail
+          src="$GITHUB_WORKSPACE/check-out"
+          for attempt in 1 2 3; do
+            work=$(mktemp -d)
+            cd "$work"
+            git init -q
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            old=""
+            if git fetch -q --depth=1 origin ci-snapshots 2>/dev/null; then
+              old=$(git rev-parse FETCH_HEAD)
+              git checkout -q FETCH_HEAD -- .
+            fi
+            cp main/metrics.json "$GITHUB_WORKSPACE/main-metrics.json" 2>/dev/null || true
+            # Drop the folders of PRs that are closed now.
+            open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number --jq '.[].number' | sed 's/^/pr-/')
+            for d in pr-*; do
+              if [ -d "$d" ] && [ "$d" != "$DEST" ] && ! grep -qx "$d" <<<"$open"; then rm -rf "$d"; fi
+            done
+            rm -rf "$DEST" && mkdir -p "$DEST"
+            cp "$src"/snaps/*.jpg "$src/metrics.json" "$DEST/"
+            printf 'Snapshots from the PR check (.github/workflows/check.yml): main/ is the baseline, pr-N/ is each open pull request. Rewritten on every run; nothing here is source.\n' > README.md
+            git add -A
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -q -m "Snapshots for $DEST ($GITHUB_SHA)"
+            if git push -q --force-with-lease="refs/heads/ci-snapshots:${old}" origin HEAD:refs/heads/ci-snapshots; then
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Another run pushed first; trying again ($attempt)"
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      - name: Comment on the pull request
+        if: github.event_name == 'pull_request' && steps.pub.outcome == 'success'
+        run: |
+          set -euo pipefail
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${{ steps.pub.outputs.sha }}"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          node scripts/pr-comment.mjs check-out/metrics.json main-metrics.json "$raw/$DEST" "$raw/main" "$run_url" > comment.md
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq '.[] | select(.body | startswith("<!-- catsmoke-check -->")) | .id' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" -F body=@comment.md > /dev/null
+          else
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file comment.md
+          fi

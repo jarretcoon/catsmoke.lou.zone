@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:check": "vite build --mode check --outDir dist-check --emptyOutDir",
+    "check": "node scripts/check.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -14,6 +16,7 @@
   },
   "devDependencies": {
     "@types/three": "^0.187.0",
+    "playwright": "1.65.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "wrangler": "4.168.0"
