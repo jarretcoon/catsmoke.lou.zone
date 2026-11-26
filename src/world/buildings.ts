@@ -23,6 +23,8 @@ function facadeTextures(spec: FacadeSpec): FacadeTex {
  * crown/wash lighting carry the glow. (At 1.25 every lit window bloomed and whole towers hazed over.)
  */
 const WINDOW_GLOW = 0.9;
+/** Podium storefront band and canopy fascia: warm shop light, also under the bloom threshold (it runs the full width of the tower at eye level, so at 1.1 it flooded the sidewalk view). */
+const STOREFRONT_GLOW = 0.75;
 
 /** Glass reads glossy and a bit metallic; `metal`/`rough` scale the per-texel roughness/metalness map. */
 function facadeParams(spec: FacadeSpec, opts: { metal?: number; rough?: number }): THREE.MeshStandardMaterialParameters {
@@ -240,11 +242,11 @@ export function tower(b: WorldBuilder, o: TowerOpts): THREE.Group {
   if (!o.minimal && y === 0) {
     const podH = Math.min(6, Math.max(3.4, o.h * 0.1));
     g.add(mesh(new THREE.BoxGeometry(o.w + 0.8, podH, o.d + 0.8), mat(wallColor.clone().multiplyScalar(0.5).getHex(), 0.6, 0.2), 0, podH / 2, 0, true));
-    g.add(mesh(new THREE.BoxGeometry(o.w + 0.86, podH * 0.42, o.d + 0.86), glowMaterial(b, 0xffd9a0, 0x1c2430, 0.08, 1.1), 0, podH * 0.36, 0));
+    g.add(mesh(new THREE.BoxGeometry(o.w + 0.86, podH * 0.42, o.d + 0.86), glowMaterial(b, 0xffd9a0, 0x1c2430, 0.08, STOREFRONT_GLOW), 0, podH * 0.36, 0));
     g.add(mesh(new THREE.BoxGeometry(o.w + 2.2, 0.28, o.d + 2.2), roofMat, 0, podH + 0.14, 0));
     g.add(mesh(soffitPanel(o.w + 2.1, o.d + 2.1), soffitMaterial(b), 0, podH - 0.015, 0));
     // Thin lit fascia on the canopy edge (same material as the storefront band, so it costs no draw call)
-    g.add(mesh(new THREE.BoxGeometry(o.w + 2.26, 0.07, o.d + 2.26), glowMaterial(b, 0xffd9a0, 0x1c2430, 0.08, 1.1), 0, podH + 0.02, 0));
+    g.add(mesh(new THREE.BoxGeometry(o.w + 2.26, 0.07, o.d + 2.26), glowMaterial(b, 0xffd9a0, 0x1c2430, 0.08, STOREFRONT_GLOW), 0, podH + 0.02, 0));
   }
 
   // Body, with a setback crown on the tall ones

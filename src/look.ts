@@ -195,7 +195,7 @@ export class EnvLighting {
  */
 export function makeBloomPass(width: number, height: number): UnrealBloomPass {
   const pass = new UnrealBloomPass(new THREE.Vector2(width, height), 0.6, 0.5, 0.9);
-  (pass.highPassUniforms as Record<string, THREE.IUniform>).smoothWidth.value = 0.35; // knee width
+  (pass.highPassUniforms as Record<string, THREE.IUniform>).smoothWidth.value = 0.2; // knee width
   pass.materialHighPassFilter.fragmentShader = /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform float luminosityThreshold;
@@ -203,8 +203,8 @@ export function makeBloomPass(width: number, height: number): UnrealBloomPass {
     varying vec2 vUv;
     void main() {
       vec3 c = texture2D(tDiffuse, vUv).rgb;
+      if (any(isnan(c))) c = vec3(0.0);
       c = clamp(c, vec3(0.0), vec3(48.0));
-      if (c.r != c.r || c.g != c.g || c.b != c.b) c = vec3(0.0);
       float br = max(c.r, max(c.g, c.b));
       float knee = max(smoothWidth, 1e-3);
       float soft = clamp(br - luminosityThreshold + knee, 0.0, 2.0 * knee);
@@ -235,14 +235,10 @@ export function stripLook(a: AtmosphereState, out: StripLook): StripLook {
   const night = THREE.MathUtils.clamp(a.night, 0, 1);
   out.exposure = 1.06 + night * 0.14;
   out.bloomStrength = 0.12 + sunset * 0.15 + night * 1.0;
-  out.bloomThreshold = THREE.MathUtils.lerp(1.15, 0.85, Math.max(night, sunset * 0.6));
+  out.bloomThreshold = THREE.MathUtils.lerp(1.2, 0.95, Math.max(night, sunset * 0.6));
   return out;
 }
 
-/**
- * Final grade (runs in linear HDR, before tone mapping): a touch more saturation, cool shadows
- * and warm highlights after dark, a soft vignette. Keeps the neon punchy without crushing faces.
- */
 /** Feeds the time of day to the grade pass. */
 export function applyGrade(pass: ShaderPass, a: AtmosphereState): void {
   pass.uniforms.night.value = a.night;
@@ -250,6 +246,11 @@ export function applyGrade(pass: ShaderPass, a: AtmosphereState): void {
   pass.uniforms.sunset.value = a.sunset;
 }
 
+/**
+ * Final grade (runs in linear HDR, before tone mapping): a touch more saturation, a little daylight
+ * contrast, warm highlights at sunset, cool shadows and warm highlights after dark, a soft vignette.
+ * Keeps the neon punchy without crushing faces.
+ */
 export function makeGradePass(): ShaderPass {
   return new ShaderPass({
     name: 'StripGrade',
