@@ -2,12 +2,16 @@ import * as THREE from 'three';
 import type { WorldBuilder } from './builder';
 import { stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
-import { LedBoard, makeBalloonTexture, makePaverTexture } from './textures';
+import { LedBoard, makePaverTexture } from './textures';
 import { buildAbcStore } from './abcStore';
 import { buildInNOut } from './food';
 import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
-import { flamingoSigns, harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, parisBalloonGlow, planetHollywoodSigns, venetianSigns } from './stripSigns';
+import { harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, venetianSigns } from './stripSigns';
+import { phMarquee, phName, phRibbon } from './phFront';
+import { arcDeTriomphe, eiffelTower, parisBalloon } from './parisIcons';
+import { flamingoFront, flamingoTowerSigns } from './flamingoFront';
+import { carnavalTent, harrahsArch } from './harrahsFront';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 import { casinoRoyaleFront, dogesPalaceFront, palazzoFront, parisFront } from './stripFronts';
 
@@ -68,12 +72,18 @@ function buildPlanetHollywood(b: WorldBuilder): void {
     led.at(20.9, 7.5, z); // only redraws while the camera is near
     b.every((_dt, t) => led.draw(t + i * 3));
   });
-  planetHollywoodSigns(b); // white block letters with pink tubes, podium + tower (stripSigns.ts)
+  // the curved LED marquee at the walk, a video ribbon over the shops' doors, and "planet hollywood" in
+  // white lower-case on the podium and the tower crown (phFront.ts)
+  phMarquee(b, 13.4, 19.9, 144, 4.4, 11);
+  phRibbon(b, 20.85, 147, 169, 9.4, 13.4);
+  phName(b, 20.75, 15.6, 158, 18, 2.6);
+  phName(b, 85.75, 33, 153, 17, 2.6);
 
   // ABC Stores #103 at the Miracle Mile front (real: Miracle Mile Shops)
   buildAbcStore(b, 30.5, 158, -Math.PI / 2, { label: 'ABC Stores #103 (Miracle Mile)', w: 26, d: 18 });
 
-  const phSkin = { wall: '#1b1d24', mullion: '#3a3d48', glass: '#2c3a4a', lit: '#ffeacc', cols: 10, rows: 22, style: 1 as const, seed: 61 };
+  // the tower: off-white and pale grey cladding over dark blue-grey glass (real)
+  const phSkin = { wall: '#d6d7d4', mullion: '#ecebe6', glass: '#2e3a48', lit: '#ffeacc', cols: 10, rows: 22, style: 1 as const, seed: 61 };
   tower(b, { x: 95, z: 153, w: 18, d: 46, h: 37, facade: phSkin });
   tower(b, { x: 120, z: 190, w: 14, d: 26, h: 57, facade: { ...phSkin, wall: '#5d6b78', glass: '#4b5c6c', seed: 63 }, metal: 0.5 });
   b.building(41.5, 160, 41, 90, '#24242c', 'Planet Hollywood');
@@ -91,70 +101,11 @@ function buildPlanetHollywood(b: WorldBuilder): void {
 function buildParis(b: WorldBuilder): void {
   plaza(b, 19, 36, 56, 114, '#d9cfbd', '#b9ab92');
 
-  // Half-scale Eiffel Tower (165 m real) — rear legs come down inside the casino, like the real one
-  const tx = 32;
+  // Half-scale Eiffel Tower (165 m real): curved lattice legs, the rear pair comes down inside the
+  // casino like the real one; floodlit gold at night with the light show every couple of minutes
+  const tx = 34;
   const tz = 77;
-  const iron = mat(0x6e4f34, 0.5, 0.6);
-  const lights = new THREE.MeshStandardMaterial({ color: 0xffd278, emissive: 0xffc860, emissiveIntensity: 0.1, roughness: 0.4 });
-  b.nightGlow(lights, 0.05, 1.6);
-  for (const [dx, dz] of [
-    [-1, -1],
-    [1, -1],
-    [-1, 1],
-    [1, 1],
-  ]) {
-    const lx = tx + dx * 6;
-    const lz = tz + dz * 6;
-    const leg = mesh(new THREE.BoxGeometry(1.6, 15, 1.6), iron, tx + dx * 4.2, 7.2, tz + dz * 4.2, true);
-    leg.rotation.set(dz * 0.24, 0, -dx * 0.24);
-    b.add(leg);
-    b.collider(lx - 0.9, lx + 0.9, lz - 0.9, lz + 0.9, 0, 4, true);
-  }
-  for (const s of [-1, 1]) {
-    const arch = mesh(new THREE.TorusGeometry(4.2, 0.35, 6, 18, Math.PI), iron, tx, 2.6, tz + s * 5.6);
-    b.add(arch);
-    const arch2 = mesh(new THREE.TorusGeometry(4.2, 0.35, 6, 18, Math.PI), iron, tx + s * 5.6, 2.6, tz);
-    arch2.rotation.y = Math.PI / 2;
-    b.add(arch2);
-  }
-  b.box(tx, 12.6, tz, 13, 0.8, 13, iron);
-  b.add(mesh(new THREE.BoxGeometry(13.4, 0.3, 13.4), lights, tx, 13.55, tz));
-  const mid = mesh(new THREE.CylinderGeometry(2.4, 4.6, 11, 4), iron, tx, 19, tz, true);
-  mid.rotation.y = Math.PI / 4;
-  b.add(mid);
-  b.box(tx, 24.4, tz, 7.4, 0.7, 7.4, iron);
-  b.add(mesh(new THREE.BoxGeometry(7.8, 0.3, 7.8), lights, tx, 25.25, tz));
-  const upper = mesh(new THREE.CylinderGeometry(0.9, 2.6, 19, 4), iron, tx, 34.6, tz, true);
-  upper.rotation.y = Math.PI / 4;
-  b.add(upper);
-  b.box(tx, 44.2, tz, 5, 0.6, 5, iron);
-  for (const [ox, oz, w, d] of [
-    [0, -2.45, 5, 0.1],
-    [0, 2.45, 5, 0.1],
-    [-2.45, 0, 0.1, 5],
-    [2.45, 0, 0.1, 5],
-  ]) b.box(tx + ox, 44.8, tz + oz, w, 1.1, d, mat(0x3a2a1a, 0.6, 0.5), true, false);
-  b.add(mesh(new THREE.BoxGeometry(2.4, 2.6, 2.4), iron, tx, 46.1, tz));
-  const spire = mesh(new THREE.ConeGeometry(0.55, 6, 4), lights, tx, 50.4, tz);
-  spire.rotation.y = Math.PI / 4;
-  b.add(spire);
-  const beacon = mesh(new THREE.SphereGeometry(0.4, 10, 8), basic(0xffffff), tx, 53.6, tz);
-  b.add(beacon);
-  // Hourly sparkle at night
-  const sparkles: THREE.Mesh[] = [];
-  const spMat = basic(0xffffff, { transparent: true, opacity: 0 });
-  for (let i = 0; i < 60; i++) {
-    const y = 2 + (i / 60) * 46;
-    const r = y < 13 ? 6 - y * 0.18 : y < 25 ? 3.6 - (y - 13) * 0.12 : 2 - (y - 25) * 0.07;
-    const a = i * 2.1;
-    const s = mesh(new THREE.SphereGeometry(0.12, 4, 3), spMat, tx + Math.cos(a) * Math.max(0.4, r), y, tz + Math.sin(a) * Math.max(0.4, r));
-    sparkles.push(s);
-    b.add(s);
-  }
-  b.every((_dt, t, night) => {
-    spMat.opacity = night * (Math.sin(t * 20) > 0.2 ? 1 : 0.15);
-    (beacon.material as THREE.MeshBasicMaterial).color.setHex(Math.floor(t * 1.5) % 2 ? 0xffffff : 0xffe9b0);
-  });
+  const { deckY } = eiffelTower(b, tx, tz);
 
   // Glass elevator up the middle to the top deck
   let cabY = 0.2;
@@ -165,7 +116,7 @@ function buildParis(b: WorldBuilder): void {
     cabY += Math.sign(cabTarget - cabY) * Math.min(Math.abs(cabTarget - cabY), dt * 5.5);
     cab.position.y = cabY + 1.2;
   });
-  const topY = 44.8;
+  const topY = deckY;
   b.rideables.push({
     id: 'eiffel-up',
     kind: 'elevator',
@@ -174,7 +125,7 @@ function buildParis(b: WorldBuilder): void {
     boardPoint: (out) => out.set(tx, 0, tz),
     seat: (out) => out.set(tx, cabY + 0.05, tz),
     yaw: () => -Math.PI / 2,
-    exitPoint: (out) => (cabY > topY - 1 ? out.set(tx - 1.6, topY + 0.1, tz) : out.set(tx - 3, 0.2, tz)),
+    exitPoint: (out) => (cabY > topY - 1 ? out.set(tx - 2.2, topY + 0.1, tz) : out.set(tx - 3.5, 0.2, tz)),
     canBoard: () => ({ ok: true }),
     onBoard: () => {
       cabTarget = topY;
@@ -191,7 +142,7 @@ function buildParis(b: WorldBuilder): void {
     boardPoint: (out) => out.set(tx, topY, tz),
     seat: (out) => out.set(tx, cabY + 0.05, tz),
     yaw: () => -Math.PI / 2,
-    exitPoint: (out) => (cabY < 1 ? out.set(tx - 3, 0.2, tz) : out.set(tx - 1.6, topY + 0.1, tz)),
+    exitPoint: (out) => (cabY < 1 ? out.set(tx - 3.5, 0.2, tz) : out.set(tx - 2.2, topY + 0.1, tz)),
     canBoard: () => ({ ok: true }),
     onBoard: () => {
       cabY = topY;
@@ -201,51 +152,39 @@ function buildParis(b: WorldBuilder): void {
     boardPrompt: 'Press [G] to take the elevator back down',
     ridingPrompt: 'Going down to the Strip…',
   });
-  b.pickup(tx + 1.6, topY + 0.6, tz + 1.6, 6, 'Eiffel Top-Deck Tourist Pack!', false);
-  b.zone('Eiffel Tower', tx - 7, tx + 7, tz - 7, tz + 7);
+  b.pickup(tx + 2.2, topY + 0.6, tz + 2.2, 6, 'Eiffel Top-Deck Tourist Pack!', false);
+  b.zone('Eiffel Tower', tx - 12, 35.5, tz - 12, tz + 12); // the plaza side only: past x 36 is the casino floor
   b.staticMarkers.push({ x: tx, z: tz, color: '#ffd278', glyph: '▲', size: 3 });
 
-  // Mon Ami Gabi patio, just north of the tower base, facing the fountains
+  // Mon Ami Gabi patio, between the tower's north leg and the balloon, facing the fountains: a glassed
+  // terrace with red awnings and white-clothed bistro tables
   const awning = mat(0xb8202a, 0.65, 0, { side: THREE.DoubleSide });
   const rail = mat(0x1f3a2a, 0.5, 0.5);
-  b.box(19.6, 0, 64.5, 0.1, 1.0, 11, rail, false, false);
-  b.add(mesh(new THREE.BoxGeometry(7, 0.15, 12), awning, 23.2, 3.4, 64.5));
+  b.box(19.6, 0, 61, 0.1, 1.0, 8, rail, false, false);
+  b.add(mesh(new THREE.BoxGeometry(7, 0.15, 8.6), awning, 23.2, 3.4, 61));
   for (let i = 0; i < 6; i++) {
     const x = 21.4 + (i % 2) * 3.2;
-    const z = 60 + Math.floor(i / 2) * 3.8;
+    const z = 58.2 + Math.floor(i / 2) * 2.8;
     b.add(mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 14), mat(0xf4f1ea, 0.5), x, 0.78, z));
     b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 6), mat(0x222222, 0.4), x, 0.38, z));
   }
-  b.add(neonSign('MON AMI GABI', '#1f3a2a', '#f6e7c8', 6, 0.8, undefined, 0.08), 26.8, 3, 64.5, -Math.PI / 2);
-  b.pickup(21.4, 1.1, 63.8, 2, 'Mon Ami Gabi Patio Pack', false);
+  b.add(neonSign('MON AMI GABI', '#1f3a2a', '#f6e7c8', 6, 0.8, undefined, 0.08), 26.8, 3, 61, -Math.PI / 2);
+  b.pickup(21.4, 1.1, 60.6, 2, 'Mon Ami Gabi Patio Pack', false);
 
-  // Montgolfier balloon sign — SOUTH of the tower at the Planet Hollywood edge
-  const balloon = new THREE.Group();
-  const sphere = mesh(new THREE.SphereGeometry(5.4, 28, 20), new THREE.MeshStandardMaterial({ map: makeBalloonTexture(), emissive: 0x3b1f08, emissiveIntensity: 0.4, roughness: 0.45 }), 0, 15, 0, true);
-  balloon.add(sphere);
-  balloon.add(mesh(new THREE.CylinderGeometry(0.5, 0.7, 9.5, 10), mat(0x262938, 0.35, 0.7), 0, 4.75, 0, true));
-  balloon.add(mesh(new THREE.BoxGeometry(2.8, 2, 2.8), mat(0x7d4c24, 0.65), 0, 8.6, 0));
-  const ps = neonSign('PARIS', '#210c1f', '#ffd26a', 5, 1.4);
-  ps.rotation.y = -Math.PI / 2;
-  ps.position.set(-1.45, 8.6, 0);
-  balloon.add(ps);
-  parisBalloonGlow(b, balloon, sphere, 5.4, 15); // backlit envelope + rings of chasing bulbs (stripSigns.ts)
-  b.add(balloon, 25, 0, 112);
-  b.collider(24.2, 25.8, 111.2, 112.8, 0, 9.5, true);
+  // The Montgolfier balloon marquee: NORTH end of the front, beside the Grand Bazaar (parisIcons.ts)
+  parisBalloon(b, 25, 52.5);
 
-  // Paris Dr: Arc de Triomphe + Fontaine des Mers in the entry drive
+  // Paris Dr: the Arc de Triomphe over the entry drive, the Fontaine des Mers beyond it
   b.floor(52, 103, 66, 6, mat(0x2b2b30, 0.85), 0.015);
   const stone = mat(0xe3d3ba, 0.72);
-  b.box(54, 0, 98.6, 2.6, 6, 2.2, stone, true);
-  b.box(54, 0, 107.4, 2.6, 6, 2.2, stone, true);
-  b.box(54, 6, 103, 2.8, 3, 11, stone, true);
-  b.add(mesh(new THREE.BoxGeometry(3.2, 0.6, 11.6), stone, 54, 9.3, 103));
-  b.add(mesh(new THREE.CylinderGeometry(3.2, 3.4, 0.6, 24), stone, 42, 0.3, 103));
-  b.add(mesh(new THREE.CylinderGeometry(2.9, 2.9, 0.05, 24), new THREE.MeshStandardMaterial({ color: 0x3fa6c7, roughness: 0.05, metalness: 0.4 }), 42, 0.62, 103));
-  b.add(mesh(new THREE.CylinderGeometry(0.35, 0.45, 4, 10), stone, 42, 2.6, 103));
-  b.collider(39, 45, 100, 106, 0, 0.6);
+  arcDeTriomphe(b, 29.5, 103);
+  b.add(mesh(new THREE.CylinderGeometry(3.2, 3.4, 0.6, 24), stone, 46, 0.3, 103));
+  b.add(mesh(new THREE.CylinderGeometry(2.9, 2.9, 0.05, 24), new THREE.MeshStandardMaterial({ color: 0x3fa6c7, roughness: 0.05, metalness: 0.4 }), 46, 0.62, 103));
+  b.add(mesh(new THREE.CylinderGeometry(0.35, 0.45, 4, 10), mat(0x3b4a3a, 0.5, 0.6), 46, 2.6, 103));
+  b.add(mesh(new THREE.SphereGeometry(0.5, 10, 8), mat(0xc9a24a, 0.3, 0.85), 46, 4.8, 103));
+  b.collider(43, 49, 100, 106, 0, 0.6);
   b.box(75, 0, 110.5, 30, 10, 6, stone, true);
-  b.add(neonSign('PARIS', '#1c112b', '#ffdf8e', 12, 2.4, 'LAS VEGAS'), 20.8, 9, 92, -Math.PI / 2);
+  b.add(neonSign('PARIS', '#1c112b', '#ffdf8e', 12, 2.4, 'LAS VEGAS'), 34.2, 9.4, 92, -Math.PI / 2);
 
   buildCasinoFloor(b, {
     id: 'paris',
@@ -267,8 +206,8 @@ function buildParis(b: WorldBuilder): void {
         [65.5, 69.5, 59.5, 97.4],
       ],
       eiffelLegs: [
-        [39, 71],
-        [39, 83],
+        [43.5, 67.5],
+        [43.5, 86.5],
       ],
     },
     carpet: ['#4a1220', '#e8b850', '#1a2a5a'],
@@ -405,8 +344,12 @@ function buildFlamingo(b: WorldBuilder): void {
     minZ: -94,
     maxZ: -38,
     height: 12,
-    entrance: { side: 'west', at: -66, width: 8 },
-    extraEntrances: [{ side: 'north', at: 50, width: 6 }],
+    // main doors under the neon bloom at the south corner, the north doors under the lotus fan
+    entrance: { side: 'west', at: -47, width: 8 },
+    extraEntrances: [
+      { side: 'north', at: 50, width: 6 },
+      { side: 'west', at: -84, width: 6 },
+    ],
     // Pink Miami deco: stepped neon ceiling, teal and pink walls, palm columns, the round Bird Bar
     theme: 'flamingo',
     interior: { ceilingY: 10.6 },
@@ -423,15 +366,16 @@ function buildFlamingo(b: WorldBuilder): void {
       { game: 'craps', x: 42, z: -84, label: 'Flamingo Craps' },
     ],
     felt: 0x7c1456,
-    guard: { kick: [17, -66] },
+    guard: { kick: [17, -47] },
     pickups: [
       { x: 44, z: -66, y: 1.35, amount: 5, label: 'Flamingo VIP Table Pack!' },
       { x: 62, z: -42, amount: 3, label: 'Flamingo Pink Slots Pack' },
     ],
     tourists: [{ pts: [[30, -42], [62, -42], [62, -90], [30, -90]], prop: 'cig' }, { pts: [[52, -48], [52, -88]], prop: 'bag' }],
   });
-  // The pink & orange neon feather plume over the entrance + the "Flamingo" neon script (stripSigns.ts)
-  flamingoSigns(b);
+  // The neon bloom on its drum canopy, the cream-and-pink podium, the lotus fan, script, curb monument,
+  // palms and flamingo statues (flamingoFront.ts)
+  flamingoFront(b, 26, -94, -38, 12, { main: -47, north: -84 });
 
   // Wildlife Habitat behind the casino: pond, waterfall, Chilean flamingos, palms
   const hx = 84;
@@ -470,8 +414,10 @@ function buildFlamingo(b: WorldBuilder): void {
   b.zone('Flamingo Wildlife Habitat', 68, 100, -84, -42);
   b.crowd.tourists.push({ pts: [[72, -48], [96, -78]], prop: 'camera' });
 
-  const flamSkin = { wall: '#c45a8a', mullion: '#e88ab4', glass: '#4b2442', lit: '#ffb6e0', cols: 10, rows: 20, style: 0 as const, seed: 101 };
-  tower(b, { x: 114, z: -64, w: 18, d: 46, h: 30, facade: flamSkin });
+  // cream tower with pink trim, washed magenta at night (real); script + corner neon strip (flamingoFront.ts)
+  const flamSkin = { wall: '#efe2d4', mullion: '#e87aa8', glass: '#5a3a4e', lit: '#ffc6e4', cols: 10, rows: 20, style: 0 as const, seed: 101 };
+  tower(b, { x: 114, z: -64, w: 18, d: 46, h: 30, facade: flamSkin, accent: 0xff4fa8, wash: 0xff3f9a, washStrength: 0.55, washZone: 9 });
+  flamingoTowerSigns(b, 105, -64, 30, -41.6);
   b.building(46, -66, 40, 56, '#3b2038', 'Flamingo');
   b.building(114, -64, 18, 46, '#c45a8a');
   b.feature({ kind: 'park', x: 84, z: -63, w: 32, d: 42, color: '#4f6b3a' });
@@ -676,15 +622,12 @@ function buildHarrahs(b: WorldBuilder): void {
   b.collider(35.4, 36.6, -158, -148, 0, 1.15, true);
   b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(34, 0, -153), radius: 3, label: 'Carnaval Court Bar' });
   b.box(29, 0, -162, 12, 0.9, 3, mat(0x222222, 0.5));
-  b.add(neonSign('CARNAVAL COURT', '#1a0a20', '#ffcc33', 9, 1.3), 29, 4.2, -163.4);
   const bj = blackjackTable(0x0f4a2a);
   b.add(bj, 26, 0, -150, Math.PI / 2);
   b.collider(25, 27, -152, -148, 0, 1.1);
   b.gamblingSpots.push({ id: 'carnaval-bj', casinoName: "Harrah's", gameType: 'blackjack', position: new THREE.Vector3(26, 0, -150), label: 'Carnaval Court Party-Pit Blackjack' });
-  for (const [x, z] of [
-    [21, -145],
-    [21, -161],
-  ]) b.add(palmTree(6.8, false, x + z), x, 0, z);
+  // the white tent roof, the gradient fascia, the CARNAVAL badge, railings (harrahsFront.ts)
+  carnavalTent(b, 20, 43.4, -163.6, -142.6, -153);
   const bulb = basic(0xff8ad8);
   for (let x = 21; x <= 43; x += 2.2) b.add(mesh(new THREE.SphereGeometry(0.1, 5, 4), bulb, x, 4.6, -153));
   b.pickup(36, 1.4, -150, 3, 'Carnaval Court Bar Pack', false);
@@ -693,8 +636,14 @@ function buildHarrahs(b: WorldBuilder): void {
   b.crowd.performers.push({ kind: 'slapper', x: 16, z: -170, facing: -Math.PI / 2 });
 
   const harrahs = { wall: '#d9c4a0', mullion: '#ecdcbc', glass: '#7a4a3a', lit: '#ffe0a0', cols: 10, rows: 22, style: 0 as const, seed: 121 };
-  b.box(52, 0, -164, 16, 12, 42, mat(0x7a1c1c, 0.6), true);
-  tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs, crownGlow: 0.5, washStrength: 0.3, washZone: 5 }); // soft crown so the script reads
+  b.box(52, 0, -164, 16, 12, 42, mat(0xdcc8a6, 0.7), true);
+  // violet neon parapet line: Harrah's has been lit purple after dark since June 2021
+  const violet = new THREE.MeshStandardMaterial({ color: 0xb89ae0, emissive: 0x8a3cff, emissiveIntensity: 0.05, roughness: 0.5 });
+  b.nightGlow(violet, 0.05, 0.9);
+  b.add(mesh(new THREE.BoxGeometry(0.25, 0.3, 42), violet, 43.85, 11.3, -164));
+  // the striped barrel arch with the LED screen and the globe crest over Carnaval Court (harrahsFront.ts)
+  harrahsArch(b, 43, -153, 7.2, 8.6, 8);
+  tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs, crownGlow: 0.5, wash: 0x8a3cff, washStrength: 0.6, washZone: 12 }); // purple wash; soft crown so the script reads
   harrahsSigns(b); // the burgundy-and-gold script marquee at the Strip + tower script (stripSigns.ts)
   b.building(62, -165, 40, 42, '#7a1c1c', "Harrah's");
   b.zone("Harrah's Las Vegas", 19, 90, -186, -140);
