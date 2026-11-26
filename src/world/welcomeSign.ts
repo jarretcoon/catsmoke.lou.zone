@@ -610,6 +610,20 @@ export function buildWelcomeSign(b: WorldBuilder): void {
     mg.at(steel, pb, cx, h + 0.16, z);
     b.collider(x - 0.14, x + 0.14, z - 0.14, z + 0.14, 0, h, true);
   }
+  // Black ornamental iron fence along both edges of the walk (keeps the photo line off the traffic lanes)
+  const iron = mat(0x1a1a1c, 0.5, 0.6);
+  for (const sx of [-1.93, 1.93]) {
+    const z0 = zSign + 3.4;
+    const z1 = zLot0 - 1.35;
+    for (let z = z0; z <= z1; z += 0.15) mg.box(iron, sx, 0.55, z, 0.025, 1.0, 0.025);
+    for (const y of [0.12, 0.98]) mg.box(iron, sx, y, (z0 + z1) / 2, 0.04, 0.05, z1 - z0);
+    for (let z = z0; z <= z1 + 0.01; z += (z1 - z0) / 3) {
+      mg.box(iron, sx, 0.6, z, 0.08, 1.2, 0.08);
+      mg.add(new THREE.SphereGeometry(0.06, 8, 6).translate(sx, 1.24, z), iron);
+    }
+    b.collider(sx - 0.06, sx + 0.06, z0, z1, 0, 1.1, true);
+  }
+
   // The old McCarran Field gate pillars (1941, moved here 1948): rubble-stone posts just south of the sign, east side
   const rubble = canvasTex(64, 128, (ctx, w, h) => {
     ctx.fillStyle = '#8a7a66';

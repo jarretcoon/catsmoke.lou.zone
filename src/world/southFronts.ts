@@ -850,9 +850,7 @@ function shoppers(b: WorldBuilder): void {
   const t = b.crowd.tourists;
   t.push(
     { pts: [[16.5, 690], [24, 690], [29.6, 689.6]], prop: 'bag' },
-    { pts: [[16.5, 697.5], [25, 697.5], [29.6, 698]], prop: 'none' },
     { pts: [[16.2, 709], [23, 709], [37.6, 712.5]], prop: 'cig' },
-    { pts: [[16.4, 832], [22, 832], [38.8, 838.4]], prop: 'camera' },
-    { pts: [[16.2, 824], [42.5, 823], [43.6, 822.8]], prop: 'camera' }
+    { pts: [[16.4, 832], [22, 832], [38.8, 838.4]], prop: 'camera' }
   );
 }
