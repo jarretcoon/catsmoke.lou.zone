@@ -45,7 +45,98 @@ const R = {
   police: [0, 224, 512, 288],
   animal: [0, 288, 512, 352],
   rtc: [0, 352, 256, 416],
+  // rideshare: windscreen trade-dress stickers, the Waymo dome's rider-initials LED, rider screens, door wordmark
+  uber: [256, 352, 352, 400],
+  lyft: [352, 352, 448, 400],
+  lou: [448, 352, 512, 384],
+  domeIdle: [448, 384, 512, 416],
+  waymo: [0, 416, 256, 464],
+  screen: [256, 416, 384, 480],
+  screenMap: [384, 416, 512, 480],
 } as const satisfies Record<string, Rect>;
+
+/** A rounded "W" in Waymo's teal-to-blue (drawn, not copied): three strokes meeting in two valleys. */
+function waymoMark(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  const g = ctx.createLinearGradient(x, y, x + s, y + s);
+  g.addColorStop(0, '#1fd6c4');
+  g.addColorStop(1, '#2f6dff');
+  ctx.strokeStyle = g;
+  ctx.lineWidth = s * 0.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x + s * 0.08, y + s * 0.18);
+  ctx.lineTo(x + s * 0.3, y + s * 0.82);
+  ctx.lineTo(x + s * 0.5, y + s * 0.4);
+  ctx.lineTo(x + s * 0.7, y + s * 0.82);
+  ctx.lineTo(x + s * 0.92, y + s * 0.18);
+  ctx.stroke();
+}
+
+/** Rideshare cells of the vehicle atlas. */
+function paintRideshare(ctx: CanvasRenderingContext2D, fill: (r: Rect, col: string) => void, text: (r: Rect, s: string, col: string, font: string, dy?: number) => void): void {
+  // Uber trade dress: white wordmark on a black square sticker
+  fill(R.uber, '#000000');
+  text(R.uber, 'Uber', '#ffffff', '500 34px "Segoe UI", Arial, sans-serif', 1);
+  // Lyft: white lowercase on pink
+  fill(R.lyft, '#ff00bf');
+  text(R.lyft, 'lyft', '#ffffff', 'bold 36px "Segoe UI", Arial, sans-serif', -2);
+  // Waymo dome LED: the rider's initials in teal dots, and an idle glyph
+  fill(R.lou, '#05080a');
+  text(R.lou, 'LOU', '#3dffe0', 'bold 24px "Courier New", monospace', 1);
+  fill(R.domeIdle, '#05080a');
+  waymoMark(ctx, R.domeIdle[0] + 18, R.domeIdle[1] + 2, 28);
+  // Door wordmark: the W and "waymo" in slate on white paint
+  fill(R.waymo, '#f2f3f1');
+  waymoMark(ctx, R.waymo[0] + 10, R.waymo[1] + 6, 36);
+  ctx.fillStyle = '#3c4650';
+  ctx.font = '600 34px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('waymo', R.waymo[0] + 56, R.waymo[1] + 25, 190);
+  // Rider screen (seat backs): deep blue map, a teal route line and a greeting
+  const sc = R.screen;
+  const g = ctx.createLinearGradient(0, sc[1], 0, sc[3]);
+  g.addColorStop(0, '#0b2140');
+  g.addColorStop(1, '#06101f');
+  ctx.fillStyle = g;
+  ctx.fillRect(sc[0], sc[1], sc[2] - sc[0], sc[3] - sc[1]);
+  ctx.fillStyle = '#e8f6ff';
+  ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Hi, Lou', sc[0] + 10, sc[1] + 16);
+  ctx.fillStyle = '#7fe8ff';
+  ctx.font = '12px "Segoe UI", Arial, sans-serif';
+  ctx.fillText('Buckle up • 4 min', sc[0] + 10, sc[1] + 34);
+  ctx.strokeStyle = '#2fe0c8';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(sc[0] + 14, sc[1] + 56);
+  ctx.lineTo(sc[0] + 60, sc[1] + 48);
+  ctx.lineTo(sc[0] + 110, sc[1] + 52);
+  ctx.stroke();
+  // Map tile (dash screen): grid streets with the route
+  const mp = R.screenMap;
+  ctx.fillStyle = '#0c1a2c';
+  ctx.fillRect(mp[0], mp[1], mp[2] - mp[0], mp[3] - mp[1]);
+  ctx.strokeStyle = '#2a3e58';
+  ctx.lineWidth = 2;
+  for (let i = 1; i < 6; i++) {
+    ctx.beginPath();
+    ctx.moveTo(mp[0] + i * 21, mp[1]);
+    ctx.lineTo(mp[0] + i * 21, mp[3]);
+    ctx.moveTo(mp[0], mp[1] + i * 11);
+    ctx.lineTo(mp[2], mp[1] + i * 11);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#33f0d0';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(mp[0] + 20, mp[3] - 8);
+  ctx.lineTo(mp[0] + 64, mp[3] - 8);
+  ctx.lineTo(mp[0] + 64, mp[1] + 10);
+  ctx.stroke();
+}
 
 let atlasTex: THREE.CanvasTexture | null = null;
 function atlas(): THREE.CanvasTexture {
@@ -135,6 +226,7 @@ function atlas(): THREE.CanvasTexture {
   text(R.animal, 'ANIMAL CONTROL', '#2d5a2d', 'bold 44px system-ui, sans-serif', -4);
   fill(R.rtc, '#101114');
   text(R.rtc, 'DEUCE', '#e5b54a', 'italic bold 44px Georgia, serif');
+  paintRideshare(ctx, fill, text);
   atlasTex = new THREE.CanvasTexture(c);
   atlasTex.colorSpace = THREE.SRGBColorSpace;
   atlasTex.anisotropy = 4;
@@ -282,6 +374,8 @@ function rimGeo(r: number, w: number, seg = 12): THREE.BufferGeometry {
 }
 
 // ---------------------------------------------------------------- car bodies
+/** Every body the builder knows: traffic kinds, the chase vehicles and the two Waymo models. */
+type BodyKind = CarKind | 'van' | 'cop' | 'ipace' | 'ojai';
 interface Spec {
   L: number;
   W: number;
@@ -302,7 +396,7 @@ interface Spec {
   taper: number; // cabin narrows toward the roof
 }
 
-const SPECS: Record<CarKind | 'van' | 'cop', Spec> = {
+const SPECS: Record<BodyKind, Spec> = {
   sedan: { L: 4.7, W: 1.85, clear: 0.3, nose: 0.8, belt: 0.98, deck: 1.0, roof: 1.46, ws0: 0.98, ws1: 0.2, rw1: -0.85, rw0: -1.42, wr: 0.34, wf: 1.45, wb: -1.42, tumble: 0.07, posts: [-0.3], taper: 0.13 },
   cop: { L: 4.9, W: 1.9, clear: 0.3, nose: 0.82, belt: 1.0, deck: 1.02, roof: 1.48, ws0: 1.0, ws1: 0.22, rw1: -0.88, rw0: -1.45, wr: 0.35, wf: 1.5, wb: -1.5, tumble: 0.07, posts: [-0.3], taper: 0.13 },
   taxi: { L: 4.75, W: 1.85, clear: 0.3, nose: 0.82, belt: 1.0, deck: 1.02, roof: 1.5, ws0: 0.98, ws1: 0.2, rw1: -0.9, rw0: -1.45, wr: 0.34, wf: 1.45, wb: -1.45, tumble: 0.07, posts: [-0.32], taper: 0.13 },
@@ -310,6 +404,10 @@ const SPECS: Record<CarKind | 'van' | 'cop', Spec> = {
   suv: { L: 5.0, W: 2.0, clear: 0.4, nose: 1.06, belt: 1.18, deck: 1.18, roof: 1.88, ws0: 1.12, ws1: 0.52, rw1: -2.3, rw0: -2.38, wr: 0.4, wf: 1.62, wb: -1.58, tumble: 0.06, posts: [-0.25, -1.55], taper: 0.08 },
   sport: { L: 4.45, W: 1.92, clear: 0.24, nose: 0.6, belt: 0.84, deck: 0.86, roof: 1.2, ws0: 0.55, ws1: -0.3, rw1: -0.72, rw0: -1.72, wr: 0.34, wf: 1.42, wb: -1.36, tumble: 0.1, posts: [-0.62], taper: 0.16 },
   van: { L: 5.6, W: 2.05, clear: 0.42, nose: 1.08, belt: 1.2, deck: 1.2, roof: 2.0, ws0: 1.75, ws1: 1.25, rw1: 0.6, rw0: 0.6, wr: 0.4, wf: 1.95, wb: -1.85, tumble: 0.06, posts: [], taper: 0.06 },
+  // Waymo's Jaguar I-PACE: short nose, raked screen, coupé roof falling to a cut-off tail, big 22" wheels
+  ipace: { L: 4.68, W: 1.9, clear: 0.32, nose: 0.86, belt: 1.02, deck: 1.06, roof: 1.56, ws0: 1.08, ws1: 0.12, rw1: -1.3, rw0: -1.86, wr: 0.37, wf: 1.5, wb: -1.49, tumble: 0.08, posts: [-0.3], taper: 0.14 },
+  // Waymo Ojai (the Zeekr-built minivan on the Strip since 2026): tall glass box, stubby nose, upright tail
+  ojai: { L: 4.75, W: 1.95, clear: 0.3, nose: 0.98, belt: 1.02, deck: 1.06, roof: 1.98, ws0: 1.62, ws1: 0.98, rw1: -2.2, rw0: -2.3, wr: 0.36, wf: 1.62, wb: -1.55, tumble: 0.05, posts: [0.32, -1.32], taper: 0.05 },
 };
 
 const lerp = THREE.MathUtils.lerp;
@@ -378,11 +476,15 @@ interface CarGeo {
   decal?: THREE.BufferGeometry;
 }
 
-/** Shared body for every car type: body shell, cabin, glass, wheels, lamps, bumpers, mirrors. */
-function buildBody(s: Spec, kind: CarKind | 'van' | 'cop'): Parts {
+/**
+ * Shared body for every car type: body shell, cabin, glass, wheels, lamps, bumpers, mirrors.
+ * `open` (rideshare cars) leaves the cabin hollow: roof, pillars and see-through glass over an interior,
+ * so the empty driver's seat of a Waymo, an Uber driver and Lou in the back all show through the windows.
+ */
+function buildBody(s: Spec, kind: BodyKind, open = false): Parts {
   const p = new Parts();
   const paint = paintMat(0xffffff); // placeholder key, swapped per car
-  const glass = GLASS();
+  const glass = open ? clearGlass() : GLASS();
   const bright = BRIGHT();
   const trim = TRIM();
   const lamps = lampMat();
@@ -392,7 +494,9 @@ function buildBody(s: Spec, kind: CarKind | 'van' | 'cop'): Parts {
 
   // Body shell (with real wheel arches) and the cabin (tapered for tumblehome)
   p.raw(paint, smooth(extrudeSide(bodyShape(s), s.W, 0.07)));
-  if (kind !== 'van') {
+  if (open) {
+    openCabin(p, s, paint, trim);
+  } else if (kind !== 'van') {
     const cab = extrudeSide(cabinShape(s), s.W - 2 * s.tumble, 0.07);
     const pos = cab.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
@@ -512,9 +616,226 @@ function buildBody(s: Spec, kind: CarKind | 'van' | 'cop'): Parts {
   return p;
 }
 
+// ---------------------------------------------------------------- rideshare cars (Waymo, Uber, Lyft)
+let clearGlassMat: THREE.MeshStandardMaterial | null = null;
+/** See-through tinted glass for the open-cabin rideshare cars (one shared transparent material). */
+function clearGlass(): THREE.MeshStandardMaterial {
+  return (clearGlassMat ??= new THREE.MeshStandardMaterial({ color: 0x4a6078, roughness: 0.04, metalness: 0.6, transparent: true, opacity: 0.5, depthWrite: false }));
+}
+
+/** A box w (x) × d (y) stretched from a to b (its long axis), e.g. a window pillar. */
+function strut(p: Parts, m: THREE.Material, a: THREE.Vector3, b: THREE.Vector3, w: number, d: number): void {
+  const dir = b.clone().sub(a);
+  const len = dir.length();
+  const g = norm(new THREE.BoxGeometry(w, d, len));
+  tmpQ.setFromUnitVectors(V(0, 0, 1), dir.normalize());
+  tmpM.compose(a.clone().add(b).multiplyScalar(0.5), tmpQ, V(1, 1, 1));
+  g.applyMatrix4(tmpM);
+  p.raw(m, g);
+}
+
+const wsAt = (s: Spec, y: number) => lerp(s.ws0, s.ws1, (y - s.belt) / (s.roof - s.belt));
+const rwAt = (s: Spec, y: number) => lerp(s.rw0, s.rw1, (y - s.belt) / (s.roof - s.belt));
+
+/** Hollow greenhouse: roof panel, body-colour A/C pillars, black B pillars, a dark cabin floor. */
+function openCabin(p: Parts, s: Spec, paint: THREE.Material, trim: THREE.Material): void {
+  const zf = wsAt(s, s.roof);
+  const zr = rwAt(s, s.roof);
+  p.add(paint, new RoundedBoxGeometry(cabinHalf(s, s.roof) * 2 + 0.03, 0.07, zf - zr + 0.06, 1, 0.03), 0, s.roof - 0.035, (zf + zr) / 2);
+  const yTop = s.roof - 0.05;
+  for (const side of [-1, 1]) {
+    strut(p, paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, wsAt(s, s.belt) - 0.03), V(side * (cabinHalf(s, yTop) - 0.02), yTop, wsAt(s, yTop) - 0.03), 0.07, 0.11);
+    for (const z of s.posts) strut(p, trim, V(side * (cabinHalf(s, s.belt) - 0.01), s.belt, z), V(side * (cabinHalf(s, yTop) - 0.01), yTop, z), 0.06, 0.1);
+    strut(p, paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, rwAt(s, s.belt) + 0.05), V(side * (cabinHalf(s, yTop) - 0.02), yTop, rwAt(s, yTop) + 0.05), 0.07, 0.18);
+  }
+  const zb = wsAt(s, s.belt);
+  const zbr = rwAt(s, s.belt);
+  p.add(std(0x1d1e22, 0.92), new THREE.BoxGeometry(2 * (cabinHalf(s, s.belt) - 0.04), 0.02, zb - zbr - 0.1), 0, s.belt + 0.006, (zb + zbr) / 2);
+}
+
+/** Seats, dash, wheel (and a Waymo's rider screens); returns where a back-seat rider sits (rear right). */
+function cabinInterior(p: Parts, s: Spec, brand: RideBrand): THREE.Vector3 {
+  const seat = std(brand === 'waymo' ? 0x34363c : 0x26272c, 0.86);
+  const dark = std(0x141518, 0.75);
+  const lamps = lampMat();
+  const zF = s.posts[0];
+  const zR = rwAt(s, s.belt) + 0.42;
+  const halfIn = cabinHalf(s, s.belt) - 0.06;
+  for (const x of [-0.42, 0.42]) {
+    p.add(seat, new THREE.BoxGeometry(0.5, 0.62, 0.12), x, s.belt + 0.08, zF - 0.06, -0.16);
+    p.add(seat, new THREE.BoxGeometry(0.27, 0.18, 0.1), x, s.belt + 0.48, zF - 0.14);
+    if (brand === 'waymo') p.raw(lamps, aquad(V(x, s.belt + 0.26, zF - 0.135), ...BACK(0.13, 0.075), R.screen));
+  }
+  p.add(seat, new THREE.BoxGeometry(halfIn * 2 - 0.12, 0.56, 0.13), 0, s.belt + 0.05, zR, -0.2);
+  for (const x of [-0.45, 0.45]) p.add(seat, new THREE.BoxGeometry(0.26, 0.17, 0.1), x, s.belt + 0.42, zR - 0.08);
+  const zd = wsAt(s, s.belt) - 0.2;
+  p.add(dark, new THREE.BoxGeometry(halfIn * 2, 0.14, 0.4), 0, s.belt + 0.05, zd);
+  p.raw(lamps, aquad(V(0, s.belt + 0.17, zd - 0.205), ...BACK(0.15, 0.075), R.screenMap));
+  p.add(dark, new THREE.TorusGeometry(0.17, 0.026, 6, 14), 0.42, s.belt + 0.22, zd - 0.32, 0.38);
+  p.add(dark, new THREE.CylinderGeometry(0.03, 0.03, 0.3, 6), 0.42, s.belt + 0.16, zd - 0.17, 1.2);
+  return V(-0.42, s.belt - 0.14, (zF + zR) / 2 - 0.04);
+}
+
+/** Waymo Driver hardware: roof hat + camera ring (the lidar on top spins separately), corner pods, nose and tail units, door wordmarks. */
+function waymoKit(p: Parts, s: Spec, paint: THREE.Material): { lidar: THREE.BufferGeometry; led: THREE.BufferGeometry; lidarAt: THREE.Vector3 } {
+  const trim = std(0x0d0f12, 0.22, 0.2); // glossy black sensor glass
+  const lamps = lampMat();
+  const fz = s.L / 2;
+  const rz = -s.L / 2;
+  const hw = s.W / 2;
+  const zc = lerp(rwAt(s, s.roof), wsAt(s, s.roof), 0.62);
+  const y0 = s.roof;
+  p.add(paint, new RoundedBoxGeometry(0.8, 0.1, 0.92, 2, 0.04), 0, y0 + 0.05, zc);
+  p.add(trim, new THREE.CylinderGeometry(0.31, 0.34, 0.18, 20), 0, y0 + 0.19, zc);
+  p.add(paint, new THREE.CylinderGeometry(0.3, 0.31, 0.04, 20), 0, y0 + 0.3, zc);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) p.add(trim, new RoundedBoxGeometry(0.1, 0.07, 0.1, 1, 0.02), sx * 0.36, y0 + 0.1, zc + sz * 0.4);
+  // the dome's LED panel when idle (a dim W); the rider's initials sit just outside it on their own mesh
+  for (const f of [1, -1]) p.raw(lamps, aquad(V(0, y0 + 0.19, zc + f * 0.338), ...(f > 0 ? FRONT(0.13, 0.05) : BACK(0.13, 0.05)), R.domeIdle));
+  const ledParts: THREE.BufferGeometry[] = [];
+  for (const f of [1, -1]) ledParts.push(aquad(V(0, y0 + 0.19, zc + f * 0.343), ...(f > 0 ? FRONT(0.13, 0.05) : BACK(0.13, 0.05)), R.lou));
+  // perimeter pods on the front fenders and rear quarters, the nose unit, the tail unit
+  for (const side of [-1, 1]) {
+    p.add(trim, new RoundedBoxGeometry(0.12, 0.15, 0.17, 1, 0.045), side * (hw + 0.02), s.belt + 0.07, Math.min(s.ws0 + 0.3, fz - 0.45));
+    p.add(trim, new RoundedBoxGeometry(0.1, 0.12, 0.14, 1, 0.04), side * (hw + 0.01), s.deck - 0.04, rz + 0.45);
+    p.raw(decalMat(), aquad(V(side * (hw + 0.009), s.belt - 0.27, (s.ws0 - 0.12 + s.posts[0]) / 2), ...SIDE(side, 0.3, 0.06), R.waymo));
+  }
+  p.add(trim, new RoundedBoxGeometry(0.28, 0.1, 0.07, 1, 0.02), 0, s.clear + 0.32, fz + 0.05);
+  p.add(trim, new RoundedBoxGeometry(0.26, 0.09, 0.06, 1, 0.02), 0, s.deck - 0.07, rz - 0.04);
+  // spinning lidar: dark drum, three bright window strips (so the spin reads), white cap
+  const parts: THREE.BufferGeometry[] = [colored(new THREE.CylinderGeometry(0.2, 0.21, 0.2, 18), 0x1a1d22)];
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const st = new THREE.BoxGeometry(0.06, 0.15, 0.02);
+    st.rotateY(a);
+    st.translate(Math.sin(a) * 0.205, 0, Math.cos(a) * 0.205);
+    parts.push(colored(st, i === 0 ? 0x7ff3e0 : 0xd4dde6));
+  }
+  const cap = new THREE.SphereGeometry(0.2, 18, 5, 0, Math.PI * 2, 0, Math.PI / 2);
+  cap.scale(1, 0.42, 1);
+  cap.translate(0, 0.1, 0);
+  parts.push(colored(cap, 0xeef0f2));
+  return { lidar: mergeGeometries(parts, false)!, led: mergeGeometries(ledParts.map(norm), false)!, lidarAt: V(0, y0 + 0.42, zc) };
+}
+
+/** Rideshare trade dress in the windscreen and rear window, lower passenger side (as Nevada asks). */
+function tradeDress(p: Parts, s: Spec, brand: 'uber' | 'lyft'): void {
+  const lamps = lampMat();
+  const r = brand === 'uber' ? R.uber : R.lyft;
+  const y = s.belt + 0.14;
+  const upF = V(0, s.roof - s.belt, s.ws1 - s.ws0).normalize();
+  const nF = new THREE.Vector3().crossVectors(V(1, 0, 0), upF).normalize();
+  p.raw(lamps, aquad(V(-(cabinHalf(s, y) - 0.24), y, wsAt(s, y)).addScaledVector(nF, 0.016), V(0.075, 0, 0), upF.clone().multiplyScalar(0.05), r));
+  const upR = V(0, s.roof - s.belt, s.rw1 - s.rw0).normalize();
+  const nR = new THREE.Vector3().crossVectors(V(-1, 0, 0), upR).normalize();
+  p.raw(lamps, aquad(V(-(cabinHalf(s, y) - 0.26), y, rwAt(s, y)).addScaledVector(nR, 0.016), V(-0.075, 0, 0), upR.clone().multiplyScalar(0.05), r));
+}
+
+/** Amber flashers at the four corners (their own mesh: shown only while the car waits with hazards on). */
+function hazardGeo(s: Spec): THREE.BufferGeometry {
+  const fz = s.L / 2;
+  const rz = -s.L / 2;
+  const hw = s.W / 2;
+  const q: THREE.BufferGeometry[] = [];
+  for (const side of [-1, 1]) {
+    q.push(aquad(V(side * (hw - 0.3), s.nose - 0.15, fz + 0.026), ...FRONT(0.13, 0.045), R.amber));
+    q.push(aquad(V(side * (hw + 0.008), s.nose - 0.17, fz - 0.24), ...SIDE(side, 0.08, 0.04), R.amber));
+    q.push(aquad(V(side * (hw - 0.27), s.deck - 0.16, rz - 0.04), ...BACK(0.15, 0.05), R.amber));
+    q.push(aquad(V(side * (hw + 0.008), s.deck - 0.16, rz + 0.24), ...SIDE(side, 0.08, 0.05), R.amber));
+  }
+  return mergeGeometries(q, false)!;
+}
+
+export type RideModel = 'ipace' | 'ojai' | 'sedan' | 'suv';
+export type RideBrand = 'waymo' | 'uber' | 'lyft';
+interface RideGeo {
+  lists: Array<[THREE.Material, THREE.BufferGeometry]>;
+  lidar: THREE.BufferGeometry | null;
+  led: THREE.BufferGeometry | null;
+  lidarAt: THREE.Vector3;
+  hazard: THREE.BufferGeometry;
+  seat: THREE.Vector3;
+}
+const rideGeoCache = new Map<string, RideGeo>();
+function rideGeo(model: RideModel, brand: RideBrand): RideGeo {
+  const key = `${model}|${brand}`;
+  const hit = rideGeoCache.get(key);
+  if (hit) return hit;
+  const s = SPECS[model];
+  const p = buildBody(s, model, true);
+  const seat = cabinInterior(p, s, brand);
+  let kit: ReturnType<typeof waymoKit> | null = null;
+  if (brand === 'waymo') kit = waymoKit(p, s, paintMat(0xffffff));
+  else tradeDress(p, s, brand);
+  if (model === 'suv') {
+    // roof rails like the traffic SUV
+    for (const side of [-1, 1]) p.add(TRIM(), new RoundedBoxGeometry(0.06, 0.06, 2.6, 1, 0.025), side * (cabinHalf(s, s.roof) - 0.12), s.roof + 0.05, -0.85);
+  }
+  const geo: RideGeo = { lists: p.merged(), lidar: kit?.lidar ?? null, led: kit?.led ?? null, lidarAt: kit?.lidarAt ?? V(0, 0, 0), hazard: hazardGeo(s), seat };
+  rideGeoCache.set(key, geo);
+  return geo;
+}
+
+let lidarMat: THREE.MeshStandardMaterial | null = null;
+
+export interface RideshareCarBuild {
+  group: THREE.Group;
+  length: number;
+  /** Spinning roof lidar (Waymo only); rotate it about y. */
+  lidar: THREE.Mesh | null;
+  /** Corner flashers, hidden until the car pulls over. */
+  hazard: THREE.Mesh;
+  /** The dome LED showing the rider's initials (Waymo only), hidden until it's Lou's car. */
+  led: THREE.Mesh | null;
+  /** Where a back-seat rider sits (car space, rear right). */
+  seat: THREE.Vector3;
+}
+
+/**
+ * A Waymo (I-PACE or Ojai, sensors and all, nobody at the wheel) or an Uber / Lyft (ordinary sedan or SUV,
+ * trade dress in the glass, a driver at the wheel), with an open cabin you can see into. Faces +z.
+ */
+export function buildRideshareCar(model: RideModel, brand: RideBrand, color: number, driver?: { skin: number; shirt: number; hair: number }): RideshareCarBuild {
+  const s = SPECS[model];
+  const geo = rideGeo(model, brand);
+  const group = new THREE.Group();
+  const placeholder = paintMat(0xffffff);
+  addMeshes(group, geo.lists.map(([m, g]) => [m === placeholder ? paintMat(color) : m, g]));
+  if (driver) {
+    const d = new Parts();
+    const z = s.posts[0] + 0.12;
+    const shirt = std(driver.shirt, 0.85);
+    d.add(shirt, new RoundedBoxGeometry(0.4, 0.5, 0.24, 1, 0.06), 0.42, s.belt + 0.14, z);
+    d.add(std(driver.skin, 0.7), new THREE.SphereGeometry(0.105, 10, 8), 0.42, s.belt + 0.55, z + 0.02);
+    d.add(std(driver.hair, 0.9), new THREE.SphereGeometry(0.112, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), 0.42, s.belt + 0.57, z);
+    for (const sx of [-1, 1]) d.add(shirt, new THREE.BoxGeometry(0.08, 0.08, 0.34), 0.42 + sx * 0.17, s.belt + 0.22, z + 0.2, 0.5);
+    addMeshes(group, d.merged());
+  }
+  let lidar: THREE.Mesh | null = null;
+  let led: THREE.Mesh | null = null;
+  if (geo.lidar) {
+    lidarMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.28, metalness: 0.35 });
+    lidar = new THREE.Mesh(geo.lidar, lidarMat);
+    lidar.position.copy(geo.lidarAt);
+    lidar.castShadow = true;
+    lidar.userData.keep = true;
+    group.add(lidar);
+  }
+  if (geo.led) {
+    led = new THREE.Mesh(geo.led, lampMat());
+    led.userData.keep = true;
+    led.visible = false;
+    group.add(led);
+  }
+  const hazard = new THREE.Mesh(geo.hazard, lampMat());
+  hazard.userData.keep = true;
+  hazard.visible = false;
+  group.add(hazard);
+  return { group, length: s.L, lidar, hazard, led, seat: geo.seat.clone() };
+}
+
 const carGeoCache = new Map<string, CarGeo>();
 
-function geoFor(kind: CarKind | 'van' | 'cop'): CarGeo {
+function geoFor(kind: BodyKind): CarGeo {
   const cached = carGeoCache.get(kind);
   if (cached) return cached;
   const s = SPECS[kind];
@@ -613,7 +934,7 @@ function geoFor(kind: CarKind | 'van' | 'cop'): CarGeo {
   return geo;
 }
 
-function assemble(kind: CarKind | 'van' | 'cop', color: number, color2?: number): THREE.Group {
+function assemble(kind: BodyKind, color: number, color2?: number): THREE.Group {
   const g = geoFor(kind);
   const group = new THREE.Group();
   const list: Array<[THREE.Material, THREE.BufferGeometry]> = [

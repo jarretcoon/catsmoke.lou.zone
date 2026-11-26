@@ -130,7 +130,7 @@ const FLAMINGO_CYCLE = 34;
 const CROSSWALK_CYCLE = 30;
 
 /** Las Vegas Blvd phase at the Flamingo intersection (Flamingo Rd gets the opposite). */
-function flamingoPhase(t: number): { ns: Phase; ew: Phase } {
+export function flamingoPhase(t: number): { ns: Phase; ew: Phase } {
   const c = t % FLAMINGO_CYCLE;
   if (c < 17) return { ns: 'go', ew: 'stop' };
   if (c < 20) return { ns: 'yellow', ew: 'stop' };
@@ -138,13 +138,13 @@ function flamingoPhase(t: number): { ns: Phase; ew: Phase } {
   return { ns: 'stop', ew: 'yellow' };
 }
 /** Tropicana runs the same plan, half a cycle out of step with Flamingo. */
-function tropicanaPhase(t: number): { ns: Phase; ew: Phase } {
+export function tropicanaPhase(t: number): { ns: Phase; ew: Phase } {
   return flamingoPhase(t + FLAMINGO_CYCLE / 2);
 }
 function crossPhase(z: number, t: number): { ns: Phase; ew: Phase } {
   return Math.abs(z - STRIP.tropicanaZ) < 40 ? tropicanaPhase(t) : flamingoPhase(t);
 }
-function crosswalkPhase(t: number, offset: number): Phase {
+export function crosswalkPhase(t: number, offset: number): Phase {
   const c = (t + offset) % CROSSWALK_CYCLE;
   if (c < 19) return 'go';
   if (c < 22) return 'yellow';
