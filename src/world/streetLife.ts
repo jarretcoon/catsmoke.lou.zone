@@ -389,6 +389,8 @@ function buildSidewalkTrade(b: WorldBuilder, R: () => number): void {
     ['statue', -16.2, 330],
     ['robot', 16.2, 450 - 30],
     ['statue', -16.2, -150],
+    ['robot', -16, 241], // costumed characters work the Crystals / CityCenter frontage
+    ['statue', 16.2, 66], // a gilded living statue by the Eiffel legs at Paris
   ];
   for (const [kind, x, z] of perf) {
     const side = Math.sign(x);
