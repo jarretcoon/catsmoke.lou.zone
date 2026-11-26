@@ -116,9 +116,9 @@ try {
   // ---------------------------------------------------------------- 3. postcards
   for (const v of views) {
     const started = Date.now();
+    // [G] and the movement keys only work once the game has started: skip the intro comic first if it's still up.
+    if ((v.ride || v.keys) && (await page.evaluate(() => document.querySelector('.intro')?.hidden === false))) await page.keyboard.press('Escape');
     if (v.ride) {
-      // [G] only boards once the game has started: skip the intro comic first if it's still up.
-      if (await page.evaluate(() => document.querySelector('.intro')?.hidden === false)) await page.keyboard.press('Escape');
       // Walk up to the ride (first whose id starts with v.ride) and press [G] like a player would.
       await page.evaluate((v) => {
         const g = window.__game;
@@ -138,10 +138,16 @@ try {
       if (v.airT !== undefined && window.__airport) window.__airport.t = v.airT;
       if (v.tp && !v.ride) g.tp(v.tp[0], v.tp[1], v.tp[2]);
       if (v.cam) g.cam(v.cam[0], v.cam[1], v.cam[2]);
+      for (const k of v.keys ?? []) g.keys.add(k); // Lou on the move: held through the settle and the shot
       g.advance(v.settle ?? 2.5); // let the camera ease in, lazy interiors build and indoor light adapt
+      if (v.keys) {
+        const p = g.catHolder.position;
+        g.tp(p.x, p.y, p.z); // the follow camera trails a running cat: frame him again
+      }
       g.bench(1); // first frame after a move compiles shaders
       const b = g.bench(2);
       const shot = g.snap(0.82);
+      if (v.keys) g.keys.clear();
       const img = new Image();
       img.src = shot;
       await img.decode();

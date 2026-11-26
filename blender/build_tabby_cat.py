@@ -9,7 +9,7 @@ blender/preview.png.
 
 Game contract kept from the first model (src/ relies on it):
   bones Root Spine Neck Head Tail1-3 Leg_FL/FR/BL/BR (extra bones are children of these),
-  actions Idle Walk Puff Beg Steal VapeRip (+ Run Jump Pounce Sit Eat Drive Flop Dance),
+  actions Idle Walk Puff Beg Steal VapeRip (+ Run Jump Pounce Sit Eat Drive Flop Dance Trot),
   meshes named Cig* / Vape*, material CigEmber, empties CigTip / VapeTip on the Head bone,
   cat faces -Y (glTF +Z), feet at z=0, head centre (0,-0.262,0.542), eyes (+-0.053,-0.352,0.556),
   collar ring z 0.415 around y -0.218 (r 0.084), tag (0,-0.306,0.382).
@@ -760,7 +760,8 @@ def paint_lou(P, N, AO, M, roots):
         return 1.0 - sstep(hw - soft, hw + soft, dph)
 
     # ---- ground: warm brown-gold body, greyer head (and a greyer tail), darker down the spine
-    gold = lerp(col("#3b2d1c"), col("#d6b985"), tick)
+    # (toned 11/26 after Jarret's look: greyer warm brown with beige tips, not a yellow "leopard" ground)
+    gold = lerp(col("#372d23"), col("#c8b797"), tick)
     grey = lerp(col("#2f2a23"), col("#bcb19c"), tick)
     grey_amt = np.clip(w_head + 0.45 * w["neck"] + 0.35 * w["tail"], 0.0, 1.0)
     ground = lerp(gold, grey, grey_amt)
@@ -773,11 +774,12 @@ def paint_lou(P, N, AO, M, roots):
     per_u, per_v = 0.043, 0.036
     cu = (y + 0.022 * theta ** 1.5 + 0.011 * warpA + 0.004 * warpB) / per_u + np.where(x >= 0, 0.0, 0.5)
     cv = (theta * 0.14 + 0.005 * warpB) / per_v
-    size = 1.18 - 0.50 * sstep(1.2, 2.2, theta)
+    size = 1.04 - 0.46 * sstep(1.2, 2.2, theta)
     spots = tabby_spots(cu, cv, per_u, per_v, side_i, 61, 0.0088, 0.0140, 0.35, 0.78, size, 0.24 * edge + 0.10 * warpB)
     spots *= 1.0 - sstep(2.00, 2.35, theta + 0.10 * warpA)
     spine = (1.0 - sstep(0.13, 0.30, theta + 0.07 * warpA + 0.05 * edge)) * sstep(-0.215, -0.17, y) * sstep(0.30, 0.25, y)
-    dark += w["torso"] * np.maximum(spots, spine * 0.85)
+    # Lou's flank spots are soft dark-brown smudges in the ticking, not crisp black rosettes: blend them at ~2/3
+    dark += w["torso"] * np.maximum(spots * 0.66, spine * 0.80)
     belly = sstep(2.15, 2.60, theta + 0.12 * warpA) * w["torso"]
     wp = np.sqrt((x / 0.088) ** 2 + ((y - 0.118) / 0.125) ** 2) + 0.12 * warpA + 0.05 * warpB
     belly_white = (1.0 - sstep(0.86, 1.10, wp)) * sstep(-0.10, -0.50, N[:, 2]) * (z < 0.25)
@@ -1783,7 +1785,9 @@ class Animator:
         arm.animation_data.action = act
         prev = {}
         worst = {}
-        for i in range(nframes + 1):
+        # frame 1 is keyed twice: the very first insert into a new action re-evaluates the armature and keys
+        # part of the rest pose instead (every clip used to start on a half-rest frame, a pop at each loop)
+        for i in [0] + list(range(nframes + 1)):
             t = i / nframes
             P = fn(t)
             self.diag = {}
@@ -1840,6 +1844,159 @@ REAR_CONTACTS = [("Root", (0.0, 0.05, 0.130)), ("Root", (0.0, 0.12, 0.136)), ("R
                  ("Root", (0.0, 0.275, 0.235)), ("Root", (0.0, 0.29, 0.29))]
 
 
+# ---------------- Gaits: Walk, Trot and Run share one engine (gait_feet / gait_trunk / gait_shoulders / gait_tail).
+# Reference: Muybridge's cat plates (Animal Locomotion, 1887: 716 walking, 718 trotting, 720 galloping) and
+# cat gait studies (Galvez-Lopez et al. 2011, Zoology 114): a cat walks in LATERAL sequence (left hind,
+# left fore, right hind, right fore; the fore lands ~25-30% of a cycle after the hind on its side) with each
+# paw down ~65% of the cycle, the paws set close to the midline, the head carried low and steady while the
+# shoulder blades roll up over the back in turn; it trots on diagonal pairs with a short float between them,
+# and gallops in a rotary sequence (hind left, hind right, fore right, fore left) with the back curling to
+# bring the hind paws far forward, then stretching out, and a flight after each pair.
+#
+# Each paw's stance is a straight line along the body at a constant rate, so a planted paw moves exactly
+# D metres per cycle (model scale 1) through the whole stance, including the heel/wrist roll at toe-off,
+# which pivots on the toe pads. src/catMotion.ts sets each clip's cadence from its D: keep them in sync.
+#
+# per paw: touchdown phase, duty (share of the cycle the paw is down), stance centre (y from the rest sole,
+# + is backward), track half-width (x), swing lift, heel/wrist roll at toe-off, swing tuck, reach before
+# touchdown (paw pitch, degrees) and over: how far the swing reaches past the touchdown spot before setting
+# the paw back on it (share of the sweep, default 0.10)
+GAIT_WALK = dict(D=0.30, feet={
+    "BL": dict(td=0.00, duty=0.66, c=0.000, x=0.070, lift=0.034, heel=34.0, tuck=48.0, reach=-6.0),
+    "FL": dict(td=0.27, duty=0.63, c=0.034, x=0.063, lift=0.044, heel=30.0, tuck=78.0, reach=-10.0),
+    "BR": dict(td=0.50, duty=0.66, c=0.000, x=0.070, lift=0.034, heel=34.0, tuck=48.0, reach=-6.0),
+    "FR": dict(td=0.77, duty=0.63, c=0.034, x=0.063, lift=0.044, heel=30.0, tuck=78.0, reach=-10.0),
+})
+GAIT_TROT = dict(D=0.98, feet={
+    "BL": dict(td=0.00, duty=0.27, c=-0.010, x=0.072, lift=0.050, heel=38.0, tuck=40.0, reach=-8.0),
+    "FR": dict(td=0.02, duty=0.24, c=0.052, x=0.066, lift=0.058, heel=40.0, tuck=100.0, reach=-12.0, over=0.04),
+    "BR": dict(td=0.50, duty=0.27, c=-0.010, x=0.072, lift=0.050, heel=38.0, tuck=40.0, reach=-8.0),
+    "FL": dict(td=0.52, duty=0.24, c=0.052, x=0.066, lift=0.058, heel=40.0, tuck=100.0, reach=-12.0, over=0.04),
+})
+GAIT_RUN = dict(D=1.65, feet={
+    "BL": dict(td=0.00, duty=0.18, c=-0.030, x=0.062, lift=0.080, heel=40.0, tuck=36.0, reach=-6.0),
+    "BR": dict(td=0.08, duty=0.18, c=-0.030, x=0.062, lift=0.080, heel=40.0, tuck=36.0, reach=-6.0),
+    "FR": dict(td=0.40, duty=0.13, c=0.045, x=0.060, lift=0.080, heel=46.0, tuck=112.0, reach=-20.0, over=0.03),
+    "FL": dict(td=0.48, duty=0.13, c=0.045, x=0.060, lift=0.080, heel=46.0, tuck=112.0, reach=-20.0, over=0.03),
+})
+# toe pads relative to the sole contact (the paw rolls over them as the heel / wrist lifts)
+GAIT_TOE = {"FL": Vector((0.0, -0.022, 0.0)), "FR": Vector((0.0, -0.022, 0.0)),
+            "BL": Vector((0.0, -0.023, 0.0)), "BR": Vector((0.0, -0.023, 0.0))}
+
+
+def min_jerk(s):
+    s = min(1.0, max(0.0, s))
+    return s * s * s * (10.0 - 15.0 * s + 6.0 * s * s)
+
+
+def gait_feet(P, t, gait, rest_sole):
+    """Place the four paws for gait phase t. Returns {key: (stance 0..1 or None, slide)}: how far through its
+    stance each paw is, and where the paw sits along its sweep (-0.5 forward .. +0.5 back), for the
+    shoulder blades."""
+    D = gait["D"]
+    out = {}
+    for key, g in gait["feet"].items():
+        base = rest_sole[key]
+        side = 1.0 if key[1] == "L" else -1.0
+        front = key[0] == "F"
+        duty = g["duty"]
+        S = D * duty
+        toe = GAIT_TOE[key]
+        x = side * g["x"]
+        y0 = base.y + toe.y + g["c"]  # toe pads at mid-stance
+        ph = (t - g["td"]) % 1.0
+        if ph < duty:
+            s = ph / duty
+            y = y0 + S * (s - 0.5)
+            z = 0.0
+            pitch = g["heel"] * smooth01(0.52, 1.0, s) ** 1.4
+            out[key] = (s, s - 0.5)
+        else:
+            s = (ph - duty) / (1.0 - duty)
+            over = g.get("over", 0.10) * S
+            e = min_jerk(s / 0.84) * (1.0 + over / S) - (over / S) * smooth01(0.84, 1.0, s)
+            y = (y0 + S * 0.5) - S * e
+            z = g["lift"] * math.sin(math.pi * (s ** (0.78 if front else 0.9)))
+            pitch = keyed(s, [(0.0, g["heel"]), (0.34 if front else 0.4, g["tuck"]), (0.80, g["reach"]), (1.0, 0.0)])
+            x += side * 0.010 * math.sin(math.pi * s)
+            out[key] = (None, 0.5 - e)
+        Rp = Matrix.Rotation(math.radians(pitch), 3, "X")
+        tp = Vector((x, y, z))
+        P.feet[key] = dict(sole=tp + Rp @ (-toe), pitch=pitch)
+    return out
+
+
+GAIT_ROOT = Vector((0.0, 0.0, 0.28))      # Root bone head (the trunk's pivot)
+GAIT_HIP = Vector((0.0, 0.18, 0.29))      # between the hip joints
+GAIT_SPINE = Vector((0.0, 0.14, 0.30))    # Spine bone head (the back bends here)
+GAIT_SHOULDER = Vector((0.0, -0.158, 0.29))
+GAIT_NECK = Vector((0.0, -0.18, 0.33))
+GAIT_HEADJ = Vector((0.0, -0.24, 0.48))
+
+
+def gait_quat(pitch=0.0, roll=0.0, yaw=0.0):
+    return qcompose([(AXES["x"], pitch), (AXES["y"], roll), (AXES["z"], yaw)])
+
+
+def gait_rot(P, bone, q):
+    axis, ang = q.to_axis_angle()
+    if abs(ang) > 1e-7:
+        P.rv(bone, axis, math.degrees(ang))
+
+
+def gait_trunk(P, hips=(0.0, 0.0, 0.0), chest=(0.0, 0.0, 0.0), root_rot=(0.0, 0.0, 0.0), chest_rot=(0.0, 0.0, 0.0),
+               head_keep=0.85, head_down=0.0, head_bob=0.35, chest_mean=0.0):
+    """Body for a gait frame, solved so the joints land where they're asked to.
+    hips / chest = (side, fore-aft, height) offsets of the hip joints and the shoulders from rest (+ fore-aft is
+    backward); root_rot / chest_rot = (pitch, roll, yaw) of the pelvis and the chest in degrees, both in the
+    world (pitch + is nose down, roll + is left side down, yaw + is nose to the left). The chest gets its height
+    by bending the back (Spine pivots at its rear end) and any fore-aft offset by sliding along it. The neck and
+    head take back head_keep of the chest's turn, so the head stays level and looking ahead, and the neck soaks
+    up all but head_bob of the chest's bounce about chest_mean (cats carry their heads steadily)."""
+    R = gait_quat(*root_rot)
+    t = GAIT_HIP + Vector(hips) - GAIT_ROOT - R @ (GAIT_HIP - GAIT_ROOT)
+    P.root(t=t, x=root_rot[0], y=root_rot[1], z=root_rot[2])
+    sp = GAIT_ROOT + t + R @ (GAIT_SPINE - GAIT_ROOT)
+    C = gait_quat(*chest_rot)
+    want = GAIT_SHOULDER + Vector(chest)
+    dz = want.z - (sp + C @ (GAIT_SHOULDER - GAIT_SPINE)).z
+    C = Quaternion(AXES["x"], -math.asin(max(-0.5, min(0.5, dz / 0.30)))) @ C
+    slide = want - (sp + C @ (GAIT_SHOULDER - GAIT_SPINE))
+    gait_rot(P, "Spine", R.inverted() @ C)
+    if slide.length > 1e-6:
+        P.locs["Spine"] = tuple(R.inverted() @ slide)
+    down = Quaternion(AXES["x"], math.radians(head_down))
+    H = down @ Quaternion().slerp(C, 1.0 - head_keep)
+    N = C.slerp(H, 0.55)
+    gait_rot(P, "Neck", C.inverted() @ N)
+    gait_rot(P, "Head", N.inverted() @ H)
+    # hold the head's height: where it is now vs. where a still trunk would carry it
+    nb = sp + slide + C @ (GAIT_NECK - GAIT_SPINE)
+    hc = nb + N @ (GAIT_HEADJ - GAIT_NECK) + H @ (HEAD_C - GAIT_HEADJ)
+    still = GAIT_NECK + down @ (HEAD_C - GAIT_NECK)
+    want_z = still.z + chest_mean + head_bob * (chest[2] - chest_mean)
+    lift = max(-0.02, min(0.02, want_z - hc.z))
+    P.locs["Neck"] = tuple(C.inverted() @ Vector((0.0, 0.0, lift)))
+
+
+def gait_shoulders(P, feet, lift, slide):
+    """The shoulder blades: each one rides up over the back while its paw is down (the trunk hangs between
+    them) and slides with the leg, forward as the paw reaches and back as it pushes off."""
+    for key in ("FL", "FR"):
+        s, pos = feet[key]
+        up = lift * math.sin(math.pi * s) if s is not None else 0.0
+        P.locs[f"Leg_{key}"] = (0.0, slide * 2.0 * pos, up)
+
+
+def gait_tail(P, t, carry, sway, bounce, lag=0.85, sway_phase=0.0, bounce_phase=0.0):
+    """Tail carried in a loose S (carry: pitch of Tail1..4, - is down / back), swinging side to side once a
+    stride and bouncing twice, each joint a little later than the one before."""
+    for i, b in enumerate(("Tail1", "Tail2", "Tail3", "Tail4")):
+        a = TAU * t - lag * i
+        P.r(b, x=carry[i] + bounce * (0.6 + 0.4 * i) * SIN(2.0 * (a - bounce_phase)),
+            z=sway * (0.55 + 0.3 * i) * SIN(a - sway_phase))
+
+
 def author_animations(arm):
     an = Animator(arm)
     arm.animation_data_create()
@@ -1874,40 +2031,51 @@ def author_animations(arm):
 
     an.make_action("Idle", 60, idle)
 
-    # ---------------- Walk (1.0 s): lateral-sequence waddle, planted feet via IK
-    def gait(P, t, offs, duty, stride, lift, fpk, hpk):
-        for key, off in offs.items():
-            ph = (t + off) % 1.0
-            base = rest_sole[key]
-            front = key[0] == "F"
-            if ph < duty:
-                s = ph / duty
-                yy = base.y + stride * (s - 0.5)
-                zz = 0.0
-                pitch = 22.0 * smooth01(0.70, 1.0, s)
-            else:
-                s = (ph - duty) / (1.0 - duty)
-                e = s * s * (3 - 2 * s)
-                yy = base.y + stride * (0.5 - e)
-                zz = lift * SIN(math.pi * s)
-                pk = fpk if front else hpk
-                pitch = 22.0 * (1 - s) + pk * SIN(math.pi * s)
-            P.feet[key] = dict(sole=Vector((base.x, yy, zz)), pitch=pitch)
-
+    # ---------------- Walk (1 cycle = 32 keys; cadence set by the game): lateral sequence, head low and level
     def walk(t):
         P = Pose()
-        P.root(t=(0.004 * SIN(TAU * t), 0.0, -0.014 + 0.005 * math.cos(2 * TAU * t)), y=3.0 * SIN(TAU * t), z=1.5 * SIN(TAU * t))
-        P.r("Spine", z=-3.0 * SIN(TAU * t), x=1.0 * math.cos(2 * TAU * t))
-        P.r("Neck", x=-2.0 * math.cos(2 * TAU * t), z=-2.0 * SIN(TAU * t))
-        P.r("Head", z=-2.0 * SIN(TAU * t))
-        P.locs["Belly"] = (0.004 * SIN(TAU * t - 0.6), 0, 0.005 * SIN(2 * TAU * t - 1.0))
-        gait(P, t, {"BL": 0.0, "FL": 0.25, "BR": 0.5, "FR": 0.75}, 0.62, 0.11, 0.035, 75.0, 30.0)
-        tail_sway(P, t, 12.0, base=8.0)
-        P.r("Ear_L", x=-3 * SIN(2 * TAU * t))
-        P.r("Ear_R", x=-3 * SIN(2 * TAU * t))
+        c2 = math.cos
+        # hips ride highest over a hind paw at mid-stance (0.33 / 0.83), the shoulders over a fore (0.58 / 0.08)
+        hz = -0.012 + 0.0035 * c2(2 * TAU * (t - 0.33))
+        cz = -0.014 + 0.0040 * c2(2 * TAU * (t - 0.585))
+        # pelvis rolls up on the standing hind leg's side and swings the stepping hip forward; the chest does
+        # the same a quarter-cycle later, so the back bends gently from side to side
+        gait_trunk(P, hips=(0.0, 0.0, hz), chest=(0.0, 0.0, cz),
+                   root_rot=(0.6 * c2(2 * TAU * (t - 0.08)), -2.0 * c2(TAU * (t - 0.33)), 2.4 * c2(TAU * (t - 0.33))),
+                   chest_rot=(0.0, -2.6 * c2(TAU * (t - 0.585)), -2.2 * c2(TAU * (t - 0.085))),
+                   head_keep=0.85, head_down=7.0, head_bob=0.35, chest_mean=-0.014)
+        feet = gait_feet(P, t, GAIT_WALK, rest_sole)
+        gait_shoulders(P, feet, lift=0.005, slide=0.012)
+        # the belly swings after the hips and bounces after each step (he's a solid boy)
+        P.locs["Belly"] = (0.005 * SIN(TAU * t - 0.33 * TAU - 1.1), 0.0, 0.003 * c2(2 * TAU * (t - 0.33) - 1.2))
+        gait_tail(P, t, (-44.0, -14.0, 22.0, 28.0), sway=7.0, bounce=1.6, sway_phase=0.33 * TAU + 0.6)
+        P.r("Ear_L", x=-2 * SIN(2 * TAU * t))
+        P.r("Ear_R", x=-2 * SIN(2 * TAU * t))
         return P
 
-    an.make_action("Walk", 24, walk)
+    an.make_action("Walk", 32, walk)
+
+    # ---------------- Trot (1 cycle = 32 keys): diagonal pairs with a short float between them
+    def trot(t):
+        P = Pose()
+        c2 = math.cos
+        # lowest as each diagonal pair takes the weight (0.13 / 0.63), up in the float between
+        hz = -0.016 - 0.0055 * c2(2 * TAU * (t - 0.135))
+        cz = -0.018 - 0.0060 * c2(2 * TAU * (t - 0.14))
+        gait_trunk(P, hips=(0.0, 0.0, hz), chest=(0.0, 0.0, cz),
+                   root_rot=(1.0 * c2(2 * TAU * (t - 0.05)), -1.2 * c2(TAU * (t - 0.13)), 2.0 * c2(TAU * (t - 0.13))),
+                   chest_rot=(0.5, 1.4 * c2(TAU * (t - 0.14)), -1.8 * c2(TAU * (t - 0.14))),
+                   head_keep=0.9, head_down=5.0, head_bob=0.3, chest_mean=-0.018)
+        feet = gait_feet(P, t, GAIT_TROT, rest_sole)
+        gait_shoulders(P, feet, lift=0.006, slide=0.022)
+        P.locs["Belly"] = (0.003 * SIN(TAU * (t - 0.13) - 1.0), 0.0, 0.005 * c2(2 * TAU * (t - 0.135) - 1.3))
+        gait_tail(P, t, (-58.0, -10.0, 18.0, 22.0), sway=4.0, bounce=3.0, sway_phase=0.13 * TAU + 0.6,
+                  bounce_phase=0.135 * TAU + 0.6)
+        P.r("Ear_L", x=-6 + 2 * SIN(2 * TAU * t), y=4)
+        P.r("Ear_R", x=-6 + 2 * SIN(2 * TAU * t), y=-4)
+        return P
+
+    an.make_action("Trot", 32, trot)
 
     # ---------------- Puff (1.5 s): savour a drag, eyes shut, then exhale skyward
     def puff(t):
@@ -2045,26 +2213,36 @@ def author_animations(arm):
 
     an.make_action("VapeRip", 48, vape)
 
-    # ---------------- Run (0.5 s): rotary gallop with spine flex/extend
+    # ---------------- Run (1 cycle = 48 keys; a fore paw is down only 13% of it): rotary gallop. The back
+    # curls to swing the hind paws far forward (gathered flight, ~0.84), then stretches out as they push
+    # (extended flight, ~0.33)
     def run(t):
         P = Pose()
-        ph = TAU * t
-        P.root(t=(0.0, 0.0, -0.042 + 0.022 * max(0.0, SIN(ph - 0.9))), x=6.0 * SIN(ph - 0.3))
-        P.r("Spine", x=10.0 * SIN(ph + 0.4))
-        P.r("Neck", x=-6.0 * SIN(ph - 0.3) - 6)
-        P.r("Head", x=-4.0 * SIN(ph + 0.4) + 4)
-        P.locs["Belly"] = (0, 0, 0.012 * SIN(ph - 1.6))
-        gait(P, t, {"BL": 0.0, "BR": 0.08, "FL": 0.46, "FR": 0.54}, 0.38, 0.21, 0.07, 95.0, 45.0)
-        P.r("Tail1", x=-55 + 6 * SIN(ph), y=6 * SIN(ph))
-        P.r("Tail2", x=-25 + 10 * SIN(ph - 0.8))
-        P.r("Tail3", x=-5 + 12 * SIN(ph - 1.6))
-        P.r("Tail4", x=10 * SIN(ph - 2.4))
+        c2 = math.cos
+        flex = c2(TAU * (t - 0.84))  # 1 = curled, -1 = stretched
+        hips_y = 0.034 * c2(TAU * (t - 0.30))  # the pelvis slides back as the back stretches
+        chest_y = 0.014 * c2(TAU * (t - 0.62))
+        # up in both flights (0.33 stretched, 0.84 curled), down as each pair takes the weight
+        hz = -0.010 + 0.016 * c2(2 * TAU * (t - 0.33))
+        cz = -0.016 + 0.015 * c2(2 * TAU * (t - 0.27))
+        # the curl is mostly in the loins: the pelvis tucks under while the chest stays nearly level
+        gait_trunk(P, hips=(0.0, hips_y, hz), chest=(0.0, chest_y, cz),
+                   root_rot=(-15.0 * flex + 1.5 * c2(TAU * (t - 0.55)), 1.5 * c2(TAU * (t - 0.12)), 1.5 * c2(TAU * (t - 0.12))),
+                   chest_rot=(4.0 * flex + 5.0 * c2(TAU * (t - 0.58)), -1.5 * c2(TAU * (t - 0.52)), -1.2 * c2(TAU * (t - 0.52))),
+                   head_keep=0.8, head_down=4.0, head_bob=0.3, chest_mean=-0.016)
+        feet = gait_feet(P, t, GAIT_RUN, rest_sole)
+        gait_shoulders(P, feet, lift=0.006, slide=0.032)
+        P.locs["Belly"] = (0.0, 0.004 * flex, 0.008 * c2(2 * TAU * (t - 0.33) - 1.4))
+        # tail streams out behind as a counterweight, rippling with the back
+        gait_tail(P, t, (-72.0, -6.0, 6.0, 10.0), sway=3.0, bounce=0.0, lag=0.9)
+        for i, b in enumerate(("Tail1", "Tail2", "Tail3", "Tail4")):
+            P.r(b, x=(5.0 + 3.0 * i) * SIN(TAU * (t - 0.84) - 0.9 * i))
         P.r("Ear_L", x=-22, y=8)
         P.r("Ear_R", x=-22, y=-8)
         P.lids(-0.15, -0.15)
         return P
 
-    an.make_action("Run", 12, run)
+    an.make_action("Run", 48, run)
 
     # ---------------- Jump (1.0 s loop): tucked mid-air pose with a little float
     def jump(t):
