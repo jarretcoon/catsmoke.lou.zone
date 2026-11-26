@@ -18,6 +18,10 @@ out.push(
       : 'Download ') +
     `${fmt(m.totalKB / 1000, 2)} MB${base ? ` (main: ${fmt(base.totalKB / 1000, 2)} MB)` : ''}. [Full run](${runUrl})`
 );
+if (m.shards?.length) {
+  out.push('');
+  out.push(`Shards: ${m.shards.map((s) => `${s.shard} ${s.wallSeconds == null ? s.result : `${fmt(s.wallSeconds / 60, 1)} min${s.result === 'passed' ? '' : ` (${s.result})`}`}`).join(' · ')}`);
+}
 out.push('');
 for (const f of m.failures) out.push(`- ❌ ${f}`);
 for (const w of m.warnings) out.push(`- ⚠️ ${w}`);

@@ -1,7 +1,7 @@
 node_modules/
 dist/
 dist-check/
-check-out/
+check-out*/
 *.blend1
 
 # Cloudflare / local secrets (never commit)
