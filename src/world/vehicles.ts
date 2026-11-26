@@ -741,9 +741,9 @@ function hazardGeo(s: Spec): THREE.BufferGeometry {
   const hw = s.W / 2;
   const q: THREE.BufferGeometry[] = [];
   for (const side of [-1, 1]) {
-    q.push(aquad(V(side * (hw - 0.3), s.nose - 0.15, fz + 0.026), ...FRONT(0.13, 0.045), R.amber));
+    q.push(aquad(V(side * (hw - 0.3), s.nose - 0.15, fz + 0.026), ...FRONT(0.18, 0.062), R.amber));
     q.push(aquad(V(side * (hw + 0.008), s.nose - 0.17, fz - 0.24), ...SIDE(side, 0.08, 0.04), R.amber));
-    q.push(aquad(V(side * (hw - 0.27), s.deck - 0.16, rz - 0.04), ...BACK(0.15, 0.05), R.amber));
+    q.push(aquad(V(side * (hw - 0.27), s.deck - 0.16, rz - 0.04), ...BACK(0.21, 0.066), R.amber));
     q.push(aquad(V(side * (hw + 0.008), s.deck - 0.16, rz + 0.24), ...SIDE(side, 0.08, 0.05), R.amber));
   }
   return mergeGeometries(q, false)!;

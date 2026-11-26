@@ -557,6 +557,11 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
         reportJob();
         return job.phase === 'waiting' ? `Your ${name} is here — hop in the back with [G].` : `Your ${name} is on the way — about ${Math.round(etaOf(job))} s.`;
       }
+      // a sign never cancels the other service's car by accident; the phone can switch
+      if (from === 'sign') {
+        const other = job.service === 'waymo' ? 'Waymo' : 'Uber';
+        return job.phase === 'waiting' ? `Your ${other} is already at the curb — one ride at a time.` : `Your ${other} is on its way (~${Math.round(etaOf(job))} s) — one ride at a time.`;
+      }
       cancel('Switched rides');
     }
     const p = lou();
@@ -917,6 +922,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
         get boardPrompt() {
           if (job && job.service === service && !job.rider && job.phase === 'arriving') return `${name} on the way — about ${Math.round(etaOf(job))} s. Wait here.`;
           if (job && job.service === service && !job.rider && job.phase === 'waiting') return `Your ${name} is at the curb — walk up to the back door.`;
+          if (job && job.service !== service && !job.rider) return `Your ${job.service === 'waymo' ? 'Waymo' : 'Uber'} is ${job.phase === 'waiting' ? 'at the curb' : 'on its way'} — one ride at a time`;
           return service === 'waymo' ? `Waymo pickup — press [G] to hail a driverless Waymo` : `RIDESHARE PICKUP (${sp.name.split(' · ')[0]}) — press [G] to hail an Uber`;
         },
         ridingPrompt: '',
@@ -926,6 +932,20 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
 
   // ---- postcard shortcuts (dev / check builds only): [G] on these spots skips the wait
   if (h.dev) {
+    // route probe for tests: every pickup zone to every stop
+    (window as unknown as { __rideshare: unknown }).__rideshare = {
+      routes: () =>
+        RIDESHARE_SPOTS.flatMap((sp) =>
+          (['waymo', 'uber'] as const).flatMap((sv) =>
+            DESTS.map((d) => {
+              const p = ridePath(spotStop(sp, sv), destStop(d));
+              return { from: sp.id, sv, to: d.name, len: p ? Math.round(p.len) : null };
+            }),
+          ),
+        ),
+      job: () => (job ? { phase: job.phase, service: job.service, d: job.d, len: job.path.len, dest: job.dest?.name ?? null } : null),
+      leaving: () => leaving.length,
+    };
     const rideAt = new THREE.Vector3(-12.6, 0.3, -40);
     world.rideables.push({
       id: 'rideshare-demo-ride',
