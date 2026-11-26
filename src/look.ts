@@ -191,7 +191,7 @@ export class EnvLighting {
  * windows, pale walls) bloom at full strength while saturated red, pink and blue neon, whose
  * luminance is low, barely glowed at all. Now a neon tube glows by how hot it is whatever its colour,
  * the hottest cores and bulbs glow most, and a wall of windows sitting under the threshold stays crisp.
- * The input is clamped so one runaway pixel can't flood the frame (or turn it black with a NaN).
+ * The input is clamped (and NaN-guarded) so a hot lamp or one runaway pixel can't flood the frame.
  */
 export function makeBloomPass(width: number, height: number): UnrealBloomPass {
   const pass = new UnrealBloomPass(new THREE.Vector2(width, height), 0.6, 0.5, 0.9);
@@ -204,7 +204,9 @@ export function makeBloomPass(width: number, height: number): UnrealBloomPass {
     void main() {
       vec3 c = texture2D(tDiffuse, vUv).rgb;
       if (any(isnan(c))) c = vec3(0.0);
-      c = clamp(c, vec3(0.0), vec3(48.0));
+      // Lamps and light boxes run 2-3x hotter than neon; past 2.2 they glow no wider, so a lamp-lit
+      // frame or panel up close can't swamp the screen while neon and bulbs keep their full halo.
+      c = clamp(c, vec3(0.0), vec3(2.2));
       float br = max(c.r, max(c.g, c.b));
       float knee = max(smoothWidth, 1e-3);
       float soft = clamp(br - luminosityThreshold + knee, 0.0, 2.0 * knee);
@@ -234,7 +236,7 @@ export function stripLook(a: AtmosphereState, out: StripLook): StripLook {
   const sunset = THREE.MathUtils.clamp(a.sunset, 0, 1);
   const night = THREE.MathUtils.clamp(a.night, 0, 1);
   out.exposure = 1.06 + night * 0.14;
-  out.bloomStrength = 0.12 + sunset * 0.15 + night * 1.0;
+  out.bloomStrength = 0.12 + sunset * 0.15 + night * 1.2;
   out.bloomThreshold = THREE.MathUtils.lerp(1.2, 0.95, Math.max(night, sunset * 0.6));
   return out;
 }
