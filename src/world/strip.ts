@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import type { Rideable } from '../rides';
 import { bakeGroup } from '../meshBake';
 import type { WorldBuilder } from './builder';
-import { makeBoulevardMaps, makeCrossStreetTexture, makeGlowTexture, makeGravelTexture, makePaverTexture, makeRoadPaintTexture, rng } from './textures';
+import { LedBoard, makeBoulevardMaps, makeCrossStreetTexture, makeGlowTexture, makeGravelTexture, makePaverTexture, makeRoadPaintTexture, rng } from './textures';
+import { viewer } from './builder';
+import { boxTruck, lampGlow, signs } from './backOfHouse';
+import { posterGeometry, POSTER_COUNT } from './streetTextures';
 import {
   ashUrn,
   basic,
@@ -298,10 +301,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       b.add(stripe);
     }
     const lamps = signalLamps();
-    const ped = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
-    b.every(() => {
-      ped.color.setHex(crosswalkPhase(clock(), cw.offset) === 'stop' ? 0xf4f4f0 : 0xff7a1a);
-    });
+    const ped = pedCountdown(b, cw.z, cw.offset, clock);
     for (const s of [-1, 1]) {
       const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.45), white, s * ((half + STRIP.medianHalf) / 2), 0.055, cw.z - s * 4.2);
       bar.rotation.x = -Math.PI / 2;
@@ -312,9 +312,12 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       b.add(sig.group, sx, 0, sz, s < 0 ? 0 : Math.PI);
       b.collider(sx - 0.25, sx + 0.25, sz - 0.25, sz + 0.25, 0, 7, true);
       signals.push({ sig, read: () => crosswalkPhase(clock(), cw.offset) });
-      // Pedestrian head: white walking figure when cars are stopped
-      b.add(mesh(new THREE.BoxGeometry(0.36, 0.36, 0.1), mat(0x1b1d22, 0.6), sx, 3.1, cw.z + s * 1.6));
-      b.add(mesh(new THREE.PlaneGeometry(0.28, 0.28), ped, sx, 3.1, cw.z + s * 1.6 + 0.06));
+      // Pedestrian head: walking person + countdown while cars are stopped, flashing hand as time runs out
+      b.add(mesh(new THREE.BoxGeometry(0.12, 0.38, 0.66), mat(0x1b1d22, 0.6), sx, 3.1, cw.z + s * 1.6));
+      const face = mesh(new THREE.PlaneGeometry(0.58, 0.29), ped, sx - s * 0.07, 3.1, cw.z + s * 1.6);
+      face.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+      b.add(face);
+      b.add(mesh(new THREE.BoxGeometry(0.14, 0.03, 0.66), mat(0x1b1d22, 0.6), sx - s * 0.12, 3.3, cw.z + s * 1.6));
     }
     b.zone(`${cw.name} Crosswalk`, -half, half, cw.z - 3, cw.z + 3);
   }
@@ -359,18 +362,30 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   }
   b.every((_dt, _t, night) => {
     glowMat.opacity = night * 0.55;
+    glowMat.visible = night > 0.03; // no additive overdraw by day
   });
   b.nightGlow(streetLampGlass, 0.2, 2.6);
 
   // --- Deuce stop shelters ---
   const shelterGlass = new THREE.MeshStandardMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.35, roughness: 0.1 });
   const shelterFrame = mat(0x2d2f36, 0.4, 0.6);
+  let adIdx = 0;
   for (const stop of deuceStops) {
     const x = stop.side * (half + 3.2);
     b.box(x + stop.side * 1.25, 0, stop.z, 0.1, 2.4, 4.6, shelterGlass, true, false);
     b.add(mesh(new THREE.BoxGeometry(2.6, 0.12, 5.0), shelterFrame, x, 2.5, stop.z));
     b.collider(x - 1.3, x + 1.3, stop.z - 2.5, stop.z + 2.5, 2.44, 2.56);
     b.add(bench(), x + stop.side * 0.6, 0, stop.z, stop.side > 0 ? -Math.PI / 2 : Math.PI / 2);
+    // Lit ad panel at the downstream end of the shelter (posters both faces)
+    const adZ = stop.z + 2.45;
+    b.add(mesh(new THREE.BoxGeometry(1.5, 2.2, 0.16), shelterFrame), x, 1.25, adZ);
+    b.add(mesh(new THREE.BoxGeometry(1.32, 2.0, 0.17), lampGlow(b), x, 1.25, adZ));
+    const pi = (adIdx++ * 3) % POSTER_COUNT;
+    for (const f of [-1, 1]) {
+      const pm = mesh(posterGeometry((pi + (f > 0 ? 0 : 1)) % POSTER_COUNT, 1.25, 1.8), signs(b), x, 1.25, adZ + f * 0.09);
+      pm.rotation.y = f > 0 ? 0 : Math.PI;
+      b.add(pm);
+    }
     const sign = neonSign('THE DEUCE', '#111111', '#ffcc33', 1.7, 0.6, stop.name, 0.08);
     b.add(sign, x - stop.side * 1.0, 3.2, stop.z - 1.4, stop.side < 0 ? Math.PI / 2 : -Math.PI / 2);
     b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.2, 6), shelterFrame, x - stop.side * 1.0, 1.6, stop.z - 1.4));
@@ -433,6 +448,37 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     c.group.position.set(STRIP.flamingoWest + 30 + i * 80, 0, z);
     c.group.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
     cars.push({ mesh: c.group, laneX: z, dir, speed: 10, cruise: 10 + i, halfLen: c.length / 2 + 0.3, axis: 'x' });
+  });
+
+  // LED billboard trucks circling the Boulevard (middle lane, one each way)
+  const adLed = new LedBoard('TONIGHT', ['MAGIC • 7 & 9 PM', 'POOL PARTY SAT', 'ALL-YOU-CAN-EAT $39', 'FIGHT NIGHT LIVE', 'LOU THE CAT • WANTED'], ['#ff2c8a', '#2de2ff', '#ffd24d', '#7aff47', '#ff7a1a'], 512, 256);
+  const adMat = new THREE.MeshBasicMaterial({ map: adLed.tex, color: 0xd8d8d8 });
+  const adTrucks: THREE.Group[] = [];
+  for (const [dir, z0] of [
+    [1, -300],
+    [-1, 380],
+  ] as Array<[1 | -1, number]>) {
+    const t = boxTruck(0x111114, 0x111114);
+    for (const sx of [-1, 1]) {
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(5.9, 2.5), adMat);
+      panel.position.set(sx * 1.28, 2.6, -0.9);
+      panel.rotation.y = sx * Math.PI / 2;
+      t.add(panel);
+    }
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 2.3), adMat);
+    back.position.set(0, 2.55, -4.08);
+    back.rotation.y = Math.PI;
+    t.add(back);
+    bakeGroup(t, (m) => m.material === adMat);
+    const x = dir === 1 ? -STRIP.laneCenters[1] : STRIP.laneCenters[1];
+    t.position.set(x, 0, z0);
+    t.rotation.y = dir === 1 ? 0 : Math.PI;
+    b.scene.add(t);
+    adTrucks.push(t);
+    cars.push({ mesh: t, laneX: x, dir, speed: 8, cruise: 8.5, halfLen: 4.9, axis: 'z' });
+  }
+  b.every((_dt, t) => {
+    if (adTrucks.some((tr) => tr.visible && tr.position.distanceToSquared(viewer.cam) < 160 * 160)) adLed.draw(t);
   });
 
   /** Distance to the next red/yellow stop line ahead of a z-axis vehicle, or Infinity. */
@@ -546,6 +592,75 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   return { buses, cars };
 }
 
+/**
+ * Pedestrian countdown head for a mid-block crosswalk: a walking person while cars hold (first 3 s), then a
+ * flashing orange hand with the seconds left, then a steady hand. Redrawn only when the shown state changes
+ * and the crossing is within 150 m of the camera.
+ */
+function pedCountdown(b: WorldBuilder, z: number, offset: number, clock: () => number): THREE.MeshBasicMaterial {
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 64;
+  const ctx = c.getContext('2d')!;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshBasicMaterial({ map: tex, color: 0xdddddd });
+  let last = '';
+  const hand = (col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(18, 22, 26, 30);
+    for (let i = 0; i < 4; i++) ctx.fillRect(18 + i * 6.8, 8 + (i === 0 || i === 3 ? 6 : 0), 5, 18);
+    ctx.fillRect(40, 30, 10, 6);
+  };
+  const walker = () => {
+    ctx.fillStyle = '#f4f4f0';
+    ctx.beginPath();
+    ctx.arc(32, 12, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(28, 19, 8, 20);
+    ctx.save();
+    ctx.translate(32, 38);
+    for (const a of [-0.45, 0.45]) {
+      ctx.save();
+      ctx.rotate(a);
+      ctx.fillRect(-3, 0, 6, 20);
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.fillRect(22, 22, 4, 14);
+    ctx.fillRect(38, 22, 4, 14);
+  };
+  b.every(() => {
+    if (Math.abs(viewer.cam.z - z) > 150 || Math.abs(viewer.cam.x) > 150) return;
+    const cyc = (clock() + offset) % CROSSWALK_CYCLE;
+    let state: string;
+    let secs = 0;
+    if (cyc >= 22 && cyc < 25) {
+      state = 'walk';
+      secs = Math.ceil(CROSSWALK_CYCLE - cyc);
+    } else if (cyc >= 25) {
+      secs = Math.ceil(CROSSWALK_CYCLE - cyc);
+      state = (cyc * 2) % 2 < 1.1 ? 'flash-on' : 'flash-off';
+    } else state = 'hand';
+    const key = `${state}|${secs}`;
+    if (key === last) return;
+    last = key;
+    ctx.fillStyle = '#0b0b0d';
+    ctx.fillRect(0, 0, 128, 64);
+    if (state === 'walk') walker();
+    else if (state === 'flash-on' || state === 'hand') hand('#ff7a1a');
+    if (secs > 0) {
+      ctx.fillStyle = '#ff8a2a';
+      ctx.font = 'bold 44px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(secs).padStart(2, '0'), 94, 34);
+    }
+    tex.needsUpdate = true;
+  });
+  return m;
+}
+
 /** Flat ground patch whose UVs are world metres / `scale`, so one shared material tiles seamlessly. */
 function worldUvPlane(w: number, d: number, x: number, y: number, z: number, scale: number): THREE.BufferGeometry {
   const g = new THREE.PlaneGeometry(w, d, 1, Math.max(1, Math.round(d / 40)));
@@ -562,6 +677,8 @@ function buildSkybridges(b: WorldBuilder, zc: number, labels: [string, string, s
   const deck = mat(0xb8b2a8, 0.7, 0.15);
   const glass = new THREE.MeshStandardMaterial({ color: 0x9fe3ff, transparent: true, opacity: 0.32, roughness: 0.08 });
   const steel = mat(0x5b6068, 0.35, 0.7);
+  const escRail = mat(0x111114, 0.4, 0.2);
+  const escCab = mat(0xfff1d6, 0.4, 0, { emissive: 0xffd9a0, emissiveIntensity: 0.35 });
   const X = STRIP.bridgeX;
   const Z = STRIP.bridgeZ;
   const wDeck = 4;
@@ -609,6 +726,34 @@ function buildSkybridges(b: WorldBuilder, zc: number, labels: [string, string, s
         const z = cz + sz * (wDeck / 2 + 0.35 + i * 0.7);
         b.box(cx + sx * 0.4, 0, z, 2.6, top, 0.72, deck, false, false);
       }
+      // Escalator dressing over the stair run: glass balustrades, black handrails, steel skirts
+      const runLen = steps * 0.7;
+      const zMid = cz + sz * (wDeck / 2 + 0.35 + runLen / 2 - 0.35);
+      const slope = Math.atan2(y + 0.4, runLen) * sz;
+      const L = Math.hypot(runLen, y + 0.4);
+      for (const e of [-1, 1]) {
+        const ex = cx + sx * 0.4 + e * 1.36;
+        const gl = mesh(new THREE.BoxGeometry(0.06, 0.95, L), glass, ex, (y + 0.4) / 2 + 0.75, zMid);
+        gl.rotation.x = slope;
+        b.add(gl);
+        const rail = mesh(new THREE.BoxGeometry(0.1, 0.08, L + 0.4), escRail, ex, (y + 0.4) / 2 + 1.25, zMid);
+        rail.rotation.x = slope;
+        b.add(rail);
+        const skirt = mesh(new THREE.BoxGeometry(0.08, 0.7, L), steel, ex, (y + 0.4) / 2 - 0.1, zMid);
+        skirt.rotation.x = slope;
+        b.add(skirt);
+      }
+      // Glass elevator tower on the street side of each corner landing (looks only)
+      const exX = sx * 18.9;
+      b.box(exX, 0, cz, 2.4, y + 3.9, 2.4, glass, true, false);
+      for (const [px, pz] of [
+        [-1.15, -1.15],
+        [1.15, -1.15],
+        [-1.15, 1.15],
+        [1.15, 1.15],
+      ]) b.add(mesh(new THREE.BoxGeometry(0.14, y + 4.0, 0.14), steel, exX + px, (y + 4.0) / 2, cz + pz));
+      b.add(mesh(new THREE.BoxGeometry(2.6, 0.3, 2.6), steel, exX, y + 4.05, cz));
+      b.add(mesh(new THREE.BoxGeometry(1.7, 2.3, 1.7), escCab, exX, sx * sz > 0 ? 1.25 : y + 1.6, cz));
     }
   }
   b.zone(zoneName, -X - 2, X + 2, zc - Z - 2, zc - Z + 2);

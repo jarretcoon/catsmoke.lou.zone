@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type TouristProp = 'yard-drink' | 'camera' | 'cig' | 'bag' | 'none';
-export type Outfit = 'tourist' | 'guard' | 'elvis' | 'showgirl' | 'slapper' | 'officer' | 'animal-control' | 'worker';
-export type PerformerKind = 'elvis' | 'showgirl' | 'slapper';
+export type Outfit = 'tourist' | 'guard' | 'elvis' | 'showgirl' | 'slapper' | 'officer' | 'animal-control' | 'worker' | 'robot' | 'statue' | 'water';
+/** Street performers. robot/statue are generic costumed acts; water = a bottled-water seller with a cooler. */
+export type PerformerKind = 'elvis' | 'showgirl' | 'slapper' | 'robot' | 'statue' | 'water';
 
 export interface TouristRoute {
   pts: Array<[number, number]>;
@@ -14,6 +15,8 @@ export interface PerformerSpot {
   x: number;
   z: number;
   facing: number;
+  /** Standing height (living statues stand on a pedestal). */
+  y?: number;
 }
 export interface GuardRoute {
   name: string;
@@ -117,6 +120,9 @@ const PERFORMER_LINES: Record<PerformerKind, string[]> = {
   elvis: ['Thank you, thank you very much', 'Photo with the King? $20!', 'Viva Las Vegas, baby!', 'Ain’t nothin’ but a hound cat'],
   showgirl: ['Photos with the showgirls!', 'Tips appreciated, darling', 'Strike a pose, kitty!', 'Feathers out!'],
   slapper: ['*slap slap* Free entry tonight!', 'VIP list, VIP list!', 'Club promos here!', '*slap* *slap*'],
+  robot: ['*beep boop* PHOTO: $5', 'DANCE MODE: ENGAGED', 'I AM NOT A ROBOT. TIPS.', '*servo whirr*'],
+  statue: ['…', '*blinks*', '(does not move)', '*winks at the cat*'],
+  water: ['Water! One dollar! Ice cold!', 'Stay hydrated, kitty', 'Water, water, water!', 'Gatorade three bucks!'],
 };
 
 const hawaiianTextures = new Map<number, THREE.CanvasTexture>();
@@ -284,13 +290,14 @@ export function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig
   const tourist = outfit === 'tourist';
   const female = outfit === 'showgirl' || (tourist && seed % 2 === 1);
 
-  const skin = SKIN_TONES[seed % SKIN_TONES.length];
-  const hair = outfit === 'elvis' ? 0x0b0b10 : HAIR_COLORS[(seed * 3) % HAIR_COLORS.length];
-  const shirt =
+  const painted = outfit === 'robot' ? 0xc4c8d0 : outfit === 'statue' ? 0xc8a24a : 0;
+  const skin = painted || SKIN_TONES[seed % SKIN_TONES.length];
+  const hair = painted || (outfit === 'elvis' ? 0x0b0b10 : HAIR_COLORS[(seed * 3) % HAIR_COLORS.length]);
+  const shirt = painted ? painted : outfit === 'water' ? 0xf4f4f0 :
     outfit === 'guard' ? 0x162038 : outfit === 'officer' ? 0x1b2433 : isAC ? 0xc2a878 : outfit === 'worker' ? 0xf4f4f4 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xff3fa4 : outfit === 'slapper' ? 0x8cff3a : SHIRT_COLORS[(seed * 5) % SHIRT_COLORS.length];
-  const pants =
+  const pants = painted ? painted : outfit === 'water' ? 0x2a3a5a :
     outfit === 'guard' ? 0x0e1320 : outfit === 'officer' ? 0x141a26 : isAC ? 0x4a4f36 : outfit === 'worker' ? 0x2a2a2e : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xe0a080 : outfit === 'slapper' ? 0x1c1f2a : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
-  const shoe = isGuard || outfit === 'slapper' ? 0x0c0d12 : outfit === 'showgirl' ? 0xffd34d : outfit === 'elvis' ? 0xf4f1ea : [0xe9e6de, 0x2a2b30, 0x8a5a34, 0xd23b3b][(seed * 11) % 4];
+  const shoe = painted ? painted : isGuard || outfit === 'slapper' ? 0x0c0d12 : outfit === 'showgirl' ? 0xffd34d : outfit === 'elvis' ? 0xf4f1ea : [0xe9e6de, 0x2a2b30, 0x8a5a34, 0xd23b3b][(seed * 11) % 4];
   const sole = 0xf2f2f0;
   const gold = 0xf4c44e;
   const dark = 0x15171d;
@@ -432,8 +439,15 @@ export function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig
       const a = -0.9 + i * 0.3;
       h.add(cone(0.035, 0.55, 5), i % 2 ? 0xff5fb6 : 0xfff0f8, Math.sin(a) * 0.22, 0.36 + Math.cos(a) * 0.12, -0.02, 0, 0, -a * 0.8);
     }
-  } else if (outfit === 'slapper' || (tourist && seed % 4 === 1)) {
-    const capCol = outfit === 'slapper' ? 0x111111 : [0xd9362b, 0x2665d8, 0x28995a, 0xf2f2f0][seed % 4];
+  } else if (outfit === 'robot') {
+    h.add(box(0.3, 0.3, 0.3), 0xb8bcc6, 0, 0.02, 0);
+    h.add(box(0.22, 0.07, 0.02), 0x30e0ff, 0, 0.03, 0.155);
+    h.add(cyl(0.012, 0.012, 0.18, 5), 0x9aa0aa, 0, 0.25, 0);
+    h.add(sphere(0.03, 6, 4), 0xff3030, 0, 0.35, 0);
+  } else if (outfit === 'statue') {
+    h.add(torus(0.13, 0.02, Math.PI * 2), 0xa8822a, 0, 0.06, 0, Math.PI / 2);
+  } else if (outfit === 'slapper' || outfit === 'water' || (tourist && seed % 4 === 1)) {
+    const capCol = outfit === 'slapper' ? 0x111111 : outfit === 'water' ? 0x1e5fb8 : [0xd9362b, 0x2665d8, 0x28995a, 0xf2f2f0][seed % 4];
     h.add(sphere(0.143, 12, 5, Math.PI * 0.45), capCol, 0, 0.035, 0, -0.1);
     h.add(box(0.17, 0.016, 0.14), capCol, 0, 0.07, 0.145, 0.15);
   } else if (tourist && seed % 9 === 4) {
@@ -507,6 +521,8 @@ export function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig
     }
     if (right && isGuard) p.add(cyl(0.032, 0.028, 0.22, 8), 0x1a1e26, 0, -0.5, 0.1, Math.PI / 2);
     if (right && outfit === 'slapper') p.add(box(0.09, 0.012, 0.13), 0xffffff, 0, -0.55, 0.05, 0.4);
+    if (right && outfit === 'water') p.add(cyl(0.035, 0.035, 0.22, 6), 0xdff2ff, 0, -0.58, 0.06);
+    if (outfit === 'robot') p.add(box(0.12, 0.12, 0.12), 0x9aa0aa, 0, -0.1, 0);
     if (right && tourist && prop === 'yard-drink') p.add(cyl(0.008, 0.008, 0.18, 6), 0xffffff, 0, -0.06, 0.16);
     if (!right && tourist && prop === 'bag') {
       p.add(box(0.24, 0.28, 0.1), [0xe8486b, 0xf2efe6, 0x2b2b33][seed % 3], 0.04, -0.66, 0);
@@ -592,7 +608,7 @@ export class StripCrowdSystem {
 
     config.performers.forEach((p, idx) => {
       const built = buildHuman(idx * 7 + 2, p.kind, 'none');
-      built.group.position.set(p.x, 0, p.z);
+      built.group.position.set(p.x, p.y ?? 0, p.z);
       built.group.rotation.y = p.facing;
       scene.add(built.group);
       this.performers.push({
@@ -970,6 +986,23 @@ export class StripCrowdSystem {
         p.leftArm.rotation.z = 0.9 + Math.sin(elapsed * 1.6 + p.id) * 0.15;
         p.rightArm.rotation.z = -0.9 - Math.sin(elapsed * 1.6 + p.id) * 0.15;
         p.head.rotation.y = Math.sin(elapsed * 0.8 + p.id) * 0.3;
+      } else if (p.kind === 'robot') {
+        // jerky robot dance: arms snap between poses on a beat
+        const beat = Math.floor(elapsed * 2.5 + p.id) % 4;
+        p.leftArm.rotation.x = [-1.5, 0, -1.5, -0.8][beat];
+        p.rightArm.rotation.x = [0, -1.5, -1.5, -0.8][beat];
+        p.leftArm.rotation.z = beat === 3 ? 0.6 : 0;
+        p.rightArm.rotation.z = beat === 3 ? -0.6 : 0;
+        p.head.rotation.y = [0.4, -0.4, 0, 0][beat];
+      } else if (p.kind === 'statue') {
+        // frozen pose; every ~9 s a tiny bow
+        p.rightArm.rotation.x = -1.2;
+        p.leftArm.rotation.z = 0.3;
+        const c = (elapsed + p.id * 3) % 9;
+        p.head.rotation.x = c < 0.8 ? Math.sin((c / 0.8) * Math.PI) * 0.35 : 0;
+      } else if (p.kind === 'water') {
+        p.rightArm.rotation.x = -1.2 - Math.max(0, Math.sin(elapsed * 2.2 + p.id)) * 1.1;
+        p.head.rotation.y = Math.sin(elapsed * 0.9 + p.id) * 0.6;
       } else {
         const slap = Math.max(0, Math.sin(elapsed * 7 + p.id * 3));
         p.rightArm.rotation.x = -0.9 + slap * 0.5;
