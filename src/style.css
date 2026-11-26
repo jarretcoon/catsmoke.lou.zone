@@ -716,6 +716,28 @@ kbd {
   width: min(14rem, 100%);
 }
 
+/* The brightness slider (src/brightness.ts) is built as a pill; in the settings list it's a plain row like the rest. */
+.controls-footer .brightness-control {
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  justify-content: space-between !important;
+  font-weight: 400;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.controls-footer .brightness-control:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .setting-btns {
   display: flex;
   flex-wrap: wrap;
