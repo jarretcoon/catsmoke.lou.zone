@@ -1997,5 +1997,10 @@ if (import.meta.env.DEV) {
       catHolder.position.set(x, y, z);
       camTarget.set(x, y + 0.75, z);
     },
+    /** Dev-only: render one frame (with bloom when on) and return the canvas as a JPEG data URL. Works in a background tab. */
+    snap: (q = 0.86): string => {
+      step(lastTime + 1000 / 60, true);
+      return canvas.toDataURL('image/jpeg', q);
+    },
   };
 }
