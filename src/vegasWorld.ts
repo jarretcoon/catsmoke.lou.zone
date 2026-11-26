@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { AtmosphereState } from './look';
 import type { MapFeature, MapMarker } from './minimap';
 import type { CrowdConfig } from './npcs';
 import type { Rideable } from './rides';
@@ -10,6 +11,7 @@ import { buildFoodAndShops } from './world/foodAndShops';
 import { buildNorthStrip } from './world/northStrip';
 import { buildSouthStrip } from './world/southStrip';
 import { SkyDome } from './world/sky';
+import { buildSkyLife } from './world/skyLife';
 import { bakeStatic } from './world/staticBatch';
 import { buildStrip, DeuceState, TrafficCar } from './world/strip';
 import { buildWestSide } from './world/westSide';
@@ -52,6 +54,8 @@ export interface VegasWorldContext {
   getTimePreset: () => TimePreset;
   getDaylightLabel: () => string;
   getNight: () => number;
+  /** Live sky state (day/sunset/night, sun direction, sky colours) for the env map and grade. */
+  atmosphere: AtmosphereState;
   getZoneName: (x: number, z: number) => string;
   unlockVip: () => void;
   /** Scales every distance-cull limit (Low graphics draws less of the far Strip). */
@@ -119,6 +123,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   buildSouthStrip(b);
   buildFoodAndShops(b);
   buildBackdrop(b);
+  buildSkyLife(b);
   const baked = bakeStatic(b.root, 64, new Set<THREE.Material>(b.nightMaterials.map((n) => n.mat)));
   // Distance culling for a 1.8 km Strip: small clutter fades out past ~380 m, towers past ~650 m.
   const cullables: Array<{ m: THREE.Object3D; c: THREE.Vector3; r: number; limit: number }> = [];
@@ -147,6 +152,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   const cHorizon = new THREE.Color();
   const sunDir = new THREE.Vector3();
   const tmpC = new THREE.Color();
+  const atmosphere: AtmosphereState = { day: 1, sunset: 0, night: 0, sunDir, top: cTop, horizon: cHorizon };
 
   const applyAtmosphere = (focus: THREE.Vector3, t: number) => {
     let day = 0;
@@ -163,6 +169,9 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
       sunset = Math.sin(k * Math.PI) * 0.6;
     }
     night = 1 - day;
+    atmosphere.day = day;
+    atmosphere.sunset = sunset;
+    atmosphere.night = night;
 
     cTop.setHex(0x05060f).lerp(tmpC.setHex(0x2b6fd0), day).lerp(tmpC.setHex(0x3a3470), sunset * 0.8);
     cHorizon.setHex(0x1a1030).lerp(tmpC.setHex(0xbcd8f0), day).lerp(tmpC.setHex(0xff8a4a), sunset);
@@ -176,9 +185,12 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     // At night the Strip lights itself: warm neon bounce from below, violet sky above
     hemi.color.setHex(0x8a8fe0).lerp(tmpC.setHex(0xdff0ff), day).lerp(tmpC.setHex(0xffb58a), sunset);
     hemi.groundColor.setHex(0x7a4a3a).lerp(tmpC.setHex(0x7a6a58), day);
-    hemi.intensity = THREE.MathUtils.lerp(1.25, 1.35, day);
+    // The env map (look.ts) now adds sky and neon fill, so the flat hemisphere light steps back:
+    // more contrast between lit and shaded sides, deeper night shadows.
+    hemi.intensity = THREE.MathUtils.lerp(0.62, 0.78, day);
+    scene.environmentIntensity = THREE.MathUtils.lerp(0.55, 0.85, day);
     sun.color.setHex(0x9fb4ff).lerp(tmpC.setHex(0xfff4de), day).lerp(tmpC.setHex(0xff924c), sunset);
-    sun.intensity = THREE.MathUtils.lerp(0.55, 2.6, day);
+    sun.intensity = THREE.MathUtils.lerp(0.55, 2.9, day);
     // Shadow frustum follows the cat so shadows stay crisp across a 700 m map
     sun.position.copy(focus).addScaledVector(sunDir, 120);
     sun.target.position.copy(focus);
@@ -253,6 +265,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     getTimePreset: () => timePreset,
     getDaylightLabel,
     getNight: () => night,
+    atmosphere,
     getZoneName: (x, z) => b.zoneAt(x, z),
     unlockVip,
     setDrawDistance: (s) => {

@@ -8,6 +8,7 @@ import { LedBoard, makePaverTexture } from './textures';
 import type { FacadeSpec } from './textures';
 import { basic, car, mat, mesh, neonSign, planter } from './props';
 import type { CarKind } from './props';
+import { beamMaterial } from './skyLife';
 import { xFromO, zFromS } from './strip';
 
 /**
@@ -1335,12 +1336,15 @@ function buildLuxor(b: WorldBuilder): void {
   b.add(luxSign, px + half - (fy / h) * half + 0.22, fy + 0.16, pz);
 
   // The Sky Beam
-  const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
-  b.add(mesh(new THREE.CylinderGeometry(1.3, 2.8, 900, 14, 1, true), beamMat, px, h + 450, pz));
+  const beamMat = beamMaterial(0xfff6dc, 0.7);
+  const beam = mesh(new THREE.CylinderGeometry(2.6, 2.2, 900, 18, 1, true), beamMat, px, h + 450, pz);
+  beam.frustumCulled = false;
+  b.scene.add(beam); // outside the static bake: it's a shader light shaft, not geometry to merge
   const coreMat = new THREE.MeshBasicMaterial({ color: 0xfff6dc, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
   b.add(mesh(new THREE.SphereGeometry(3.2, 12, 8), coreMat, px, h + 0.6, pz));
   b.every((_dt, t, night) => {
-    beamMat.opacity = night * (0.3 + 0.03 * Math.sin(t * 0.7));
+    beamMat.uniforms.opacity.value = night * (1.15 + 0.08 * Math.sin(t * 0.7));
+    beam.visible = night > 0.02;
     coreMat.opacity = night * 0.55;
   });
 

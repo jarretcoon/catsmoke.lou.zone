@@ -6,6 +6,8 @@ import { curvedTower, stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
 import { LedBoard, makeCarpetTexture, makePaverTexture } from './textures';
 import { barCounter, basic, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
+import { waterJets } from './fountains';
+import type { JetSpec } from './fountains';
 
 /**
  * West side of Las Vegas Blvd, south → north:
@@ -215,11 +217,8 @@ function buildBellagio(b: WorldBuilder): void {
   for (let z = lakeZ0 + 5; z <= lakeZ1 - 2; z += 13) b.add(cypressTree(5 + (z % 3)), -18.4, 0, z);
   for (let z = lakeZ0 + 8; z <= lakeZ1; z += 22) b.add(planter(2, 2, 0xffd34d), -18.2, 0, z + 6);
 
-  // Fountains: three lines of shooters + a ring of "super shooters"
-  const jetMat = new THREE.MeshBasicMaterial({ color: 0xe6fbff, transparent: true, opacity: 0.8, depthWrite: false });
-  const jetGeo = new THREE.CylinderGeometry(0.12, 0.34, 1, 8);
-  jetGeo.translate(0, 0.5, 0);
-  const jets: Array<{ m: THREE.Mesh; line: number; i: number; n: number }> = [];
+  // Fountains: three lines of shooters + a ring of "super shooters" (one instanced draw, see fountains.ts)
+  const jets: JetSpec[] = [];
   const lines: Array<{ x: number; n: number }> = [
     { x: -32, n: 20 },
     { x: -44, n: 26 },
@@ -228,12 +227,10 @@ function buildBellagio(b: WorldBuilder): void {
   lines.forEach((ln, li) => {
     for (let i = 0; i < ln.n; i++) {
       const z = lakeZ0 + 4 + (i / (ln.n - 1)) * (lakeZ1 - lakeZ0 - 8);
-      const m = new THREE.Mesh(jetGeo, jetMat);
-      m.position.set(ln.x + Math.sin(i * 0.5) * (li === 1 ? 4 : 1.5), 0.05, z);
-      b.scene.add(m);
-      jets.push({ m, line: li, i, n: ln.n });
+      jets.push({ x: ln.x + Math.sin(i * 0.5) * (li === 1 ? 4 : 1.5), z, line: li, i, n: ln.n });
     }
   });
+  const water3d = waterJets(b, jets);
   const glowA = b.light(0x76ecff, 0, 40, -44, 4, 50);
   const glowB = b.light(0xffb86b, 0, 40, -44, 4, 80);
   let showClock = 0;
@@ -243,7 +240,8 @@ function buildBellagio(b: WorldBuilder): void {
     const showT = showClock % period;
     const onShow = showT < 24;
     const intensity = onShow ? Math.min(1, showT / 1.5, (24 - showT) / 1.5) : 0;
-    for (const j of jets) {
+    for (let k = 0; k < jets.length; k++) {
+      const j = jets[k];
       let h: number;
       if (!onShow) {
         h = 0.05;
@@ -255,9 +253,9 @@ function buildBellagio(b: WorldBuilder): void {
         if (showT > 18 && showT < 21) h = (j.line === 1 ? 46 : 30) * (0.8 + 0.2 * Math.sin(j.i));
         h *= intensity;
       }
-      j.m.scale.set(1, Math.max(0.05, h), 1);
-      j.m.rotation.z = j.line === 1 ? 0 : (j.line === 0 ? -1 : 1) * 0.25 * Math.sin(t * 1.6 + j.i * 0.3) * intensity;
+      water3d.set(k, h, j.line === 1 ? 0 : (j.line === 0 ? -1 : 1) * 0.25 * Math.sin(t * 1.6 + j.i * 0.3) * intensity);
     }
+    water3d.commit(t, night, intensity);
     const hue = (t * 0.05) % 1;
     glowA.color.setHSL(hue, 0.8, 0.65);
     glowB.color.setHSL((hue + 0.35) % 1, 0.8, 0.65);

@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { DRACO_GLTF_CONFIG, DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { EnvLighting, makeGradePass } from './look';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -72,6 +74,9 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.25, 1600);
 const sfx = new SoundFX();
 const world = buildVegasStripWorld(scene);
+// Reflections: a PMREM env map of a stand-in Vegas that follows the time of day.
+const envLighting = new EnvLighting(renderer, scene);
+envLighting.update(world.atmosphere);
 const crowd = new StripCrowdSystem(scene, world.crowd);
 const smokeSystem = new SmokeSystem(scene);
 const minimap = new Minimap(world.mapFeatures);
@@ -96,6 +101,7 @@ let composer: EffectComposer | null = null;
 /** Scales the distance culling of props, pickups, guards and vehicles (Low graphics = 0.7). */
 let dynCullScale = 1;
 let bloom: UnrealBloomPass | null = null;
+let grade: ShaderPass | null = null;
 const btnQuality = document.createElement('button');
 btnQuality.type = 'button';
 btnQuality.className = 'action-btn';
@@ -118,15 +124,27 @@ function applyQuality(): void {
     world.sun.shadow.map?.dispose();
     world.sun.shadow.map = null;
   }
+  // Post-processing renders off-screen, where the canvas's own antialiasing doesn't apply:
+  // give the composer a multisampled target so edges stay smooth with bloom on.
+  const samples = quality === 'high' ? 4 : quality === 'medium' ? 2 : 0;
+  if (composer && composer.renderTarget1.samples !== samples) {
+    composer.dispose();
+    composer = null;
+  }
   if (quality === 'low') {
     composer?.dispose();
     composer = null;
     bloom = null;
+    grade = null;
   } else if (!composer) {
-    composer = new EffectComposer(renderer);
+    const pr = renderer.getPixelRatio();
+    const rt = new THREE.WebGLRenderTarget(window.innerWidth * pr, window.innerHeight * pr, { type: THREE.HalfFloatType, samples });
+    composer = new EffectComposer(renderer, rt);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.82);
+    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.86);
     composer.addPass(bloom);
+    grade = makeGradePass();
+    composer.addPass(grade);
     composer.addPass(new OutputPass());
   }
   world.setDrawDistance(quality === 'low' ? 0.6 : quality === 'medium' ? 0.85 : 1);
@@ -1742,6 +1760,7 @@ function step(now: number, render = true): void {
   }
 
   world.update(dt, elapsed, catHolder.position, camera);
+  envLighting.update(world.atmosphere);
   crowd.update(dt, elapsed, catHolder.position, { onCaught, onEscaped });
 
   const seatAt = restaurants.update(dt, elapsed, catHolder.position);
@@ -1957,6 +1976,7 @@ function step(now: number, render = true): void {
   if (render) {
     if (composer && bloom) {
       bloom.strength = 0.16 + world.getNight() * 0.75;
+      if (grade) grade.uniforms.night.value = world.getNight();
       composer.render(dt);
     } else {
       renderer.render(scene, camera);
@@ -2001,6 +2021,25 @@ if (import.meta.env.DEV) {
     snap: (q = 0.86): string => {
       step(lastTime + 1000 / 60, true);
       return canvas.toDataURL('image/jpeg', q);
+    },
+    /** Dev-only: render `n` frames back to back (GPU-synced) and report the average ms and per-frame draw stats. */
+    bench: (n = 30) => {
+      const gl = renderer.getContext();
+      renderer.info.autoReset = false;
+      let ms = 0;
+      let calls = 0;
+      let tris = 0;
+      for (let i = 0; i < n; i++) {
+        renderer.info.reset();
+        const t0 = performance.now();
+        step(lastTime + 1000 / 60, true);
+        gl.finish();
+        ms += performance.now() - t0;
+        calls = renderer.info.render.calls;
+        tris = renderer.info.render.triangles;
+      }
+      renderer.info.autoReset = true;
+      return { ms: +(ms / n).toFixed(2), calls, tris, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures };
     },
   };
 }
