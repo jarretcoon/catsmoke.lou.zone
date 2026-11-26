@@ -683,6 +683,9 @@ function buildSlotsAFun(b: WorldBuilder): void {
     maxZ,
     height: 7,
     entrance: { side: 'east', at: -704.5, width: 6 },
+    // Low drop ceiling, worn busy carpet, cheap bright signs and the giant novelty slot at the back
+    theme: 'slotsafun',
+    interior: { ceilingY: 4.2, giantSlot: [-44.85, -704.8, HALF_PI], cashier: false, sportsbook: false, highLimit: false, bar: false, columns: false, fill: 0.5 },
     carpet: ['#5a0c10', '#ffc93a', '#1e5bd8'],
     wall: 0xb3161e,
     ceiling: 0x2a0a0c,
@@ -706,7 +709,7 @@ function buildSlotsAFun(b: WorldBuilder): void {
       { x: -29.2, z: -701.4, y: 1.35, amount: 6, label: "Lou's Favorite Dive: $2 Beer Bar Stash!" },
       { x: -44.6, z: -711, amount: 3, label: 'Coin-Cup Smokes (Slots-A-Fun)' },
     ],
-    tourists: [{ pts: [[-27, -702.2], [-43.8, -702.2], [-43.8, -707.6], [-27, -707.6]], prop: 'yard-drink' }],
+    tourists: [{ pts: [[-27, -702.2], [-43.5, -702.2], [-43.5, -707.6], [-27, -707.6]], prop: 'yard-drink' }],
   });
 
   // $2 beer bar + hot-dog counter
