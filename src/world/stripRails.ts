@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { WorldBuilder } from './builder';
 import { mat, mesh } from './props';
 import { STRIP } from './strip';
@@ -117,11 +118,11 @@ function railRun(b: WorldBuilder, x0: number, z0: number, x1: number, z1: number
 }
 
 /** Railings and signs at the four corners of one bridge intersection centred on z = zc. */
-function cornerRails(b: WorldBuilder, zc: number): void {
+function cornerRails(b: WorldBuilder, zc: number, crossHalf = STRIP.flamingoHalf, reach = 27): void {
   const half = STRIP.curb;
   const xr = half + 0.35; // just behind the curb
-  const zEdge = STRIP.flamingoHalf + 0.35; // behind the cross street's curb
-  const reach = 27; // along the Boulevard from the intersection centre
+  const zEdge = crossHalf + 0.35; // behind the cross street's curb
+  // reach: along the Boulevard from the intersection centre
   const post = mat(0x8a8f96, 0.5, 0.6);
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
@@ -141,8 +142,49 @@ function cornerRails(b: WorldBuilder, zc: number): void {
   }
 }
 
-/** Corner railings at the Flamingo Rd and Tropicana Ave bridge intersections. */
+/**
+ * Steel security bollards along both curbs: Clark County has set thousands of 4-ft crash-rated posts
+ * along the Strip's sidewalks since 2017-18, every metre and a half or so, with gaps for the crossings,
+ * the bus stops and the street furniture. Dark bronze like the light poles, domed tops. Static (they bake
+ * into the street's shared vertex-colour draw), with low colliders: a car can't mount the curb through
+ * them, and Lou can hop up and sit on one.
+ */
+export function buildCurbBollards(b: WorldBuilder, deuceStops: Array<{ z: number; side: 1 | -1 }>, crossings: Array<{ z: number; road?: string }>): void {
+  const body = new THREE.CylinderGeometry(0.1, 0.11, 1.05, 10).translate(0, 0.525, 0);
+  const cap = new THREE.SphereGeometry(0.105, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.05, 0);
+  for (const g of [body, cap]) g.deleteAttribute('uv');
+  const geo = mergeGeometries([body.toNonIndexed(), cap.toNonIndexed()], false)!;
+  // bakeStatic wants position/normal/uv
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+  const steel = mat(0x2a2622, 0.45, 0.6);
+  const half = STRIP.curb;
+  const x0 = half + 0.5;
+  const mod = (v: number, m: number) => ((v % m) + m) % m;
+  for (const s of [-1, 1] as const) {
+    for (let z = STRIP.north + 8; z < STRIP.south - 8; z += 1.55) {
+      if (Math.abs(z) < 28 || Math.abs(z - STRIP.tropicanaZ) < 28 || Math.abs(z + 407) < 21 || (z > 880 && z < 960)) continue;
+      if (crossings.some((c) => Math.abs(c.z - z) < (c.road ? 12 : 6))) continue;
+      if (deuceStops.some((d) => d.side === s && Math.abs(d.z - z) < 4.5)) continue;
+      // driveway mouths (Bellagio's main drive, Wynn's)
+      if ((s < 0 && z > 93 && z < 112) || (s > 0 && z > -561 && z < -545)) continue;
+      // clear of the curb furniture (every 11 m) and the light poles (every 24 m)
+      const f = mod(z - (STRIP.north + 16), 11);
+      if (f < 0.9 || f > 10.1) continue;
+      const p = mod(z - (STRIP.north + 10), 24);
+      if (p < 0.8 || p > 23.2) continue;
+      const x = s * x0;
+      b.add(mesh(geo, steel, x, 0, z));
+      b.collider(x - 0.11, x + 0.11, z - 0.11, z + 0.11, 0, 1.1);
+    }
+  }
+}
+
+/**
+ * Corner railings at the bridge intersections: Flamingo Rd and Tropicana Ave, and Spring Mountain Rd /
+ * Sands Ave (a narrower cross street, its bridges just beyond the corners).
+ */
 export function buildCornerRails(b: WorldBuilder): void {
   cornerRails(b, 0);
   cornerRails(b, STRIP.tropicanaZ);
+  cornerRails(b, -407, 7, 20);
 }
