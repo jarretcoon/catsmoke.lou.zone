@@ -129,7 +129,8 @@ jobs:
     # and into one PR comment that updates on every push. Skipped for PRs from forks (no write access).
     name: Post snapshots
     needs: check
-    if: always() && needs.check.result != 'cancelled' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    # A manual run on another branch posts nothing (it would overwrite main's baseline).
+    if: always() && needs.check.result != 'cancelled' && (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
