@@ -18,6 +18,6 @@
   // Once it's on, add the binding here and in "previews" (previews get their own dataset):
   //   "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats" }],
   //   "previews": { "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats_preview" }] }
-  // Required by `wrangler preview` (the PR preview builds). Empty = previews use no bindings of their own.
+  // Required by `wrangler preview` (the PR preview builds). Empty = previews use the top-level settings.
   "previews": {}
 }
