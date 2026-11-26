@@ -53,6 +53,7 @@ const R = {
   waymo: [0, 416, 256, 464],
   screen: [256, 416, 384, 480],
   screenMap: [384, 416, 512, 480],
+  zoox: [0, 464, 256, 512],
 } as const satisfies Record<string, Rect>;
 
 /** A rounded "W" in Waymo's teal-to-blue (drawn, not copied): three strokes meeting in two valleys. */
@@ -115,6 +116,9 @@ function paintRideshare(ctx: CanvasRenderingContext2D, fill: (r: Rect, col: stri
   ctx.lineTo(sc[0] + 60, sc[1] + 48);
   ctx.lineTo(sc[0] + 110, sc[1] + 52);
   ctx.stroke();
+  // Zoox side wordmark: lowercase on the light body panel
+  fill(R.zoox, '#e9ecee');
+  text(R.zoox, 'zoox', '#20262c', '600 34px "Segoe UI", Arial, sans-serif', 1);
   // Map tile (dash screen): grid streets with the route
   const mp = R.screenMap;
   ctx.fillStyle = '#0c1a2c';
@@ -804,6 +808,62 @@ export interface RideshareCarBuild {
  * A Waymo (I-PACE or Ojai, sensors and all, nobody at the wheel) or an Uber / Lyft (ordinary sedan or SUV,
  * trade dress in the glass, a driver at the wheel), with an open cabin you can see into. Faces +z.
  */
+/**
+ * Zoox, the robotaxi already carrying riders on the Strip: a bidirectional glass carriage with no driver's
+ * seat or front end, a sensor tower on each roof corner and short overhangs. Faces +z (it drives either way).
+ */
+export function buildZoox(): { group: THREE.Group; length: number; seat: THREE.Vector3 } {
+  const L = 3.63;
+  const W = 1.94;
+  const p = new Parts();
+  const body = std(0xe9ecee, 0.35, 0.05);
+  const lower = std(0x2b3036, 0.6, 0.1);
+  const glass = GLASS(); // deep-tinted, like the real one
+  const trim = std(0x0d0f12, 0.22, 0.2);
+  const lamps = lampMat();
+  const hw = W / 2;
+  // lower tub with dark cladding, light upper body, a glass box between the four corner posts, the roof
+  p.add(lower, new RoundedBoxGeometry(W, 0.5, L, 2, 0.16), 0, 0.5, 0);
+  p.add(body, new RoundedBoxGeometry(W, 0.34, L - 0.06, 2, 0.14), 0, 0.88, 0);
+  const g0 = 1.05;
+  const g1 = 1.78;
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) p.add(body, new RoundedBoxGeometry(0.16, g1 - g0 + 0.02, 0.3, 1, 0.05), sx * (hw - 0.08), (g0 + g1) / 2, sz * (L / 2 - 0.15));
+    p.raw(glass, planar([V(sx * (hw - 0.03), g0, -L / 2 + 0.3), V(sx * (hw - 0.03), g0, L / 2 - 0.3), V(sx * (hw - 0.03), g1, L / 2 - 0.3), V(sx * (hw - 0.03), g1, -L / 2 + 0.3)], V(sx, 0, 0)));
+    // sliding door seam in the middle of each side
+    p.add(trim, new THREE.BoxGeometry(0.02, g1 - g0, 0.03), sx * (hw - 0.02), (g0 + g1) / 2, 0);
+    p.raw(decalMat(), aquad(V(sx * (hw + 0.005), 0.86, -0.95 * sx), ...SIDE(sx, 0.28, 0.06), R.zoox));
+  }
+  for (const sz of [-1, 1]) {
+    const z = sz * (L / 2 - 0.02);
+    p.raw(glass, planar([V(-hw + 0.17, g0, z), V(hw - 0.17, g0, z), V(hw - 0.17, g1, z), V(-hw + 0.17, g1, z)], V(0, 0, sz)));
+    // full-width light strips at both ends: white ahead, red behind
+    p.raw(lamps, aquad(V(0, 0.98, sz * (L / 2 + 0.01)), ...(sz > 0 ? FRONT(hw - 0.2, 0.025) : BACK(hw - 0.2, 0.025)), sz > 0 ? R.head : R.tail));
+    p.raw(lamps, aquad(V(0, 0.42, sz * (L / 2 + 0.01)), ...(sz > 0 ? FRONT(0.15, 0.075) : BACK(0.15, 0.075)), R.plate));
+  }
+  p.add(body, new RoundedBoxGeometry(W, 0.12, L, 2, 0.05), 0, g1 + 0.06, 0);
+  // corner sensor towers (lidar, radar, cameras), each with a white cap
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      p.add(trim, new RoundedBoxGeometry(0.3, 0.34, 0.3, 2, 0.1), sx * (hw - 0.05), g1 + 0.24, sz * (L / 2 - 0.08));
+      p.add(body, new THREE.CylinderGeometry(0.11, 0.13, 0.08, 12), sx * (hw - 0.05), g1 + 0.45, sz * (L / 2 - 0.08));
+    }
+  }
+  // wheels right at the corners
+  const tyre = tyreGeo(0.36, 0.26, 12);
+  const rimR = new THREE.CircleGeometry(0.22, 10).rotateY(Math.PI / 2);
+  const rimL = new THREE.CircleGeometry(0.22, 10).rotateY(-Math.PI / 2);
+  for (const wz of [1.25, -1.25]) {
+    for (const sx of [-1, 1]) {
+      p.add(TRIM(), tyre, sx * (hw - 0.15), 0.36, wz);
+      p.add(BRIGHT(), sx > 0 ? rimR : rimL, sx * (hw - 0.03), 0.36, wz);
+    }
+  }
+  const group = new THREE.Group();
+  addMeshes(group, p.merged());
+  return { group, length: L, seat: V(-0.45, 0.62, 0.95) };
+}
+
 export function buildRideshareCar(model: RideModel, brand: RideBrand, color: number, driver?: { skin: number; shirt: number; hair: number }): RideshareCarBuild {
   const s = SPECS[model];
   const geo = rideGeo(model, brand);

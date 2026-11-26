@@ -6,7 +6,7 @@ import type { VegasWorldContext } from './vegasWorld';
 import { INDOOR_ZONE } from './world/builder';
 import { RIDESHARE_SPOTS, spotSign, WAYMO_UPSTREAM, type RideshareSpot } from './world/rideshareSpots';
 import { crosswalkPhase, CROSSWALKS, flamingoPhase, STRIP, tropicanaPhase, type TrafficCar } from './world/strip';
-import { buildRideshareCar, type RideBrand, type RideModel } from './world/vehicles';
+import { buildRideshareCar, buildZoox, type RideBrand, type RideModel } from './world/vehicles';
 
 /*
  * Rideshare on the Strip: Waymos (driverless, lidar spinning, careful) and Uber cars in the traffic, which
@@ -478,6 +478,17 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     if (f.brand !== 'lyft') world.rideables.push(car.rideable);
     cars.push(car);
   });
+
+  // and a Zoox, the robotaxi that already carries riders on the Strip (traffic only: it isn't on Lou's apps)
+  {
+    const z = buildZoox();
+    bakeGroup(z.group);
+    scene.add(z.group);
+    const x = STRIP.laneCenters[0];
+    z.group.position.set(x, 0, 330);
+    z.group.rotation.y = Math.PI;
+    world.trafficVehicles.push({ mesh: z.group, laneX: x, dir: -1, speed: 10, cruise: 10, halfLen: z.length / 2 + 0.3, axis: 'z' });
+  }
 
   // ---- hailing
   const lou = () => cat.position;
