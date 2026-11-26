@@ -584,9 +584,10 @@ function buildResortsWorld(b: WorldBuilder): void {
   plaza(b, -19, -30, zS, zN, '#cdbfae', '#a99a86');
 
   // Twin curved red/copper glass wings (59 floors)
-  const skinA: FacadeSpec = { wall: '#7a2418', mullion: '#b8603e', glass: '#5c1812', lit: '#ffd2b0', cols: 10, rows: 30, style: 2, seed: 301 };
-  curvedTower(b, -20, -604, 60, Math.PI * 0.87, Math.PI * 1.13, 5, 14, 60, skinA, 0.65);
-  curvedTower(b, -25, -650, 66, Math.PI * 0.88, Math.PI * 1.12, 5, 14, 64, { ...skinA, wall: '#8a3020', seed: 303 }, 0.65);
+  const skinA: FacadeSpec = { wall: '#1c0a09', mullion: '#120909', glass: '#5a1210', lit: '#ffd2b0', cols: 10, rows: 30, style: 2, seed: 301 };
+  // Red glass, black frames, red LED corners; the giant LED wrap faces the Strip on the south wing
+  curvedTower(b, -20, -604, 60, Math.PI * 0.87, Math.PI * 1.13, 5, 14, 60, skinA, 0.7, { rough: 0.2, ledFins: false, edgeLed: 0xff2430, wash: 0xff3030, ledWrap: { y0: 23, y1: 50, face: 'back', dir: [0, 1] } });
+  curvedTower(b, -25, -650, 66, Math.PI * 0.88, Math.PI * 1.12, 5, 14, 64, { ...skinA, glass: '#4e0e0c', seed: 303 }, 0.7, { rough: 0.2, ledFins: false, edgeLed: 0xff2430, wash: 0xff3030 });
   b.add(neonSign('RESORTS WORLD', '#140404', '#ff4a3a', 16, 2.4), -72.6, 55, -604, HALF_PI);
   b.add(neonSign('RESORTS WORLD', '#140404', '#ffffff', 16, 2.4), -83.6, 59, -650, HALF_PI);
 
@@ -1285,8 +1286,9 @@ function buildWynn(b: WorldBuilder): void {
   b.zone('Lake of Dreams', lx0, lx1 + 3.6, lz0 - 1, lz1 + 1);
 
   // ---- Bronze curved-glass tower (concave to the Strip) ----
-  const wynnSkin: FacadeSpec = { wall: '#a0673e', mullion: '#c88a5a', glass: '#7a4a2a', lit: '#ffd9a0', cols: 10, rows: 30, style: 2, seed: 240 };
-  curvedTower(b, 5, -454, 64, -0.15 * Math.PI, 0.15 * Math.PI, 5, 14, 60, wynnSkin, 0.7);
+  // Bronze-gold curved glass; no LED fins, a warm crown wash
+  const wynnSkin: FacadeSpec = { wall: '#a8703e', mullion: '#d2a060', glass: '#8c5a2c', lit: '#ffd9a0', cols: 10, rows: 30, style: 2, seed: 240 };
+  curvedTower(b, 5, -454, 64, -0.15 * Math.PI, 0.15 * Math.PI, 5, 14, 60, wynnSkin, 0.8, { rough: 0.2, ledFins: false, wash: 0xffc88a, washZone: 16 });
   b.add(place(scriptLogo('Wynn', '#ffe9c4', '#ffb35a', 11, 3.5), 61.8, 55.8, -454, -HALF_PI));
 
   // ---- Entrance plaza, porte-cochère, the Wynn | Encore marquee ----
@@ -1329,8 +1331,8 @@ function buildWynn(b: WorldBuilder): void {
 function buildEncore(b: WorldBuilder): void {
   const zS = -490;
   const zN = zFromS(1940);
-  const skin: FacadeSpec = { wall: '#a0673e', mullion: '#c88a5a', glass: '#74462a', lit: '#ffd9a0', cols: 10, rows: 30, style: 2, seed: 241 };
-  curvedTower(b, 5, -527, 66, -0.14 * Math.PI, 0.14 * Math.PI, 5, 14, 62, skin, 0.7);
+  const skin: FacadeSpec = { wall: '#a8703e', mullion: '#d2a060', glass: '#86562a', lit: '#ffd9a0', cols: 10, rows: 30, style: 2, seed: 241 };
+  curvedTower(b, 5, -527, 66, -0.14 * Math.PI, 0.14 * Math.PI, 5, 14, 62, skin, 0.8, { rough: 0.2, ledFins: false, wash: 0xffc88a, washZone: 16 });
   b.add(place(scriptLogo('Encore', '#ffe9c4', '#ff8a5a', 11, 3.5), 63.8, 57.8, -527, -HALF_PI));
 
   // Esplanade garden: pavers by the sidewalk, lawn, red flower beds, trees
@@ -1920,7 +1922,8 @@ function buildFontainebleau(b: WorldBuilder): void {
   b.box(38, 0, -765, 16, 12, 54, white, true);
   const blueGlow = glassGlow(b, 0x1c3a6c, 0xd8ecff, 1.3);
   for (const y of [4.5, 9]) b.add(mesh(new THREE.BoxGeometry(16.3, 1.4, 54.3), blueGlow, 38, y, -765));
-  const fbSkin: FacadeSpec = { wall: '#2c5a9a', mullion: '#5a8ad0', glass: '#1c3a6c', lit: '#e8f2ff', cols: 10, rows: 34, style: 2, seed: 250 };
+  // Blue glass in a white mullion grid
+  const fbSkin: FacadeSpec = { wall: '#dfe8f2', mullion: '#e8f0f8', glass: '#2f66a0', lit: '#e8f2ff', cols: 10, rows: 34, style: 2, seed: 250 };
   const fcx = -10;
   const fcz = -765;
   const fR = 70;
@@ -1928,7 +1931,7 @@ function buildFontainebleau(b: WorldBuilder): void {
   const fa1 = 0.14 * Math.PI;
   const fsegs = 6;
   const fH = 76;
-  curvedTower(b, fcx, fcz, fR, fa0, fa1, fsegs, 14, fH, fbSkin, 0.6);
+  curvedTower(b, fcx, fcz, fR, fa0, fa1, fsegs, 14, fH, fbSkin, 0.7, { rough: 0.2, ledFins: false, wash: 0xcfe6ff, washZone: 18 });
   // Lit crown fins along the arc
   const crownMat = new THREE.MeshBasicMaterial({ color: 0xcfe6ff });
   const segLen = (fR * (fa1 - fa0)) / fsegs;

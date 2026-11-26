@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { WorldBuilder } from './builder';
 import { xFromO, zFromS } from './strip';
+import { buildSkylineExtras } from './skylineExtras';
 
 /**
  * Light-shaft material for searchlights and the Luxor Sky Beam: brightest along the core
@@ -88,6 +89,8 @@ interface Jet {
  * with landing lights, nav lights, strobes and beacons. Lives outside the static bake.
  */
 export function buildSkyLife(b: WorldBuilder): void {
+  // Trump tower + baked ground AO around building footprints (needs every district's colliders)
+  buildSkylineExtras(b);
   // ---------------------------------------------------------------- searchlights
   const beamGeo = new THREE.CylinderGeometry(15, 0.7, 760, 20, 1, true).translate(0, 380, 0);
   const sites = [

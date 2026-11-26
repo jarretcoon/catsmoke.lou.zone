@@ -576,8 +576,9 @@ function facadeRoughness(cols: number, rows: number, style: number): THREE.Canva
 }
 
 /**
- * Hotel tower skin: albedo, an emissive map (lit rooms in warm, cool and the odd TV-blue, some half-lit
- * behind curtains) and a roughness/metalness map so glass is glossy while walls stay matte.
+ * Hotel tower skin: albedo, an emissive map (which rooms are lit: warm, cool, dimmed, the odd TV-blue)
+ * and a roughness/metalness map so glass is glossy while walls stay matte. The facade shader reads the
+ * emissive colour at each window as that room's light and builds the room behind the glass from it.
  */
 export function makeFacadeTextures(spec: FacadeSpec): { map: THREE.CanvasTexture; emissiveMap: THREE.CanvasTexture; roughnessMap: THREE.CanvasTexture } {
   const S = 512;
@@ -663,21 +664,9 @@ export function makeFacadeTextures(spec: FacadeSpec): { map: THREE.CanvasTexture
     ctx.fillStyle = g;
     ctx.fillRect(w.x, w.y, w.w, w.h);
 
-    const roll = R();
-    const curtain = roll < 0.4;
-    const blinds = !curtain && roll < 0.55;
+    // Curtains, furniture and lamps live in the facade shader (rooms behind the glass, see facadeShader.ts);
+    // the textures only say which rooms are lit and in what colour, so near and far views agree.
     const lit = R() < litShare;
-    if (curtain) {
-      const left = R() * 0.45;
-      const right = R() * 0.45;
-      ctx.fillStyle = `rgba(${200 + R() * 40},${190 + R() * 30},${170 + R() * 30},0.5)`;
-      ctx.fillRect(w.x, w.y, w.w * left, w.h);
-      ctx.fillRect(w.x + w.w * (1 - right), w.y, w.w * right, w.h);
-    } else if (blinds) {
-      ctx.fillStyle = 'rgba(220,220,215,0.3)';
-      const drop = w.h * (0.3 + R() * 0.7);
-      for (let y = w.y; y < w.y + drop; y += 3) ctx.fillRect(w.x, y, w.w, 1.5);
-    }
     if (lit) {
       const k = R();
       let col: THREE.Color;
@@ -704,14 +693,6 @@ export function makeFacadeTextures(spec: FacadeSpec): { map: THREE.CanvasTexture
         ectx.fillStyle = lg;
       }
       ectx.fillRect(w.x + 1, w.y + 1, w.w - 2, w.h - 2);
-      if (curtain) {
-        // Curtains glow softly instead of blocking
-        ectx.fillStyle = 'rgba(0,0,0,0.35)';
-        ectx.fillRect(w.x, w.y, w.w * 0.3, w.h);
-        ectx.fillRect(w.x + w.w * 0.7, w.y, w.w * 0.3, w.h);
-      }
-      ctx.fillStyle = 'rgba(255,236,200,0.10)';
-      ctx.fillRect(w.x, w.y, w.w, w.h);
     }
     // Frame, centre mullion, sill
     ctx.strokeStyle = hex(mullC.clone().multiplyScalar(0.8));

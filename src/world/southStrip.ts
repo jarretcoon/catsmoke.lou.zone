@@ -1486,7 +1486,7 @@ function buildMandalay(b: WorldBuilder): void {
       [20, 28, 32],
     ]) {
       const rm = (r0 + r1) / 2;
-      tower(b, { x: tcx + Math.cos(a) * rm, z: tcz + Math.sin(a) * rm, w: r1 - r0, d: 11, h: hh, facade: { ...gold, seed: 412 + i * 3 + r0 }, rotY: -a, metal: 0.85, rough: 0.18, minimal: true, accent: 0xffe6a0 });
+      tower(b, { x: tcx + Math.cos(a) * rm, z: tcz + Math.sin(a) * rm, w: r1 - r0, d: 11, h: hh, facade: { ...gold, seed: 412 + i * 3 + r0 }, rotY: -a, metal: 0.85, rough: 0.18, minimal: true, accent: 0xffe6a0, wash: 0xffc860, washZone: 18, washStrength: 1.0 });
     }
     if (i !== 1) {
       const dx = Math.cos(a);
