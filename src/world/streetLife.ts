@@ -5,6 +5,7 @@ import { car, mat } from './props';
 import { litterGeometry, litterMaterial, mistMaterial, registerStreetTick, signGeometry, wetSheenMaterial } from './streetTextures';
 import { CROSSWALKS, STRIP } from './strip';
 import { buildCornerRails } from './stripRails';
+import { buildRideshareSigns } from './rideshareSpots';
 import { rng } from './textures';
 
 /**
@@ -24,6 +25,7 @@ export function buildStreetLife(b: WorldBuilder): void {
   buildMisters(b, R);
   buildSidewalkTrade(b, R);
   buildCornerRails(b); // no at-grade crossing at the bridge intersections (stripRails.ts)
+  buildRideshareSigns(b); // RIDESHARE PICKUP + Waymo flags on the side streets (rideshareSpots.ts)
 }
 
 // ---------------------------------------------------------------- ambient walkers (instanced)

@@ -23,6 +23,7 @@ import { GoalTracker } from './goals';
 import { MapMarker, Minimap } from './minimap';
 import { GuardNPC, StripCrowdSystem } from './npcs';
 import { rideLens, type Rideable } from './rides';
+import { installRideshare } from './rideshare';
 import { SmokeSystem, VapeTrick } from './smoke';
 import { CosmeticId, defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
@@ -201,6 +202,21 @@ const graphics = new GraphicsQuality(
 const catHolder = new THREE.Group();
 catHolder.position.fromArray(S.position);
 scene.add(catHolder);
+// Waymos and Ubers in traffic; [G] at a RIDESHARE PICKUP sign or the phone's `catsmoke:hail` calls one (rideshare.ts).
+const rideshare = installRideshare({
+  world,
+  scene,
+  camera,
+  cat: catHolder,
+  pay: (amount) => {
+    const paid = Math.min(Math.max(0, S.cash), amount);
+    S.cash -= paid;
+    updateHUD();
+    return paid;
+  },
+  toast: (msg, ms) => showToast(msg, ms),
+  dev: import.meta.env.DEV || import.meta.env.MODE === 'check',
+});
 const catVelocity = new THREE.Vector3();
 let catYaw = S.yaw;
 let isGrounded = false;
@@ -1091,7 +1107,7 @@ function exitRide(msg?: string): void {
   r.onExit?.();
   btnBus.innerHTML = 'Ride <kbd>G</kbd>';
   sfx.playBusBell();
-  showToast(msg ?? `Hopped off ${r.label}.`);
+  showToast(msg ?? r.exitMessage?.() ?? `Hopped off ${r.label}.`, r.kind === 'rideshare' ? 4200 : undefined);
 }
 
 function enterCar(car: (typeof world.trafficVehicles)[number]): void {
@@ -1948,6 +1964,7 @@ function step(now: number, render = true): void {
   }
   catHolder.rotation.y = catYaw;
   props.update(dt, world.colliders);
+  rideshare.update(dt);
   // Moving things live outside the baked world, so the world's distance culling never sees them.
   dynCullTimer -= dt;
   if (dynCullTimer <= 0) {
@@ -1975,7 +1992,7 @@ function step(now: number, render = true): void {
   if (danceCooldown > 0) danceCooldown -= dt;
   if (puffTimer > 0) puffTimer = Math.max(0, puffTimer - dt);
   const horizSpeed = riding ? 0 : Math.hypot(catVelocity.x, catVelocity.z);
-  const motionMode = restaurants.cat.state === 'eating' ? 'eat' : driving.active ? 'drive' : rag.active ? 'rag' : riding ? (riding.kind === 'seat' ? 'seat' : 'ride') : 'free';
+  const motionMode = restaurants.cat.state === 'eating' ? 'eat' : driving.active ? 'drive' : rag.active ? 'rag' : riding ? (riding.kind === 'seat' || riding.kind === 'rideshare' ? 'seat' : 'ride') : 'free';
   const pose = motion.update(dt, motionMode, isGrounded, catVelocity, catYaw, catHolder.position.y);
   if (motionMode === 'eat') stateEl.textContent = 'Eating';
   else if (motionMode === 'drive') stateEl.textContent = `Driving ${Math.round(Math.abs(driving.speed) * 2.237)} mph`;

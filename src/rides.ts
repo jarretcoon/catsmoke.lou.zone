@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type RideKind = 'deuce' | 'highroller' | 'gondola' | 'elevator' | 'tram' | 'monorail' | 'coaster' | 'seat';
+export type RideKind = 'deuce' | 'highroller' | 'gondola' | 'elevator' | 'tram' | 'monorail' | 'coaster' | 'seat' | 'rideshare';
 
 /** Anything the cat can hop on with [G]. */
 export interface Rideable {
@@ -24,6 +24,8 @@ export interface Rideable {
   wantsExit?(): boolean;
   boardPrompt: string;
   ridingPrompt: string;
+  /** What the toast says when the cat gets out (read after onExit; e.g. the fare). */
+  exitMessage?(): string | undefined;
   /** Live status line while riding (e.g. the next Deuce stop). */
   status?(): string;
   /**
