@@ -25,6 +25,7 @@ import { SmokeSystem, VapeTrick } from './smoke';
 import { CosmeticId, defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
 import { INDOOR_ZONE } from './world/builder';
+import { Ambience } from './ambience';
 import { STRIP } from './world/strip';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -75,6 +76,7 @@ renderer.toneMappingExposure = 1.12;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.25, 1600);
 const sfx = new SoundFX();
+const ambience = new Ambience();
 const world = buildVegasStripWorld(scene);
 // Reflections: a PMREM env map of a stand-in Vegas that follows the time of day.
 const envLighting = new EnvLighting(renderer, scene);
@@ -1315,6 +1317,9 @@ window.addEventListener('keydown', (e) => {
     case 'KeyM':
       showToast(minimap.cycle());
       break;
+    case 'KeyN':
+      showToast(ambience.toggle() ? '🔊 Background sound on' : '🔇 Background sound off');
+      break;
     case 'KeyJ':
       goalsPopover.togglePopover();
       break;
@@ -1926,6 +1931,7 @@ function step(now: number, render = true): void {
     inCar: driving.active,
     indoors: INDOOR_ZONE.test(zoneNow),
   });
+  ambience.update(dt, INDOOR_ZONE.test(zoneNow) ? 1 : 0, world.getNight());
 
   // Animation state
   if (actionLockTimer > 0) actionLockTimer = Math.max(0, actionLockTimer - dt);
