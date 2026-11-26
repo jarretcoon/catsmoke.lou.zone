@@ -635,7 +635,8 @@ function getTipWorld(preferVape: boolean, out = new THREE.Vector3()): THREE.Vect
 let catLook: CatLook | null = null;
 const dracoLoader = new DRACOLoader().setDecoderPath(DRACO_GLTF_CONFIG);
 new GLTFLoader().setDRACOLoader(dracoLoader).load(
-  `${import.meta.env.BASE_URL}models/tabby_cat.glb`,
+  // ?v= busts the 1-hour /models/* cache whenever the model changes (new code expects the new rig/meshes).
+  `${import.meta.env.BASE_URL}models/tabby_cat.glb?v=lou-fur-1`,
   (gltf) => {
     const model = gltf.scene;
     model.scale.setScalar(1.35);
