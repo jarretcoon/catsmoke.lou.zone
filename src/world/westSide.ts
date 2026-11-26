@@ -13,6 +13,7 @@ import { buildCosmoExtras } from './cosmoExtras';
 import { buildAriaSign, buildBellagioSign, buildCosmoSigns } from './westSigns';
 import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from './grandCaesars';
 import { caesarsSigns, treasureIslandSigns } from './stripSigns';
+import { crystalsFront, forumPlanting, forumWall } from './stripFronts';
 
 /**
  * West side of Las Vegas Blvd, south → north:
@@ -46,15 +47,10 @@ function plaza(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, 
 // ---------------------------------------------------------------- CityCenter
 function buildCityCenter(b: WorldBuilder): void {
   const silver = { wall: '#a9b8c6', mullion: '#cfd8e0', glass: '#6d8396', lit: '#fff2cf', cols: 10, rows: 18, style: 2 as const, seed: 3 };
-  // The Shops at Crystals — faceted metal-and-glass front on the Strip
-  const crystal = mat(0xcfd6de, 0.25, 0.85);
+  // The Shops at Crystals — Libeskind's tilted steel-and-glass shards over a glass storefront band (stripFronts.ts)
   b.box(-40, 0, 232, 38, 9, 40, mat(0xb9c3cc, 0.4, 0.6), true);
-  for (let i = 0; i < 7; i++) {
-    const p = mesh(new THREE.BoxGeometry(8, 10 + (i % 3) * 3, 8), crystal, -28 - (i % 3) * 9, 9 + (i % 3), 216 + i * 5.5, true);
-    p.rotation.set(0.35 * ((i % 2) * 2 - 1), i * 0.6, 0.4);
-    b.add(p);
-  }
-  b.add(neonSign('CRYSTALS', '#101418', '#e8f4ff', 9, 1.6, 'THE SHOPS AT CRYSTALS'), -20.8, 6, 232, -Math.PI / 2);
+  crystalsFront(b);
+  b.add(neonSign('CRYSTALS', '#101418', '#e8f4ff', 8, 1.5, 'THE SHOPS AT CRYSTALS'), -20.55, 6.5, 232, -Math.PI / 2);
   tower(b, { x: -40, z: 280, w: 16, d: 22, h: 52, facade: silver, metal: 0.6, rough: 0.25 });
   b.add(neonSign('WALDORF ASTORIA', '#0d0f14', '#f6e7c8', 10, 1.4), -31.8, 46, 280, -Math.PI / 2);
   // ARIA: curving blue-silver low-e glass with sawtooth sunshade fins washed by podium floodlights
@@ -620,6 +616,10 @@ function buildCaesars(b: WorldBuilder): void {
   buildForumShops(b);
   b.box(-36, 0, -127, 20, 12, 16, mat(0xe2d8c4, 0.7), true);
   b.box(-36, 0, -172, 20, 12, 16, mat(0xe2d8c4, 0.7), true);
+  // The street wall either side of the temple front: pilasters, arches, statues, cornice (stripFronts.ts)
+  forumWall(b, -26, -135, -119, 12);
+  forumWall(b, -26, -180, -164, 12);
+  forumPlanting(b, -22.4, [-122.5, -129, -135.5, -165.5, -172, -178.5]);
 
   // Towers (white with blue glass)
   const caesarsSkin = { wall: '#f2efe6', mullion: '#ffffff', glass: '#6e9bc5', lit: '#fff0b3', cols: 12, rows: 22, style: 0 as const, seed: 31 };

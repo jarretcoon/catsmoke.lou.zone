@@ -103,7 +103,7 @@ let signGlowRegistered = false;
 export function signs(b: WorldBuilder): THREE.MeshStandardMaterial {
   const m = signMaterial();
   if (!signGlowRegistered) {
-    b.nightGlow(m, 0.3, 1.25);
+    b.nightGlow(m, 0.3, 0.9); // shop fascias and shelter posters: bright, but no bloom halo up close
     signGlowRegistered = true;
   }
   return m;
