@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { GameType, WorldBuilder } from './builder';
 import { makeCarpetTexture } from './textures';
 import { basic, mat, mesh } from './props';
+import { lightPoolMaterial, registerStreetTick } from './streetTextures';
 import { furnishCasino, type InteriorOptions, type InteriorTheme } from './casinoInteriors';
 
 export type { InteriorOptions, InteriorTheme } from './casinoInteriors';
@@ -171,6 +172,11 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
       const curtain = along === 'z' ? mesh(new THREE.PlaneGeometry(len, lintelY), dm.curtain, fixed + out * 0.05, lintelY / 2, mid) : mesh(new THREE.PlaneGeometry(len, lintelY), dm.curtain, mid, lintelY / 2, fixed + out * 0.05);
       if (along === 'z') curtain.rotation.y = Math.PI / 2;
       b.add(curtain);
+      // After dark the open doors spill warm casino light out across the sidewalk (one shared additive decal).
+      const spill = new THREE.PlaneGeometry(along === 'z' ? 10 : len + 6, along === 'z' ? len + 6 : 10);
+      spill.rotateX(-Math.PI / 2);
+      b.add(new THREE.Mesh(spill, lightPoolMaterial()), along === 'z' ? fixed + out * 4.6 : mid, 0.07, along === 'z' ? mid : fixed + out * 4.6);
+      registerStreetTick(b);
       const runLen = 6;
       const rw = Math.min(len - 1.2, 3.6);
       b.add(P(mid, t / 2 + runLen / 2 - 0.4, 0.045, rw, 0.03, runLen + 1.4, runnerRed));
