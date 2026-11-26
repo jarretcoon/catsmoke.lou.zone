@@ -50,7 +50,8 @@ export function bakeStatic(root: THREE.Object3D, cell: number, keepMaterials: Se
     geo.boundingBox!.getSize(size);
     // Skyline pieces (towers, big signs, freeway) merge apart from street-level clutter so the clutter can be
     // culled much closer than the skyline: a merged cell no longer drags a bench along with a 150 m tower.
-    const big = Math.max(size.x, size.y, size.z) > 14 || geo.boundingBox!.max.y > 22;
+    // userData.clutter (parked cars on garage decks…) stays street clutter even when it sits high up.
+    const big = !m.userData.clutter && (Math.max(size.x, size.y, size.z) > 14 || geo.boundingBox!.max.y > 22);
     const cellKey = `${Math.floor(center.x / cell)}|${Math.floor(center.z / cell)}|${big ? 'B' : 's'}`;
 
     let key: string;

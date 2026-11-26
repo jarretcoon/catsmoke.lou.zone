@@ -186,10 +186,19 @@ function drawBoulevard(halfWidth: number, laneEdges: number[], medianHalf: numbe
         ctx.arc(ox, oy, rad, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
-        rctx.fillStyle = rm(0.45);
+        // Soft-edged and only slightly glossy: hard low-roughness ovals mirrored the neon env map as rows of bright dots.
+        const rg = rctx.createRadialGradient(ox, oy, 0, ox, oy, rad * 0.7);
+        rg.addColorStop(0, 'rgba(0,166,0,0.85)');
+        rg.addColorStop(1, 'rgba(0,166,0,0)');
+        rctx.save();
+        rctx.translate(ox, oy);
+        rctx.scale(1, (ppmZ / ppmX) * 1.6);
+        rctx.translate(-ox, -oy);
+        rctx.fillStyle = rg;
         rctx.beginPath();
-        rctx.ellipse(ox, oy, rad * 0.6, rad * 0.6 * (ppmZ / ppmX) * 1.6, 0, 0, Math.PI * 2);
+        rctx.arc(ox, oy, rad * 0.7, 0, Math.PI * 2);
         rctx.fill();
+        rctx.restore();
       }
     }
   }
@@ -311,7 +320,7 @@ function drawBoulevard(halfWidth: number, laneEdges: number[], medianHalf: numbe
       ctx.ellipse(cx, cy, rad * k, ry * k, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
-    rctx.fillStyle = rm(0.42, 0.8);
+    rctx.fillStyle = rm(0.58, 0.55);
     rctx.beginPath();
     rctx.ellipse(cx, cy, rad * 1.1, ry * 1.1, 0, 0, Math.PI * 2);
     rctx.fill();

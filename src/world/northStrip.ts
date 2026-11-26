@@ -245,6 +245,7 @@ function parkedCar(i: number, x: number, z: number): THREE.Group {
   for (const ch of [...g.children]) {
     const m = ch as THREE.Mesh;
     if (m.isMesh && (m.material as THREE.Material).type === 'MeshBasicMaterial') g.remove(m);
+    else if (m.isMesh) m.userData.clutter = true; // high garage decks: cull with street clutter, not the skyline
   }
   return place(g, x, 0, z, i % 3 === 0 ? Math.PI : 0);
 }
