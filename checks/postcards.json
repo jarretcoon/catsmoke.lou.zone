@@ -8,7 +8,7 @@
     { "id": "strip-wide", "label": "The Strip from above (night)", "time": "night", "tp": [0, 0.3, 40], "cam": [0, 0.55, 42], "maxCalls": 1450 },
     { "id": "fountains-night", "label": "Bellagio fountains (night)", "time": "night", "tp": [-9, 0.3, 66], "cam": [1.5708, 0.25, 10], "maxCalls": 900 },
     { "id": "nyny-night", "label": "New York-New York (night)", "time": "night", "tp": [8, 0.3, 410], "cam": [1.5708, 0.2, 14], "maxCalls": 1250 },
-    { "id": "lucky-night", "label": "Circus Circus + Lucky (night)", "time": "night", "tp": [-12, 0.3, -740], "cam": [1.2, 0.05, 18], "maxCalls": 700 },
+    { "id": "lucky-night", "label": "Circus Circus + Lucky (night)", "time": "night", "tp": [-14, 0.3, -760], "cam": [0.5, 0.1, 20], "maxCalls": 790 },
     { "id": "sphere-night", "label": "Sphere (night)", "time": "night", "tp": [120, 0.3, -196], "cam": [-0.75, 0.08, 12], "maxCalls": 800 },
     { "id": "chandelier", "label": "Cosmopolitan Chandelier (inside)", "time": "night", "tp": [-40, 0.3, 192], "cam": [0, 0.12, 6], "maxCalls": 1700 },
     { "id": "bellagio-casino", "label": "Bellagio casino floor (inside)", "time": "night", "tp": [-96, 0.3, 40], "cam": [1.5708, 0.16, 6], "maxCalls": 600 },
@@ -20,6 +20,12 @@
     { "id": "forum-front-night", "label": "Forum Shops front on the Strip (night)", "time": "night", "tp": [-14, 0.3, -150], "cam": [1.5708, 0.16, 15], "maxCalls": 900 },
     { "id": "palazzo-night", "label": "The Palazzo front (night)", "time": "night", "tp": [13, 0.3, -350], "cam": [-1.5708, 0.16, 11], "maxCalls": 560 },
     { "id": "doges-night", "label": "The Venetian: Doge's Palace + campanile (night)", "time": "night", "tp": [6, 0.3, -268], "cam": [-1.5708, 0.1, 14], "maxCalls": 740 },
-    { "id": "paris-night", "label": "Paris Las Vegas street front (night)", "time": "night", "tp": [14, 0.3, 72], "cam": [-1.9, 0.14, 11], "maxCalls": 800 }
+    { "id": "paris-night", "label": "Paris Las Vegas street front (night)", "time": "night", "tp": [14, 0.3, 72], "cam": [-1.9, 0.14, 11], "maxCalls": 800 },
+    { "id": "walk-north-night", "label": "Walking north from the Welcome sign (night)", "time": "night", "tp": [1.5, 0.3, 635], "cam": [0, 0.08, 5.5], "maxCalls": 1600 },
+    { "id": "walk-north-day", "label": "Walking north from the Welcome sign (day)", "time": "day", "tp": [1.5, 0.3, 635], "cam": [0, 0.08, 5.5], "maxCalls": 1750 },
+    { "id": "mgm-tower-night", "label": "MGM Grand tower from Tropicana Ave (night)", "time": "night", "tp": [-12, 0.3, 455], "cam": [-0.8, 0.1, 6], "maxCalls": 1500 },
+    { "id": "circus-day", "label": "Circus Circus porte-cochère from the median (day)", "time": "day", "tp": [0.5, 0.3, -766], "cam": [1.5708, 0.14, 7], "maxCalls": 670 },
+    { "id": "slots-block-night", "label": "McDonald’s + Slots-A-Fun (night)", "time": "night", "tp": [-14, 0.3, -703], "cam": [1.15, 0.12, 15], "maxCalls": 830 },
+    { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 }
   ]
 }

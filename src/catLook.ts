@@ -30,9 +30,15 @@ export interface CatLookFrame {
   night: number;
   /** Standing or loafing with no one-shot playing: allowed to glance about. */
   idle: boolean;
+  /** On the move: he still turns his head to people he passes, just less far. */
+  roam?: boolean;
   /** Things worth a glance when idle: the camera first, else the nearest tourist. */
   camera?: THREE.Vector3;
   tourists?: ReadonlyArray<{ mesh: THREE.Object3D }>;
+  /** Something that holds his attention (the Sphere's screen from a seat): most glances go there. */
+  focus?: THREE.Vector3;
+  /** Sitting and washing: head down to the chest in little licks, eyes half shut. */
+  groom?: boolean;
 }
 
 // ------------------------------------------------------------------ small helpers
@@ -349,8 +355,11 @@ export class CatLook {
   private lookWeight = 0;
   private glanceTimer = 0;
   private glanceTarget: THREE.Vector3 | null = null;
+  private groomW = 0;
+  private groomSide = 1;
   private readonly modelInv = new THREE.Quaternion();
   private readonly tmpTarget = new THREE.Vector3();
+  private readonly glanceAt = new THREE.Vector3();
 
   constructor(model: THREE.Object3D) {
     this.model = model;
@@ -599,6 +608,11 @@ export class CatLook {
     this.t += dt;
     const t = this.t;
 
+    // grooming eases in and out (head down to the chest, one side, then the other next time)
+    if (f.groom && this.groomW === 0) this.groomSide = -this.groomSide;
+    this.groomW = Math.max(0, Math.min(1, this.groomW + (f.groom ? dt * 2.2 : -dt * 3)));
+    const g = this.groomW * this.groomW * (3 - 2 * this.groomW);
+
     // pupils: ease toward the light level (cats take a second or two)
     this.pupil += (THREE.MathUtils.clamp(f.night, 0, 1) - this.pupil) * Math.min(1, dt * 1.2);
     this.eyeUniforms.uPupil.value = this.pupil;
@@ -634,7 +648,7 @@ export class CatLook {
       // standing or loafing, the clip's metronome blink is replaced by ours
       if (f.idle) clipAng = Math.min(clipAng, 0);
       lid.layer.bone.quaternion.copy(lid.layer.rest);
-      const ang = clipAng + blink * (lid.close - clipAng);
+      const ang = clipAng + Math.max(blink, g * 0.62) * (lid.close - clipAng);
       lid.layer.rotate(lid.axis, ang);
       lid.layer.end();
     }
@@ -694,11 +708,12 @@ export class CatLook {
 
     // ---- idle glance: the camera when it's in front of him, else the nearest tourist ahead
     this.glanceTimer -= dt;
-    if (f.idle && this.glanceTimer <= 0) {
+    const looking = f.idle || !!f.roam;
+    if (looking && this.glanceTimer <= 0) {
       this.glanceTimer = 1.2 + Math.random() * 2.2;
       this.glanceTarget = this.pickGlance(f);
     }
-    if (!f.idle) this.glanceTarget = null;
+    if (!looking || g > 0) this.glanceTarget = null;
     let wantYaw = 0;
     let wantPitch = 0;
     let wantW = 0;
@@ -713,7 +728,7 @@ export class CatLook {
       if (Math.abs(yaw) < THREE.MathUtils.degToRad(105)) {
         wantYaw = THREE.MathUtils.clamp(yaw, -0.95, 0.95);
         wantPitch = THREE.MathUtils.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.3, 0.42);
-        wantW = 1;
+        wantW = f.idle ? 1 : 0.6;
       }
     }
     const k = Math.min(1, dt * 4);
@@ -722,21 +737,24 @@ export class CatLook {
     this.lookWeight += (wantW - this.lookWeight) * Math.min(1, dt * 2.5);
     const yawA = this.lookYaw * this.lookWeight;
     const pitchA = this.lookPitch * this.lookWeight;
+    // washing: little licks (a nod a bit under three times a second) with the head turned to one side
+    const lick = g > 0 ? Math.max(0, Math.sin(t * Math.PI * 2 * 2.6)) : 0;
     if (this.neck) {
       this.neck.begin();
-      this.neck.rotate(this.headYaw.neck, yawA * 0.35);
-      this.neck.rotate(this.headPitch.neck, -pitchA * 0.3);
+      this.neck.rotate(this.headYaw.neck, yawA * 0.35 + g * 0.22 * this.groomSide);
+      this.neck.rotate(this.headPitch.neck, -pitchA * 0.3 + g * 0.42);
       this.neck.end();
     }
     if (this.head) {
       this.head.begin();
-      this.head.rotate(this.headYaw.local, yawA * 0.65);
-      this.head.rotate(this.headPitch.local, -pitchA * 0.7);
+      this.head.rotate(this.headYaw.local, yawA * 0.65 + g * 0.3 * this.groomSide);
+      this.head.rotate(this.headPitch.local, -pitchA * 0.7 + g * (0.38 + 0.16 * lick));
       this.head.end();
     }
   }
 
   private pickGlance(f: CatLookFrame): THREE.Vector3 | null {
+    if (f.focus && Math.random() < 0.8) return f.focus;
     const here = this.model.getWorldPosition(tmpV);
     const fwd = tmpV2.set(0, 0, 1).applyQuaternion(this.model.getWorldQuaternion(tmpQ)).setY(0).normalize();
     if (f.camera) {
@@ -757,7 +775,7 @@ export class CatLook {
         best = tp;
       }
     }
-    if (best) return this.tmpTarget.set(best.x, best.y + 1.55, best.z).clone();
+    if (best) return this.glanceAt.set(best.x, best.y + 1.55, best.z);
     return null;
   }
 }

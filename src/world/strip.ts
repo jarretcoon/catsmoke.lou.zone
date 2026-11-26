@@ -36,7 +36,8 @@ import {
  * Street cross-section, cars and people stay life-size.
  */
 export const STRIP = {
-  north: -800,
+  /** The walkable north end: past Circus Circus Dr to Sky Las Vegas (Sahara Ave and the STRAT stay backdrop). */
+  north: -856,
   south: 960,
   /** Tropicana Ave (real s −1542) — the second big intersection, also a skybridge ring. */
   tropicanaZ: 442.7,
@@ -55,7 +56,8 @@ export const STRIP = {
 
 /** Real signalised mid-block crossings of the Strip (real meters north of Flamingo / -3.2). */
 export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both' }> = [
-  { z: -735.3, name: 'Circus Circus Dr', offset: 6, road: 'west' },
+  { z: -797, name: 'Circus Circus Dr', offset: 6, road: 'west' },
+  { z: -735.3, name: 'Circus Circus main entrance', offset: 3, road: 'west' },
   { z: -669.8, name: 'Resorts World Ave', offset: 12 },
   { z: -615.3, name: 'Convention Center Dr', offset: 2, road: 'east' },
   { z: -573.1, name: 'Genting Blvd', offset: 8 },
