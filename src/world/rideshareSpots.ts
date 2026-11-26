@@ -10,6 +10,11 @@ import { STRIP } from './strip';
  * cross streets beside the resorts, on the curb whose lane runs back toward the Strip, so a ride can pull
  * out and turn straight onto the Boulevard. Each zone has the resort's RIDESHARE PICKUP sign (Uber, Lyft)
  * and, a few metres up the curb, Waymo's own pickup flag.
+ *
+ * Where a resort's porte-cochère drive opens straight off the Boulevard (Bellagio Dr, Encore's drive), rides
+ * also pick up there, as they do for real: the car comes round from the valet loop at the back of the drive,
+ * stops at the curb facing the Strip and leaves with a right turn onto the Boulevard (a left too where the
+ * drive is signalised with a cut in the median, like Bellagio Dr).
  */
 export interface RideshareSpot {
   id: string;
@@ -29,6 +34,12 @@ export interface RideshareSpot {
   /** Street extent (x), for the approaching car. */
   x0: number;
   x1: number;
+  /** A porte-cochère drive off the Boulevard (a dead end: the car comes from its far end), not a street. */
+  drive?: boolean;
+  /** No cut in the median at the mouth: leaving, the car may only turn right onto the Boulevard. */
+  rightOut?: boolean;
+  /** Signs this far from the centre line (default: on the sidewalk, half + 1.1). */
+  signOff?: number;
 }
 
 export const WAYMO_UPSTREAM = 9;
@@ -47,12 +58,18 @@ export const RIDESHARE_SPOTS: RideshareSpot[] = [
   { id: 'cromwell', name: 'The Cromwell & Flamingo · Flamingo Rd', zc: 0, dir: -1, x: 54, ...FLAMINGO, ...EAST },
   { id: 'excalibur', name: 'Excalibur · Tropicana Ave', zc: STRIP.tropicanaZ, dir: 1, x: -56, ...FLAMINGO, ...WEST },
   { id: 'mgm', name: 'MGM Grand · Tropicana Ave', zc: STRIP.tropicanaZ, dir: -1, x: 58, ...FLAMINGO, ...EAST },
+  // Porte-cochère drives. Bellagio Dr (z 101…110, the lobby canopy at x −122): the taxi line holds the inbound
+  // lane, so rides use the outbound curb; the signs stand at the drive's edge in front of Via Bellagio.
+  { id: 'bellagio-drive', name: 'Bellagio · porte-cochère, Bellagio Dr', zc: 105.5, dir: 1, x: -30, half: 4.5, driveOff: 2.3, curbOff: 2.8, x0: -110, x1: -19, drive: true, signOff: 4.75 },
+  // Encore's drive (z −557.5…−548.5, canopy x 33…47): taxis queue on the south side, rides stop in the north lane
+  // between the canopy's columns. No median cut here, so right turns out only.
+  { id: 'encore-drive', name: 'Encore · porte-cochère', zc: -553, dir: -1, x: 30, half: 4.5, driveOff: 2.3, curbOff: 2.4, x0: 19, x1: 55, drive: true, rightOut: true },
 ];
 
 /** Where a zone's sign stands (on the sidewalk just past the curb), for the Uber / Lyft sign or the Waymo flag. */
 export function spotSign(s: RideshareSpot, service: 'uber' | 'waymo', out = new THREE.Vector3()): THREE.Vector3 {
   const x = service === 'uber' ? s.x + s.dir * 2.5 : s.x - s.dir * (WAYMO_UPSTREAM - 2.5);
-  return out.set(x, 0, s.zc + s.dir * (s.half + 1.1));
+  return out.set(x, 0, s.zc + s.dir * (s.signOff ?? s.half + 1.1));
 }
 
 /** The resort's sign: navy cabinet, RIDESHARE PICKUP, a car pictogram, Uber • Lyft (drawn, no logos copied). */

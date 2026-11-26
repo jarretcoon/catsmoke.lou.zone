@@ -103,6 +103,8 @@ export interface DeuceState {
   wheels: THREE.Mesh[];
   deckOffset: THREE.Vector3;
   halfLen: number;
+  /** 0 in its curb lane … 1 out in the next lane, passing a car stopped at the curb. */
+  swing: number;
 }
 
 export interface TrafficCar {
@@ -117,6 +119,8 @@ export interface TrafficCar {
   hijacked?: boolean;
   /** Abandoned by the cat; waits to respawn into traffic. */
   parked?: boolean;
+  /** Stopped at the curb in the Deuce's lane (a rideshare pickup or drop-off): the bus pulls out around it. */
+  curbside?: boolean;
   homeLane?: number;
 }
 
@@ -461,7 +465,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     b.scene.add(built.group);
     built.group.position.set(def.x, 0, def.z);
     built.group.rotation.y = def.dir === 1 ? 0 : Math.PI;
-    buses.push({ mesh: built.group, laneX: def.x, dir: def.dir, speed: 9, stopTimer: 0, lastStop: NaN, wheels: built.wheels, deckOffset: built.deckOffset, halfLen: 6.3 });
+    buses.push({ mesh: built.group, laneX: def.x, dir: def.dir, speed: 9, stopTimer: 0, lastStop: NaN, wheels: built.wheels, deckOffset: built.deckOffset, halfLen: 6.3, swing: 0 });
   }
 
   // --- Cars ---
@@ -566,6 +570,14 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
         const gap = (op - pos) * c.dir - o.halfLen - c.halfLen;
         if (gap > 0 && gap < 14) target = Math.min(target, Math.max(0, (gap - 2.5) * 1.2));
       }
+      // a Deuce swinging out into this lane round a car at the curb: hang back behind it
+      if (c.axis === 'z') {
+        for (const bus of buses) {
+          if (bus.swing < 0.15 || bus.dir !== c.dir || Math.abs(Math.sign(bus.laneX) * STRIP.laneCenters[1] - c.laneX) > 0.5) continue;
+          const gap = (bus.mesh.position.z - pos) * c.dir - bus.halfLen - c.halfLen;
+          if (gap > -bus.halfLen && gap < 14) target = Math.min(target, Math.max(0, (gap - 2.5) * 1.2));
+        }
+      }
       c.speed = THREE.MathUtils.lerp(c.speed, target, Math.min(1, dt * 2.2));
       const next = pos + c.dir * c.speed * dt;
       if (c.axis === 'z') {
@@ -588,11 +600,32 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       let target = bus.speed;
       const d = nextStop(z, bus.dir);
       if (d < 32) target = Math.min(target, Math.max(0, (d - bus.halfLen) * 0.8));
+      // A rideshare waiting at the curb doesn't hold the Deuce up: the bus swings out into the next lane, round
+      // it and back in (yielding to that lane's traffic while it's out there).
+      const passX = Math.sign(bus.laneX) * STRIP.laneCenters[1];
+      let pass = false;
       for (const c of cars) {
         if (c.axis !== 'z' || !(Math.abs(c.laneX - bus.laneX) <= 0.5)) continue;
         const gap = (c.mesh.position.z - z) * bus.dir - c.halfLen - bus.halfLen;
+        if (c.curbside && gap < 20 && gap > -2 * (c.halfLen + bus.halfLen) - 3) {
+          pass = true;
+          if (bus.swing < 0.9 && gap > 0) target = Math.min(target, Math.max(1.5, gap * 0.6)); // ease out before it
+          continue;
+        }
         if (gap > 0 && gap < 14) target = Math.min(target, Math.max(0, (gap - 2.5) * 1.2));
       }
+      if (pass || bus.swing > 0) {
+        for (const c of cars) {
+          if (c.axis !== 'z' || c.dir !== bus.dir || !(Math.abs(c.laneX - passX) <= 0.5)) continue;
+          const gap = (c.mesh.position.z - z) * bus.dir - c.halfLen - bus.halfLen;
+          if (gap > 0 && gap < 14) target = Math.min(target, Math.max(0, (gap - 2.5) * 1.2));
+        }
+      }
+      const x0 = bus.mesh.position.x;
+      bus.swing = THREE.MathUtils.clamp(bus.swing + (pass ? 0.6 : -0.6) * dt, 0, 1);
+      bus.mesh.position.x = THREE.MathUtils.lerp(bus.laneX, passX, THREE.MathUtils.smoothstep(bus.swing, 0, 1));
+      // nose into the lane change instead of crabbing sideways
+      bus.mesh.rotation.y = Math.atan2((bus.mesh.position.x - x0) / Math.max(dt, 1e-4), bus.dir * Math.max(target, 2));
       const nz = z + bus.dir * target * dt;
       for (const sz of stopsByDir(bus.dir)) {
         if (sz === bus.lastStop) continue;
