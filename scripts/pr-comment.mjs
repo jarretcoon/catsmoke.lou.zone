@@ -13,7 +13,10 @@ out.push(`## 🐈 Game check: ${m.ok ? '✅ passed' : `❌ ${m.failures.length} 
 out.push('');
 out.push(
   `Loaded to Ready in ${m.loadSeconds == null ? '—' : `${fmt(m.loadSeconds, 1)} s`} on GitHub's software renderer (a real phone or PC is much faster). ` +
-    `Download ${fmt(m.totalKB / 1000, 2)} MB${base ? ` (main: ${fmt(base.totalKB / 1000, 2)} MB)` : ''}. [Full run](${runUrl})`
+    (m.firstLoadKB != null
+      ? `Download before Ready (desktop) ${fmt(m.firstLoadKB / 1000, 2)} MB, ${fmt(m.firstLoadWireKB / 1000, 2)} MB compressed${base?.firstLoadKB != null ? ` (main: ${fmt(base.firstLoadKB / 1000, 2)} MB)` : ''}; whole site `
+      : 'Download ') +
+    `${fmt(m.totalKB / 1000, 2)} MB${base ? ` (main: ${fmt(base.totalKB / 1000, 2)} MB)` : ''}. [Full run](${runUrl})`
 );
 out.push('');
 for (const f of m.failures) out.push(`- ❌ ${f}`);

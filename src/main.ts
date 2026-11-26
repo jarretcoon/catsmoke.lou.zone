@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { DRACO_GLTF_CONFIG, DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadingDone, loadLou, warmLou, warmWorld } from './loading';
+import { startStats } from './stats';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { EnvLighting, makeGradePass } from './look';
@@ -635,13 +635,11 @@ function getTipWorld(preferVape: boolean, out = new THREE.Vector3()): THREE.Vect
   return out.set(0.08, 0.48, 0.44).applyAxisAngle(THREE.Object3D.DEFAULT_UP, catYaw).add(catHolder.position);
 }
 
-// Lou's model is Draco-compressed with WebP textures; three bundles the glTF Draco decoder (hashed, so it caches forever).
+// Lou's model is Draco-compressed with WebP textures. loading.ts started downloading it (content-hashed URL,
+// a lighter one on phones) before the Strip was built.
 let catLook: CatLook | null = null;
-const dracoLoader = new DRACOLoader().setDecoderPath(DRACO_GLTF_CONFIG);
-new GLTFLoader().setDRACOLoader(dracoLoader).load(
-  // ?v= busts the 1-hour /models/* cache whenever the model changes (new code expects the new rig/meshes).
-  `${import.meta.env.BASE_URL}models/tabby_cat.glb?v=lou-fur-1`,
-  (gltf) => {
+loadLou().then(
+  async (gltf) => {
     const model = gltf.scene;
     model.scale.setScalar(1.35);
     model.traverse((child) => {
@@ -674,11 +672,13 @@ new GLTFLoader().setDRACOLoader(dracoLoader).load(
       fadeToAction(actions.Idle, 0.1);
     }
     updateHUD();
+    // Lou's shaders compile in the background too, and the Strip's must be done: no stall on the first frames.
+    await warmLou(renderer, model, camera, drawTarget(), scene);
+    loadingDone();
     titleLoading.textContent = 'Ready. Tip: tourists pay more when your Swag is up.';
     btnNewGame.disabled = false;
     btnContinue.disabled = false;
   },
-  undefined,
   (err) => {
     console.error('Failed to load tabby_cat.glb:', err);
     titleLoading.textContent = 'Could not load the cat model — check public/models/tabby_cat.glb';
@@ -2082,7 +2082,23 @@ function step(now: number, render = true): void {
 updateHUD();
 updateMoodButton();
 trackZone();
-rafId = requestAnimationFrame(tick);
+// Lay out the first frame without drawing it, compile the Strip's shaders in the background, then start
+// drawing (the title screen shows progress meanwhile instead of freezing on the first frame).
+/** Where the scene is drawn (the bloom composer's target, or the screen on Low): shaders compile to match it. */
+function drawTarget(): THREE.WebGLRenderTarget | null {
+  return composer?.readBuffer ?? null;
+}
+step(performance.now(), false);
+warmWorld(renderer, scene, camera, drawTarget()).then(() => {
+  if (!isPaused && rafId === 0) rafId = requestAnimationFrame(tick);
+});
+startStats({
+  started: () => started,
+  quality: () => quality,
+  zone: () => world.getZoneName(catHolder.position.x, catHolder.position.z),
+  goalsDone: () => S.goalsDone,
+  missionsDone: () => S.stats.missionsDone,
+});
 
 // Dev hooks: on in `vite dev` and in the PR-check build (`vite build --mode check`), never in the live build.
 if (import.meta.env.DEV || import.meta.env.MODE === 'check') {
