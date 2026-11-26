@@ -674,7 +674,6 @@ function buildPlaza(b: WorldBuilder): void {
   board.rotation.y = -Math.PI / 2;
   b.scene.add(board);
   b.box(CX - 44, 0, CZ - 24, 1.1, 14.4, 6.2, mat(0x17191f, 0.35, 0.5), true);
-  b.add(neonSign('SPHERE', '#05060a', '#c9b3ff', 5.6, 1.3, undefined, 0.2), CX - 44.65, 15.2, CZ - 24, -Math.PI / 2);
   let ledT = 0;
   b.every((dt, t) => {
     ledT += dt;
@@ -731,12 +730,18 @@ function graniteTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+let kioskMats: { glass: THREE.MeshStandardMaterial; ring: THREE.MeshStandardMaterial } | null = null;
 function kiosk(b: WorldBuilder, x: number, z: number, label: string, fg: string, r: number): void {
+  // Both kiosks share their lit materials, so the static batch folds them into one draw each
+  kioskMats ??= {
+    glass: b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x182230, roughness: 0.08, metalness: 0.7, emissive: 0xffe2b0, emissiveIntensity: 0.1 }), 0.1, 0.7),
+    ring: b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x2a2440, emissive: 0xb07dff, emissiveIntensity: 0.2 }), 0.2, 1.8),
+  };
   const g = new THREE.Group();
   g.add(cyl(r, r, 0.9, mat(0x15171c, 0.4, 0.5), 0, 0.45, 0, 24));
-  g.add(cyl(r - 0.05, r - 0.05, 1.5, b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x182230, roughness: 0.08, metalness: 0.7, emissive: 0xffe2b0, emissiveIntensity: 0.1 }), 0.1, 0.7), 0, 1.65, 0, 24));
+  g.add(cyl(r - 0.05, r - 0.05, 1.5, kioskMats.glass, 0, 1.65, 0, 24));
   g.add(cyl(r + 0.25, r + 0.25, 0.35, mat(0xeceef2, 0.35, 0.2), 0, 2.58, 0, 24));
-  g.add(cyl(r + 0.27, r + 0.27, 0.08, b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x2a2440, emissive: 0xb07dff, emissiveIntensity: 0.2 }), 0.2, 1.8), 0, 2.4, 0, 24));
+  g.add(cyl(r + 0.27, r + 0.27, 0.08, kioskMats.ring, 0, 2.4, 0, 24));
   b.add(g, x, 0, z);
   const sign = neonSign(label, '#06070c', fg, r * 1.9, 0.6, undefined, 0.08);
   b.add(sign, x - r - 0.32, 3.15, z, -Math.PI / 2);
@@ -913,7 +918,7 @@ function buildAtrium(b: WorldBuilder): { group: THREE.Group; update: (dt: number
     28
   );
   for (const [x, z] of [
-    [-16.6, -12.2],
+    [-18.6, -10.6],
     [-20.4, -3.4],
     [-15.4, 13.6],
   ]) {
@@ -964,6 +969,52 @@ function buildAtrium(b: WorldBuilder): { group: THREE.Group; update: (dt: number
     const strip1 = bx(len, 0.01, 0.08, guide, (a.x + c.x) / 2, 0.035, (a.z + c.z) / 2, -Math.atan2(c.z - a.z, c.x - a.x));
     group.add(strip1);
   }
+  // Escalators up to the Level 200 balcony (the up flight is climbable)
+  const escTop = 7;
+  const escZ0 = -4.6;
+  const escZ1 = -13.4;
+  const nEsc = 16;
+  const escRun = (escZ0 - escZ1) / nEsc;
+  const stepMat = mat(0x3a3d44, 0.5, 0.6);
+  const glassRail = new THREE.MeshStandardMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.22, roughness: 0.05, depthWrite: false });
+  const railGlow = basic(0x8fe8ff);
+  const flights: Array<[number, number]> = [
+    [-15.5, -14.45],
+    [-14.4, -13.35],
+  ];
+  for (let i = 0; i < nEsc; i++) {
+    const za = escZ0 - i * escRun;
+    const top = ((i + 1) / nEsc) * escTop;
+    for (const [x0, x1] of flights) statics.add(bx(x1 - x0, 0.12, escRun, stepMat, (x0 + x1) / 2, top - 0.06, za - escRun / 2));
+    b.collider(CX - 15.5, CX - 13.35, CZ + za - escRun, CZ + za, 0, top);
+  }
+  const escLen = Math.hypot(escZ0 - escZ1, escTop);
+  const escAng = Math.atan2(escTop, escZ0 - escZ1);
+  for (const [x0, x1] of flights) {
+    const truss = bx(x1 - x0 + 0.1, 0.7, escLen, white, (x0 + x1) / 2, escTop / 2 - 0.45, (escZ0 + escZ1) / 2);
+    truss.rotation.x = escAng;
+    whites.push(truss);
+    for (const x of [x0 - 0.03, x1 + 0.03]) {
+      const gl = bx(0.03, 0.95, escLen, glassRail, x, escTop / 2 + 0.5, (escZ0 + escZ1) / 2);
+      gl.rotation.x = escAng;
+      group.add(gl);
+      const hr = bx(0.07, 0.05, escLen, railGlow, x, escTop / 2 + 0.98, (escZ0 + escZ1) / 2);
+      hr.rotation.x = escAng;
+      group.add(hr);
+    }
+  }
+  // Balcony with a glass rail, the Level 200 doors and sign
+  whites.push(bx(2.8, 0.4, 2.8, white, -14.5, escTop - 0.2, -14.8));
+  b.collider(CX - 15.9, CX - 13.1, CZ - 16.2, CZ - 13.4, escTop - 0.4, escTop);
+  group.add(bx(0.04, 1.0, 2.8, glassRail, -15.88, escTop + 0.5, -14.8));
+  group.add(bx(0.06, 0.05, 2.8, railGlow, -15.88, escTop + 1.02, -14.8));
+  b.collider(CX - 16.0, CX - 15.8, CZ - 16.2, CZ - 13.4, escTop, escTop + 1.1, true);
+  statics.add(bx(0.06, 2.8, 2.0, mat(0x0c0e12, 0.2, 0.6), wallX - 0.17, escTop + 1.4, -14.8));
+  const lvl = neonSign('LEVEL 200', '#06070c', '#8fe8ff', 2.4, 0.55, 'SECTIONS 200–400', 0.06);
+  lvl.position.set(wallX - 0.2, escTop + 3.3, -14.8);
+  lvl.rotation.y = -Math.PI / 2;
+  group.add(lvl);
+
   // Aura robots greeting guests
   const robots = [auraRobot(statics, -17.2, 7.6, -2.16, 0), auraRobot(statics, -15.2, -2.9, -2.76, 1.7), auraRobot(statics, -19.4, 3.6, -0.46, 3.1), auraRobot(statics, -17.8, -8.2, -1.03, 4.4)];
   for (const r of robots) b.collider(CX + r.root.position.x - 0.6, CX + r.root.position.x + 0.6, CZ + r.root.position.z - 0.6, CZ + r.root.position.z + 0.6, 0, 2.3, true);

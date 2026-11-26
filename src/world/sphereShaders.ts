@@ -778,7 +778,11 @@ void main() {
   float lam = max(dot(n, L), 0.0);
   float up = max(n.y, 0.0);
   vec3 light = uScreen * (0.15 + 0.85 * lam + 0.35 * up) + vec3(uAmb) + vec3(0.9, 0.93, 1.0) * uFlash * (0.35 + 0.65 * lam);
-  gl_FragColor = vec4(vC * light + uEmis, 1.0);
+  vec3 col = vC * light + uEmis;
+  // A little stage haze catching the screen's light
+  float haze = 1.0 - exp(-length(vW - cameraPosition) * 0.03);
+  col = mix(col, uScreen * 0.22 + vec3(0.8, 0.85, 1.0) * uFlash * 0.25, haze * 0.55);
+  gl_FragColor = vec4(col, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
