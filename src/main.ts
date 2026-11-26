@@ -1729,7 +1729,7 @@ function updatePrompt(): void {
         shop.kind === 'abc'
           ? 'Press [F] — ABC Stores: packs, cartons, vapes & pods'
           : shop.kind === 'boutique'
-            ? 'Press [F] — Forum Shops Boutique (swag = bigger tips)'
+            ? `Press [F] — ${shop.label} (swag = bigger tips)`
             : shop.kind === 'vip-host'
               ? S.vip
                 ? 'VIP Lounge — you’re on the list'
