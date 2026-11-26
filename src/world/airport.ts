@@ -550,7 +550,8 @@ function jetGeo(): JetGeo {
     flap.translate(s * (1 + 3 * Math.cos(0.5)), 2.05, 0.6 - 3 * Math.sin(0.5) - 1.9);
     fixed.push(tint(flap, 0x8c929a));
     accent.push(plain(new THREE.BoxGeometry(0.14, 1.6, 1.0).translate(s * (1 + 11 * Math.cos(0.5)), 2.7, 0.6 - 11 * Math.sin(0.5) - 0.3)));
-    accent.push(plain(new THREE.CylinderGeometry(0.82, 0.72, 3.3, 14).rotateX(Math.PI / 2).translate(s * 4.1, 1.15, 1.1)));
+    fixed.push(tint(new THREE.CylinderGeometry(0.82, 0.72, 3.3, 14).rotateX(Math.PI / 2).translate(s * 4.1, 1.15, 1.1), 0xc4c9d0));
+    accent.push(plain(new THREE.CylinderGeometry(0.84, 0.84, 0.5, 14, 1, true).rotateX(Math.PI / 2).translate(s * 4.1, 1.15, 2.45)));
     fixed.push(tint(new THREE.CylinderGeometry(0.6, 0.6, 0.06, 14).rotateX(Math.PI / 2).translate(s * 4.1, 1.15, 2.78), 0x1c1e22));
     fixed.push(tint(new THREE.BoxGeometry(0.25, 0.7, 1.8).translate(s * 4.1, 1.75, 0.5), 0xb8bec6));
     const stab = new THREE.BoxGeometry(4.6, 0.18, 1.9);
