@@ -504,6 +504,7 @@ export function forumWall(b: WorldBuilder, x: number, z0: number, z1: number, h:
   for (let i = 1; i < bays; i += 2) figure(b, x + 0.3, h + 0.95, z0 + i * bw, 0.8, marble, Math.PI / 2);
   urn(b, x + 0.3, h + 0.95, z0 + 0.3, marble);
   urn(b, x + 0.3, h + 0.95, z1 - 0.3, marble);
+  uplights(b, 1, x + 0.43, z0, z1, h - 1.9, 0xffe2b4, bw);
 }
 
 /** Cypresses in round stone planters along the Forum Shops frontage. */
@@ -571,6 +572,7 @@ export function palazzoFront(b: WorldBuilder, x: number, z0: number, z1: number,
     b.collider(px - 0.75, px + 0.75, z - 0.75, z + 0.75, 0, 0.75);
     k++;
   }
+  uplights(b, -1, x - 0.43, z0 - bw / 2, z1, h - 0.8, 0xffd08a, bw);
 }
 
 // ---------------------------------------------------------------- Casino Royale
@@ -814,4 +816,59 @@ export function parisFront(b: WorldBuilder, x: number, z0: number, z1: number, d
   }
   for (let z = z0 + 1.4; z < z1 - 1; z += 1.2) b.add(mesh(new THREE.ConeGeometry(0.12, 0.6, 4), gold, xr + 0.1, yt + 0.3, z));
   b.add(mesh(new THREE.BoxGeometry(0.12, 0.12, z1 - z0 - 2.4), gold, xr + 0.1, yt + 0.06, (z0 + z1) / 2));
+  uplights(b, -1, x - 0.68, z0 - bw / 2, z1, top, 0xffd59a, bw, (z) => z > d0 - 1 && z < d1 + 1);
+}
+
+// ---------------------------------------------------------------- night uplights
+
+const washMats = new Map<number, THREE.MeshBasicMaterial>();
+let washTex: THREE.CanvasTexture | null = null;
+/**
+ * Warm floodlight washes up a facade at night, the way the Strip's resort fronts are lit from ground
+ * uplights: soft additive cones on the wall (one shared material per colour), plus the dark fixture
+ * at the foot of each. Kept faint so they colour the stone without blooming. Facing −x or +x.
+ */
+export function uplights(b: WorldBuilder, side: 1 | -1, x: number, z0: number, z1: number, h: number, color: number, every = 4, skip?: (z: number) => boolean): void {
+  if (!washTex) {
+    const W = 64;
+    const H = 128;
+    washTex = canvasTex(W, H, (ctx) => {
+      const img = ctx.createImageData(W, H);
+      for (let py = 0; py < H; py++) {
+        const v = 1 - py / (H - 1); // 0 at the bottom (canvas bottom row)
+        for (let px = 0; px < W; px++) {
+          const u = px / (W - 1) - 0.5;
+          const spread = 0.1 + 0.28 * v;
+          const k = Math.pow(1 - v, 1.4) * Math.exp(-(u * u) / (2 * spread * spread));
+          const i = (py * W + px) * 4;
+          const c = Math.round(255 * Math.min(1, k));
+          img.data[i] = c;
+          img.data[i + 1] = c;
+          img.data[i + 2] = c;
+          img.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    });
+  }
+  let m = washMats.get(color);
+  if (!m) {
+    const wm = new THREE.MeshBasicMaterial({ map: washTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+    washMats.set(color, wm);
+    m = wm;
+    b.every((_dt, _t, night) => {
+      wm.opacity = night * 0.5;
+      wm.visible = night > 0.03;
+    });
+  }
+  const geo = new THREE.PlaneGeometry(every * 0.95, h);
+  const fixture = mat(0x1d1f22, 0.5, 0.5);
+  for (let z = z0 + every / 2; z < z1; z += every) {
+    if (skip?.(z)) continue;
+    const p = mesh(geo, m, x + side * 0.12, h / 2, z);
+    p.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+    p.renderOrder = 2;
+    b.add(p);
+    b.add(mesh(new THREE.BoxGeometry(0.3, 0.18, 0.4), fixture, x + side * 0.35, 0.09, z));
+  }
 }
