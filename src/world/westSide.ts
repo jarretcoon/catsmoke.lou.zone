@@ -52,9 +52,11 @@ function buildCityCenter(b: WorldBuilder): void {
   b.add(neonSign('CRYSTALS', '#101418', '#e8f4ff', 9, 1.6, 'THE SHOPS AT CRYSTALS'), -20.8, 6, 232, -Math.PI / 2);
   tower(b, { x: -40, z: 280, w: 16, d: 22, h: 52, facade: silver, metal: 0.6, rough: 0.25 });
   b.add(neonSign('WALDORF ASTORIA', '#0d0f14', '#f6e7c8', 10, 1.4), -31.8, 46, 280, -Math.PI / 2);
-  curvedTower(b, -60, 268, 62, Math.PI * 0.86, Math.PI * 1.24, 6, 16, 56, { ...silver, seed: 5 }, 0.6);
+  // ARIA: curving blue-silver low-e glass with sawtooth sunshade fins washed by podium floodlights
+  curvedTower(b, -60, 268, 62, Math.PI * 0.86, Math.PI * 1.24, 6, 16, 56, { ...silver, glass: '#56789a', mullion: '#d8e0e8', lit: '#eef3ff', seed: 5 }, 0.7, { rough: 0.2, fins: { every: 2, depth: 0.8 }, ledFins: false, wash: 0xdce8ff, washZone: 22, washStrength: 0.6 });
   b.add(neonSign('ARIA', '#0b0d12', '#ffffff', 10, 3), -112, 50, 268, -Math.PI / 2);
-  curvedTower(b, -100, 215, 46, Math.PI * 0.9, Math.PI * 1.2, 4, 13, 53, { ...silver, seed: 9 }, 0.6);
+  // Vdara: a slim silver crescent
+  curvedTower(b, -100, 215, 46, Math.PI * 0.9, Math.PI * 1.2, 4, 13, 53, { ...silver, wall: '#c8d2da', glass: '#8aa2b8', mullion: '#eef2f5', seed: 9 }, 0.7, { crescent: true, rough: 0.2, ledFins: false, wash: 0xeef4ff, washZone: 14 });
   b.building(-40, 232, 38, 40, '#9aa6b2', 'Crystals');
   b.building(-40, 280, 16, 22, '#a9b8c6');
   b.building(-112, 268, 22, 70, '#a9b8c6', 'ARIA');
