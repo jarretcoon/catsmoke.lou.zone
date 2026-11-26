@@ -2112,7 +2112,8 @@ function buildFontainebleau(b: WorldBuilder): void {
   plaza(b, 19, 30, zS, zN, '#e4e2dc', '#c7c4bc');
   const white = mat(0xf2f1ee, 0.5, 0.2);
   b.box(38, 0, -765, 16, 12, 54, white, true);
-  const blueGlow = glassGlow(b, 0x1c3a6c, 0xd8ecff, 1.3);
+  // Lit blue glass bands, not light tubes: at 1.3 white they bloomed into a white haze over the whole podium.
+  const blueGlow = glassGlow(b, 0x1c3a6c, 0x8fb8f0, 0.5);
   for (const y of [4.5, 9]) b.add(mesh(new THREE.BoxGeometry(16.3, 1.4, 54.3), blueGlow, 38, y, -765));
   // Blue glass in a white mullion grid
   const fbSkin: FacadeSpec = { wall: '#dfe8f2', mullion: '#e8f0f8', glass: '#2f66a0', lit: '#e8f2ff', cols: 10, rows: 34, style: 2, seed: 250 };
