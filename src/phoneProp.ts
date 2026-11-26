@@ -3,9 +3,9 @@ import * as THREE from 'three';
 /**
  * The phone in Lou's paws while it's open: one box, one material, one draw call (only while shown).
  *
- * Its front is a lit LOU lock screen, its back a cigarette-pack case (red flip-top, white body, a gold crest; an
- * original design, no real brand). It sits at his right forepaw, nudged outward so it peeks past his shoulder from
- * the usual camera behind him, and turns its screen toward his face.
+ * Its front is a lit LOU lock screen, its back a cigarette-pack case of Lou's own brand (teal flip-top band, cream
+ * body, a gold paw crest). It sits in his raised forepaws (the phone holds Beg at its middle: sat up, paws up) and
+ * turns its screen toward his face.
  */
 
 const W = 0.088;
@@ -151,9 +151,9 @@ export class PhoneProp {
       this.pawR.getWorldPosition(this.a);
       this.pawL.getWorldPosition(this.b);
       this.head.getWorldPosition(this.h);
-      // between the paws, nudged to his right and up a touch so it shows past his shoulder from behind
-      this.a.lerp(this.b, 0.3).addScaledVector(this.side, 0.1).addScaledVector(this.fwd, 0.06);
-      this.a.y += 0.09;
+      // in his paws (its lower half between the pads), a touch to his right so it peeks past him from behind
+      this.a.lerp(this.b, 0.4).addScaledVector(this.side, 0.045).addScaledVector(this.fwd, 0.065);
+      this.a.y += 0.05;
     } else {
       this.a.copy(holder.position).addScaledVector(this.fwd, 0.34).addScaledVector(this.side, 0.08);
       this.a.y += 0.62;

@@ -69,6 +69,7 @@
 .lp-screen {
   position: relative;
   height: 100%;
+  container: lpscreen / size;
   border-radius: 1.9rem;
   overflow: hidden;
   background:
@@ -338,6 +339,8 @@
   flex-direction: column;
   gap: 0.7rem;
   padding: 0.9rem 0.9rem 2.2rem;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 .lp-widgets {
@@ -1380,13 +1383,13 @@
   font-size: 1.3rem;
 }
 
+/* a text arriving with the phone away: it slides in above the Phone button (toasts keep the top centre) */
 .phone-notif {
   position: absolute;
   z-index: 16;
-  left: 50%;
-  top: calc(var(--hud-top-h, 7rem) + 0.6rem);
-  transform: translateX(-50%);
-  max-width: min(26rem, 92vw);
+  right: max(1.4rem, env(safe-area-inset-right));
+  bottom: calc(max(0.8rem, env(safe-area-inset-bottom)) + 3.2rem);
+  max-width: min(24rem, 80vw);
   display: flex;
   gap: 0.4rem;
   align-items: baseline;
@@ -1415,14 +1418,26 @@
 }
 
 .phone-notif.is-in {
-  animation: lp-drop-pill 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
+  animation: lp-slide-pill 0.35s cubic-bezier(0.2, 1.2, 0.4, 1);
 }
 
-@keyframes lp-drop-pill {
+@keyframes lp-slide-pill {
   from {
-    transform: translate(-50%, -160%);
+    transform: translateX(110%);
     opacity: 0;
   }
+}
+
+/* touch: under the toasts' spot, right-aligned beside the phone button */
+.hud--touch .phone-notif {
+  bottom: auto;
+  top: calc(max(var(--hud-top-h, 6rem), 6.9rem) + 5.4rem);
+  right: max(0.6rem, env(safe-area-inset-right));
+  max-width: min(22rem, calc(100vw - 1.2rem));
+}
+
+.game-root.is-phone :is(.touch-stick, .touch-jump) {
+  visibility: hidden;
 }
 
 .game-root.is-title :is(.hud-phone-btn, .phone-notif) {
@@ -1712,6 +1727,46 @@
   .hud--touch .hud-phone-btn {
     top: max(0.6rem, env(safe-area-inset-top));
     right: calc(max(0.6rem, env(safe-area-inset-right)) + 3.3rem);
+  }
+}
+
+/* a short phone (held sideways, a small window): flatter widgets, no text stack, smaller icons */
+@container lpscreen (max-height: 600px) {
+  .lp-home {
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+  }
+  .lp-widget {
+    aspect-ratio: 1.75;
+    padding: 0.55rem 0.7rem;
+  }
+  .lp-w-points {
+    font-size: 1.3rem;
+    margin-top: 0.2rem;
+  }
+  .lp-w-rank {
+    display: none;
+  }
+  .lp-next {
+    padding: 0.45rem 0.75rem;
+  }
+  .lp-texts {
+    display: none;
+  }
+  .lp-apps {
+    gap: 0.5rem 0.3rem;
+  }
+  .lp-icon {
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: 1rem;
+    font-size: 1.45rem;
+  }
+  .lp-lock-time {
+    font-size: 3.2rem;
+  }
+  .lp-lock-notes li:nth-child(n + 2) {
+    display: none;
   }
 }
 
