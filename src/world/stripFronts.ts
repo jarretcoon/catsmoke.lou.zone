@@ -723,3 +723,95 @@ export function dogesPalaceFront(b: WorldBuilder, x: number, z0: number, z1: num
     b.add(mesh(tip, ivory, x - 0.2, h + 1.2, z));
   }
 }
+
+// ---------------------------------------------------------------- Paris Las Vegas: the Paris street front
+
+/**
+ * The Paris casino's Strip face (facing −x; `x` is just proud of the venue wall's pilasters, z0…z1,
+ * doors d0…d1): an ivory Second-Empire front after the Opéra and the Louvre — arched ground-floor windows
+ * between pilasters with gilded capitals, a string course, round-headed upper windows between paired
+ * columns, a deep cornice, and the blue-grey zinc mansard roof with dormers and gilded cresting.
+ */
+export function parisFront(b: WorldBuilder, x: number, z0: number, z1: number, d0: number, d1: number, h: number): void {
+  const ivory = mat(0xefe5d0, 0.65);
+  const cream = mat(0xe2d4b8, 0.7);
+  const gold = mat(0xd4ae57, 0.35, 0.75);
+  const zinc = mat(0x6f7c86, 0.55, 0.35);
+  const dark = mat(0x2e3238, 0.3, 0.4);
+  const top = h - 1.15; // under the venue's own cornice line
+  // ivory skin over the wall (and over the lintel above the doors)
+  for (const [a, c] of [
+    [z0, d0],
+    [d1, z1],
+  ]) b.add(mesh(new THREE.BoxGeometry(0.1, top, c - a), ivory, x - 0.05, top / 2, (a + c) / 2));
+  b.add(mesh(new THREE.BoxGeometry(0.1, top - 5.2, d1 - d0), ivory, x - 0.05, 5.2 + (top - 5.2) / 2, (d0 + d1) / 2));
+  proud(b, -1, x - 0.1, 0.25, (z0 + z1) / 2, z1 - z0, 0, 0.6, cream);
+  // bays: arched shop windows below, round-headed windows above, pilasters and paired columns between
+  const bays = Math.round((z1 - z0) / 4);
+  const bw = (z1 - z0) / bays;
+  for (let i = 0; i <= bays; i++) {
+    const z = z0 + i * bw;
+    proud(b, -1, x - 0.1, 0.3, z, 0.7, 0.6, 5.0, ivory);
+    proud(b, -1, x - 0.1, 0.42, z, 0.95, 5.6, 0.35, gold);
+    // paired columns on the upper floor
+    for (const s of [-0.28, 0.28]) b.add(mesh(new THREE.CylinderGeometry(0.16, 0.18, top - 6.6, 10), ivory, x - 0.45, 6.2 + (top - 6.6) / 2, z + s));
+    b.add(mesh(new THREE.BoxGeometry(0.5, 0.3, 1.0), gold, x - 0.45, top - 0.2, z));
+  }
+  for (let i = 0; i < bays; i++) {
+    const zc = z0 + (i + 0.5) * bw;
+    if (zc > d0 - 0.5 && zc < d1 + 0.5) continue; // the doors (the venue builds them)
+    archPane(b, -1, x - 0.14, zc, bw * 0.58, 0.8, 3.9);
+    archPane(b, -1, x - 0.14, zc, bw * 0.42, 6.9, 8.6);
+    proud(b, -1, x - 0.1, 0.22, zc, bw * 0.7, 6.55, 0.18, cream); // balcony sill
+    proud(b, -1, x - 0.1, 0.16, zc, 0.45, 3.9 + bw * 0.29 - 0.2, 0.5, gold); // keystone
+  }
+  // string course between the floors, the frieze and the deep cornice
+  proud(b, -1, x - 0.1, 0.4, (z0 + z1) / 2, z1 - z0 + 0.4, 5.95, 0.4, cream);
+  proud(b, -1, x - 0.1, 0.35, (z0 + z1) / 2, z1 - z0 + 0.4, top, 0.5, ivory);
+  proud(b, -1, x - 0.1, 0.95, (z0 + z1) / 2, z1 - z0 + 1.0, top + 0.5, 0.55, cream, true);
+  proud(b, -1, x - 0.1, 0.98, (z0 + z1) / 2, z1 - z0 + 1.0, top + 1.0, 0.08, gold);
+  // zinc mansard: steep lower slope from the cornice back over the roof, dormers, gilded cresting
+  const yb = h + 0.05;
+  const yt = h + 3.6;
+  const xf = x - 0.6;
+  const xr = x + 2.4;
+  b.add(
+    mesh(
+      prism(
+        [
+          [xf, z0 - 0.3],
+          [xf, z1 + 0.3],
+          [xf + 5.5, z1 + 0.3],
+          [xf + 5.5, z0 - 0.3],
+        ],
+        yb,
+        [
+          [xr, yt, z0 + 1.2],
+          [xr, yt, z1 - 1.2],
+          [xf + 5.5, yt, z1 - 1.2],
+          [xf + 5.5, yt, z0 + 1.2],
+        ]
+      ),
+      zinc,
+      0,
+      0,
+      0,
+      true
+    )
+  );
+  for (let i = 0; i < bays; i++) {
+    const zc = z0 + (i + 0.5) * bw;
+    const dx = xf + (xr - xf) * 0.45;
+    const dy = yb + (yt - yb) * 0.45;
+    b.add(mesh(new THREE.BoxGeometry(1.2, 1.5, 1.1), ivory, dx + 0.1, dy + 0.4, zc));
+    const w = mesh(new THREE.PlaneGeometry(0.7, 0.95), dark, dx - 0.51, dy + 0.35, zc);
+    w.rotation.y = -Math.PI / 2;
+    b.add(w);
+    const ped = mesh(new THREE.ConeGeometry(0.85, 0.55, 4), zinc, dx + 0.1, dy + 1.42, zc);
+    ped.rotation.y = Math.PI / 4;
+    ped.scale.set(0.95, 1, 0.75);
+    b.add(ped);
+  }
+  for (let z = z0 + 1.4; z < z1 - 1; z += 1.2) b.add(mesh(new THREE.ConeGeometry(0.12, 0.6, 4), gold, xr + 0.1, yt + 0.3, z));
+  b.add(mesh(new THREE.BoxGeometry(0.12, 0.12, z1 - z0 - 2.4), gold, xr + 0.1, yt + 0.06, (z0 + z1) / 2));
+}

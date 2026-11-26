@@ -9,7 +9,7 @@ import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
 import { flamingoSigns, harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, parisBalloonGlow, planetHollywoodSigns, venetianSigns } from './stripSigns';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
-import { casinoRoyaleFront, dogesPalaceFront, palazzoFront } from './stripFronts';
+import { casinoRoyaleFront, dogesPalaceFront, palazzoFront, parisFront } from './stripFronts';
 
 /**
  * East side of Las Vegas Blvd, south → north:
@@ -291,6 +291,8 @@ function buildParis(b: WorldBuilder): void {
     ],
     tourists: [{ pts: [[42, 62], [82, 62], [82, 94], [42, 94]], prop: 'cig' }, { pts: [[70, 66], [70, 92]], prop: 'yard-drink' }],
   });
+  // Ivory Opéra/Louvre-style street front with the zinc mansard over the casino's Strip wall (stripFronts.ts)
+  parisFront(b, 34.95, 58, 98, 88.5, 95.5, 12);
   const parisSkin = { wall: '#d9cdb6', mullion: '#efe4cf', glass: '#5d6e7c', lit: '#ffe6a8', cols: 10, rows: 20, style: 0 as const, seed: 71 };
   tower(b, { x: 104, z: 86, w: 16, d: 52, h: 33, facade: parisSkin, roof: 0x26384d });
   b.add(mesh(new THREE.BoxGeometry(17, 4, 53), mat(0x26384d, 0.55, 0.3), 104, 35, 86));
