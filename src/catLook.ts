@@ -78,8 +78,8 @@ const HEAD_PLANE_P = V(0, -0.236, 0.446);
 const HEAD_PLANE_N = V(0, -0.38, 0.92).normalize();
 const tmpP = new THREE.Vector3();
 const EYES = [V(0.053, -0.347, 0.556), V(-0.053, -0.347, 0.556)];
-const NOSE = V(0, -0.389, 0.521);
-const CHIN = V(0, -0.343, 0.474);
+const NOSE = V(0, -0.405, 0.506);
+const CHIN = V(0, -0.354, 0.462);
 const TAIL_PTS = [V(0, 0.258, 0.33), V(0, 0.345, 0.39), V(0.02, 0.425, 0.49), V(0.03, 0.452, 0.6), V(0.02, 0.425, 0.7), V(0.002, 0.392, 0.745), V(-0.02, 0.356, 0.76)];
 
 /**
@@ -151,7 +151,7 @@ function furAt(p: THREE.Vector3, n: THREE.Vector3, ear: boolean, comb: THREE.Vec
   // none round the eyes (wider at the outer corners), the nose leather or the mouth
   for (const e of EYES) len *= sstep(0.028, 0.041, p.distanceTo(e));
   len *= sstep(0.021, 0.033, p.distanceTo(NOSE));
-  len *= 1 - sstep(0.014, 0.006, Math.abs(p.z - 0.49)) * sstep(-0.345, -0.36, p.y) * sstep(0.042, 0.03, ax);
+  len *= 1 - sstep(0.014, 0.006, Math.abs(p.z - 0.478)) * sstep(-0.355, -0.37, p.y) * sstep(0.042, 0.03, ax);
 
   // comb lies in the skin
   comb.addScaledVector(n, -comb.dot(n));
