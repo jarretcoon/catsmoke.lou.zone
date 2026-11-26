@@ -135,6 +135,7 @@ try {
       const g = window.__game;
       if (v.time) g.world.setTimePreset(v.time);
       if (v.sphereT !== undefined && window.__sphere) window.__sphere.showT = v.sphereT;
+      if (v.airT !== undefined && window.__airport) window.__airport.t = v.airT;
       if (v.tp && !v.ride) g.tp(v.tp[0], v.tp[1], v.tp[2]);
       if (v.cam) g.cam(v.cam[0], v.cam[1], v.cam[2]);
       g.advance(v.settle ?? 2.5); // let the camera ease in, lazy interiors build and indoor light adapt
