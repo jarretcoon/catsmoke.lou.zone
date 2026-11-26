@@ -944,7 +944,10 @@ function buildExcalibur(b: WorldBuilder): void {
     maxZ: 516,
     height: 10,
     entrance: { side: 'east', at: 482, width: 8 },
-    carpet: ['#4a1016', '#d4a640', '#1f3f86'],
+    // A castle hall: ashlar walls, pointed arches, heraldic banners, timber vault, iron candle wheels
+    theme: 'excalibur',
+    interior: { ceilingY: 9.3 },
+    carpet: ['#6a0a12', '#e8b84a', '#2a1a5a'],
     wall: 0xf2efe6,
     ceiling: 0x2a2030,
     ceilingGlow: 0x3a1a10,

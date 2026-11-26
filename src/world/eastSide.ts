@@ -252,7 +252,21 @@ function buildParis(b: WorldBuilder): void {
     height: 12,
     entrance: { side: 'west', at: 92, width: 7 },
     extraEntrances: [{ side: 'south', at: 66, width: 6 }],
-    carpet: ['#3c1830', '#ffd278', '#5a2a8a'],
+    // Inside it's a Paris street: painted sky, cobbled lanes, the tower's legs landing on the floor,
+    // iron street lamps and Le Boulevard's house fronts round the walls.
+    theme: 'paris',
+    interior: {
+      ceilingY: 11.2,
+      paths: [
+        [36.6, 70, 92.6, 96.6],
+        [65.5, 69.5, 59.5, 97.4],
+      ],
+      eiffelLegs: [
+        [39, 71],
+        [39, 83],
+      ],
+    },
+    carpet: ['#4a1220', '#e8b850', '#1a2a5a'],
     wall: 0x45414f,
     ceiling: 0x8cc8ff,
     ceilingGlow: 0x3b6ca8,
@@ -323,7 +337,10 @@ function buildHorseshoe(b: WorldBuilder): void {
     maxZ: 56,
     height: 11,
     entrance: { side: 'west', at: 37, width: 8 },
-    carpet: ['#4a0f14', '#d9a63a', '#1a1a1a'],
+    // Black, red and gold, horseshoe trays over the pits, and the WSOP poker room in the back corner
+    theme: 'horseshoe',
+    interior: { ceilingY: 9.6, pokerRoom: [73.5, 88, 43.5, 50.5] },
+    carpet: ['#1a0a0c', '#d9a63a', '#8a0a14'],
     wall: 0x5a2a22,
     ceiling: 0x2a1a14,
     ceilingGlow: 0x5a2a10,
@@ -384,6 +401,9 @@ function buildFlamingo(b: WorldBuilder): void {
     height: 12,
     entrance: { side: 'west', at: -66, width: 8 },
     extraEntrances: [{ side: 'north', at: 50, width: 6 }],
+    // Pink Miami deco: stepped neon ceiling, teal and pink walls, palm columns, the round Bird Bar
+    theme: 'flamingo',
+    interior: { ceilingY: 10.6 },
     carpet: ['#4a1238', '#ff64b8', '#ff9a3c'],
     wall: 0x3b2038,
     ceiling: 0x2b1028,
