@@ -7,6 +7,7 @@ import { buildAbcStore } from './abcStore';
 import { buildInNOut } from './food';
 import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
+import { flamingoSigns, harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, parisBalloonGlow, planetHollywoodSigns, venetianSigns } from './stripSigns';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 
 /**
@@ -63,9 +64,10 @@ function buildPlanetHollywood(b: WorldBuilder): void {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(i === 0 ? 24 : 30, 12), new THREE.MeshBasicMaterial({ map: led.tex }));
     m.rotation.y = -Math.PI / 2;
     b.add(m, 20.9, 7.5, z);
+    led.at(20.9, 7.5, z); // only redraws while the camera is near
     b.every((_dt, t) => led.draw(t + i * 3));
   });
-  b.add(neonSign('PLANET HOLLYWOOD', '#06060a', '#ffffff', 16, 2.8, 'RESORT & CASINO'), 20.8, 16, 158, -Math.PI / 2);
+  planetHollywoodSigns(b); // white block letters with pink tubes, podium + tower (stripSigns.ts)
 
   // ABC Stores #103 at the Miracle Mile front (real: Miracle Mile Shops)
   buildAbcStore(b, 30.5, 158, -Math.PI / 2, { label: 'ABC Stores #103 (Miracle Mile)', w: 26, d: 18 });
@@ -73,7 +75,6 @@ function buildPlanetHollywood(b: WorldBuilder): void {
   const phSkin = { wall: '#1b1d24', mullion: '#3a3d48', glass: '#2c3a4a', lit: '#ffeacc', cols: 10, rows: 22, style: 1 as const, seed: 61 };
   tower(b, { x: 95, z: 153, w: 18, d: 46, h: 37, facade: phSkin });
   tower(b, { x: 120, z: 190, w: 14, d: 26, h: 57, facade: { ...phSkin, wall: '#5d6b78', glass: '#4b5c6c', seed: 63 }, metal: 0.5 });
-  b.add(neonSign('PLANET HOLLYWOOD', '#06060a', '#ff3a7a', 16, 2.6), 85.8, 33, 153, -Math.PI / 2);
   b.building(41.5, 160, 41, 90, '#24242c', 'Planet Hollywood');
   b.building(95, 153, 18, 46, '#1b1d24');
   b.zone('Planet Hollywood & Miracle Mile', 19, 140, 114, 208);
@@ -227,6 +228,7 @@ function buildParis(b: WorldBuilder): void {
   ps.rotation.y = -Math.PI / 2;
   ps.position.set(-1.45, 8.6, 0);
   balloon.add(ps);
+  parisBalloonGlow(b, balloon, sphere, 5.4, 15); // backlit envelope + rings of chasing bulbs (stripSigns.ts)
   b.add(balloon, 25, 0, 112);
   b.collider(24.2, 25.8, 111.2, 112.8, 0, 9.5, true);
 
@@ -362,8 +364,7 @@ function buildHorseshoe(b: WorldBuilder): void {
   const beige = { wall: '#d6c6a8', mullion: '#e9dcc2', glass: '#5a5f66', lit: '#ffe2a8', cols: 9, rows: 18, style: 0 as const, seed: 81 };
   tower(b, { x: 108, z: 32, w: 12, d: 30, h: 26, facade: beige });
   tower(b, { x: 124, z: 44, w: 12, d: 30, h: 26, facade: { ...beige, seed: 83 } });
-  b.add(neonSign('HORSESHOE', '#2a0505', '#ffcc33', 11, 2.2, 'LAS VEGAS'), 101.8, 22, 32, -Math.PI / 2);
-  b.add(neonSign('HORSESHOE', '#2a0505', '#ffcc33', 9, 1.8), 53.4, 9.4, 37, -Math.PI / 2);
+  horseshoeSigns(b); // gold horseshoe crest + slab lettering on red cabinets (stripSigns.ts)
   b.building(74, 37, 40, 38, '#5a2a22', 'Horseshoe');
   b.building(116, 36, 28, 40, '#d6c6a8');
   b.zone('Horseshoe Las Vegas', 19, 140, 17, 56);
@@ -426,25 +427,8 @@ function buildFlamingo(b: WorldBuilder): void {
     ],
     tourists: [{ pts: [[30, -42], [62, -42], [62, -90], [30, -90]], prop: 'cig' }, { pts: [[52, -48], [52, -88]], prop: 'bag' }],
   });
-  // The pink & orange neon feather plume facade on the Strip
-  const pink = new THREE.MeshBasicMaterial({ color: 0xff3ea5 });
-  const orange = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
-  const plumes: Array<{ m: THREE.MeshBasicMaterial; i: number }> = [];
-  for (let i = 0; i < 15; i++) {
-    const h = 9 - Math.abs(i - 7) * 0.7;
-    const mm = i % 2 ? pink.clone() : orange.clone();
-    const f = mesh(new THREE.BoxGeometry(0.4, h, 1.2), mm, 25.3, 12 + h / 2, -50 - i * 2.2);
-    f.rotation.x = (i - 7) * 0.09;
-    b.add(f);
-    plumes.push({ m: mm, i });
-  }
-  b.every((_dt, t, night) => {
-    for (const p of plumes) {
-      const chase = (Math.sin(t * 4 - p.i * 0.6) * 0.5 + 0.5) * (0.4 + 0.6 * night);
-      p.m.color.setHex(p.i % 2 ? 0xff3ea5 : 0xff7a1a).multiplyScalar(0.45 + chase * 0.7);
-    }
-  });
-  b.add(neonSign('FLAMINGO', '#2b0722', '#ff66c4', 14, 3, 'LAS VEGAS • EST 1946'), 25.2, 9.2, -66, -Math.PI / 2);
+  // The pink & orange neon feather plume over the entrance + the "Flamingo" neon script (stripSigns.ts)
+  flamingoSigns(b);
 
   // Wildlife Habitat behind the casino: pond, waterfall, Chilean flamingos, palms
   const hx = 84;
@@ -485,7 +469,6 @@ function buildFlamingo(b: WorldBuilder): void {
 
   const flamSkin = { wall: '#c45a8a', mullion: '#e88ab4', glass: '#4b2442', lit: '#ffb6e0', cols: 10, rows: 20, style: 0 as const, seed: 101 };
   tower(b, { x: 114, z: -64, w: 18, d: 46, h: 30, facade: flamSkin });
-  b.add(neonSign('FLAMINGO', '#2b0722', '#ff66c4', 14, 2.6), 104.8, 27, -64, -Math.PI / 2);
   b.building(46, -66, 40, 56, '#3b2038', 'Flamingo');
   b.building(114, -64, 18, 46, '#c45a8a');
   b.feature({ kind: 'park', x: 84, z: -63, w: 32, d: 42, color: '#4f6b3a' });
@@ -676,7 +659,7 @@ function buildLinq(b: WorldBuilder): void {
 
   const linqSkin = { wall: '#e8ebef', mullion: '#ffffff', glass: '#4a6a8a', lit: '#e8f4ff', cols: 10, rows: 20, style: 1 as const, seed: 111 };
   tower(b, { x: 39, z: -128, w: 34, d: 20, h: 28, facade: linqSkin });
-  b.add(neonSign('THE LINQ', '#0d1420', '#5ad0ff', 10, 1.8, 'HOTEL + EXPERIENCE'), 39, 6, -117.8);
+  linqSigns(b); // LINQ crown letters + the promenade gateway sign (stripSigns.ts)
   b.building(39, -128, 34, 20, '#e8ebef', 'LINQ');
   b.zone('The LINQ Hotel', 19, 60, -140, -110);
 }
@@ -709,7 +692,7 @@ function buildHarrahs(b: WorldBuilder): void {
   const harrahs = { wall: '#d9c4a0', mullion: '#ecdcbc', glass: '#7a4a3a', lit: '#ffe0a0', cols: 10, rows: 22, style: 0 as const, seed: 121 };
   b.box(52, 0, -164, 16, 12, 42, mat(0x7a1c1c, 0.6), true);
   tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs });
-  b.add(neonSign("HARRAH'S", '#2a0505', '#ffd24d', 12, 2.4, 'LAS VEGAS'), 43.8, 9, -170, -Math.PI / 2);
+  harrahsSigns(b); // the burgundy-and-gold script marquee at the Strip + tower script (stripSigns.ts)
   b.building(62, -165, 40, 42, '#7a1c1c', "Harrah's");
   b.zone("Harrah's Las Vegas", 19, 90, -186, -140);
 
@@ -766,7 +749,7 @@ function buildVenetian(b: WorldBuilder): void {
     b.collider(42.8, 43.6, z - 0.4, z + 0.4, 0, 6, true);
   }
   b.box(41.5, 6, -276, 5, 1.2, 50, stone);
-  b.add(neonSign('THE VENETIAN', '#221409', '#ffd86b', 13, 2.4, 'RESORT • LAS VEGAS'), 38.8, 9.6, -276, -Math.PI / 2);
+  venetianSigns(b); // marquee by the campanile + gold Roman lettering on the palace and tower (stripSigns.ts)
 
   // Gondolas with gondoliers, rideable end to end
   // Boarding docks at both ends of the canal
@@ -854,7 +837,6 @@ function buildVenetian(b: WorldBuilder): void {
   const ven = { wall: '#d9b98a', mullion: '#ecd5ad', glass: '#6d5a44', lit: '#ffe9a8', cols: 12, rows: 22, style: 0 as const, seed: 131 };
   tower(b, { x: 98, z: -266, w: 20, d: 60, h: 44, facade: ven, wash: 0xffd9a0, crownGlow: 0.7 });
   tower(b, { x: 118, z: -290, w: 24, d: 14, h: 40, facade: { ...ven, seed: 133 }, wash: 0xffd9a0, crownGlow: 0.7 });
-  b.add(neonSign('THE VENETIAN', '#221409', '#ffd86b', 14, 2.4), 87.8, 40, -266, -Math.PI / 2);
 
   // Footbridge from the Venetian to the Sphere (deck at 8 m)
   const deck = mat(0xb8b2a8, 0.7, 0.15);
@@ -885,10 +867,9 @@ function buildSphere(b: WorldBuilder): void {
 // ---------------------------------------------------------------- Palazzo
 function buildPalazzo(b: WorldBuilder): void {
   b.box(34, 0, -350, 26, 9, 80, mat(0xd9c39a, 0.7), true);
-  b.add(neonSign('THE PALAZZO', '#1d150a', '#f2d28a', 12, 2, 'SHOPPES AT THE PALAZZO'), 20.8, 7, -340, -Math.PI / 2);
+  palazzoSigns(b); // bronze marquee + gold letters on the podium and tower (stripSigns.ts)
   const gold = { wall: '#c8a46a', mullion: '#e0c38a', glass: '#7a5a34', lit: '#ffe6a8', cols: 12, rows: 26, style: 1 as const, seed: 141 };
   tower(b, { x: 70, z: -350, w: 24, d: 50, h: 60, facade: gold, metal: 0.4, wash: 0xffd9a0, crownGlow: 0.7 });
-  b.add(neonSign('PALAZZO', '#1d150a', '#f2d28a', 14, 2.6), 57.8, 54, -350, -Math.PI / 2);
   b.building(34, -350, 26, 80, '#d9c39a', 'Palazzo');
   b.building(70, -350, 24, 50, '#c8a46a');
   b.zone('The Palazzo', 19, 100, -405, -306);

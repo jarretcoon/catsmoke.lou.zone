@@ -33,7 +33,13 @@ export function mesh(geo: THREE.BufferGeometry, material: THREE.Material, x = 0,
 }
 
 let chaseMat: THREE.MeshBasicMaterial | null = null;
-/** One shared chasing-bulb material; its texture offset steps every 0.12 s so every marquee chases. */
+/**
+ * One shared chasing-bulb material; its texture offset steps every 0.12 s so every marquee chases.
+ * signKit.ts tints it every frame: dim glass bulbs by day, a hot chase at night.
+ */
+export function chaseBulbMaterial(): THREE.MeshBasicMaterial {
+  return marqueeMaterial();
+}
 function marqueeMaterial(): THREE.MeshBasicMaterial {
   if (chaseMat) return chaseMat;
   const tex = makeChaseBulbTexture();
