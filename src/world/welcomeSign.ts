@@ -373,8 +373,8 @@ export function buildWelcomeSign(b: WorldBuilder): void {
   // Sandstone boulders at the front corners of the lawn
   const stone = mat(0xb98a5e, 0.95);
   for (const [x, z, r] of [
-    [-1.45, zSign + 5.6, 0.52],
-    [1.5, zSign + 5.2, 0.44],
+    [-1.5, zSign + 9.3, 0.5],
+    [1.55, zSign + 9.2, 0.44],
     [-1.55, zSign - 4.0, 0.4],
   ] as const) {
     const g = new THREE.DodecahedronGeometry(r, 0);
@@ -617,12 +617,14 @@ export function buildWelcomeSign(b: WorldBuilder): void {
   b.zone('Welcome Sign Parking Lot', -ISLAND - 0.6, ISLAND + 0.6, zLot0 - 1.2, zIsl1);
   b.staticMarkers.push({ x: 0, z: zSign, color: '#ff3b3b', glyph: '★', size: 3.2 });
   b.pickup(1.3, 0.95, zSign + 1.2, 3, 'Welcome Sign Selfie Pack', false);
-  // The regulars posing out front for tips, and the photo line waiting its turn along the east side of the walk
+  // The regulars posing out front for tips, and the photo line waiting its turn along the west side of the walk
+  // (the east side is the welcome mission's marker)
   b.crowd.performers.push({ kind: 'elvis', x: -1.05, z: zSign + 2.0, facing: 0 }, { kind: 'showgirl', x: 0.95, z: zSign + 1.8, facing: 0 });
-  const queue: Array<'camera' | 'cig' | 'yard-drink' | 'bag'> = ['camera', 'camera', 'yard-drink', 'cig', 'camera', 'bag'];
+  // (kept north of z 915 so it never stands between a new game's camera and Lou at the spawn point)
+  const queue: Array<'camera' | 'cig' | 'yard-drink' | 'bag'> = ['camera', 'camera', 'yard-drink', 'cig', 'bag'];
   queue.forEach((prop, i) => {
-    const x = 1.42 - (i % 2) * 0.16;
-    const z = zSign + 4.4 + i * 1.0;
+    const x = -1.3 + (i % 2) * 0.16;
+    const z = zSign + 4.2 + i * 0.8;
     b.crowd.tourists.push({ pts: [[x, z], [x, z + 0.25]], prop });
   });
 }

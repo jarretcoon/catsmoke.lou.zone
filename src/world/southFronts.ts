@@ -182,6 +182,8 @@ export function buildSouthFronts(b: WorldBuilder): void {
   diamondInn(b, atlas, mg, westFace, twoSided, steel);
   stationAndMall(b, atlas, mg, westFace, twoSided, steel);
   skyVue(b, mg);
+  dreamSite(b, atlas, mg);
+  shoppers(b);
   for (const m of atlas.materials) b.nightGlow(m, 0.0, 1.0);
   mg.flush(b);
 }
@@ -232,7 +234,6 @@ function harleySign(b: WorldBuilder, atlas: Atlas, mg: Merger, twoSided: FaceFn,
   const x = 20.25;
   const z = 885.5;
   mg.beam(steel, v3(x, 0, z), v3(x, 9.6, z), 0.28, 10, 0.24, true);
-  mg.box(mat(0x18181c, 0.5, 0.4), x, 11.3, z, 3.9, 4.0, 0.14);
   twoSided(s, 3.8, 3.98, x, 11.3, z);
   // the arrow board under it pointing at the store
   const a = atlas.slot(360, 110, (p) => {
@@ -742,4 +743,116 @@ function skyVue(b: WorldBuilder, mg: Merger): void {
   }
   mg.box(mat(0x9a948a, 0.92), 54, 0.3, z, 12, 0.6, 4.4);
   b.zone('SkyVue (abandoned observation wheel)', 47, 61, z - 3, z + 3);
+}
+
+/**
+ * Dream Las Vegas, 5051 LVB S: work stopped in March 2023 at about 19% (excavation, utilities, concrete piles);
+ * the contractor has held the site since 2025 and it's for sale. Pile caps with rebar, spoil heaps, an idle
+ * excavator, the site trailer and a wrapped fence.
+ */
+function dreamSite(b: WorldBuilder, atlas: Atlas, mg: Merger): void {
+  const dz = 856.9;
+  ground(b, 22, 68, 849.2, 869, 0x8a6e4e, L1, 1);
+  ground(b, 30, 62, 851, 866, 0x7a5e40, L2, 1);
+  const conc = mat(0xa8a398, 0.9);
+  const rebar = mat(0x6a3a22, 0.85, 0.4);
+  for (let x = 32; x <= 60; x += 4) {
+    for (let z = 852.5; z <= 865; z += 4) {
+      mg.add(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 10).translate(x, 0.35, z), conc);
+      for (let k = 0; k < 4; k++) {
+        const ox = (k % 2 ? 0.22 : -0.22) + (x % 3) * 0.01;
+        const oz = k < 2 ? -0.22 : 0.22;
+        mg.beam(rebar, v3(x + ox, 0.7, z + oz), v3(x + ox * 1.15, 1.9 + ((x + z + k) % 3) * 0.2, z + oz * 1.15), 0.02, 3);
+      }
+      b.collider(x - 0.5, x + 0.5, z - 0.5, z + 0.5, 0, 0.7);
+    }
+  }
+  // spoil heaps
+  const dirt = mat(0x9a7a56, 1);
+  for (const [x, z, r, h] of [
+    [27, 852, 3.6, 2.2],
+    [64, 853, 3.2, 1.8],
+    [26, 866, 3.0, 1.6],
+  ] as const) {
+    const g = new THREE.IcosahedronGeometry(1, 1);
+    g.scale(r, h, r * 0.9);
+    mg.at(dirt, g, x, 0, z, x * 0.3);
+    b.collider(x - r * 0.6, x + r * 0.6, z - r * 0.55, z + r * 0.55, 0, h * 0.7);
+  }
+  // idle excavator, boom down
+  const yellow = mat(0xe8b21e, 0.55, 0.2);
+  const dark = mat(0x2a2a2c, 0.8);
+  const ex = 47;
+  const ez = 851.4;
+  mg.box(dark, ex, 0.45, ez - 1.1, 4.2, 0.9, 0.8);
+  mg.box(dark, ex, 0.45, ez + 1.1, 4.2, 0.9, 0.8);
+  mg.box(yellow, ex - 0.3, 1.5, ez, 3.2, 1.2, 2.6, 0, true);
+  mg.box(yellow, ex + 0.6, 2.6, ez - 0.6, 1.2, 1.4, 1.2);
+  mg.box(mat(0x3a4a5a, 0.2, 0.5), ex + 1.22, 2.7, ez - 0.6, 0.04, 0.9, 1.0);
+  mg.beam(yellow, v3(ex + 1.2, 2.0, ez + 0.4), v3(ex + 4.0, 3.6, ez + 0.4), 0.22, 6);
+  mg.beam(yellow, v3(ex + 4.0, 3.6, ez + 0.4), v3(ex + 5.2, 0.9, ez + 0.4), 0.18, 6);
+  mg.box(dark, ex + 5.3, 0.5, ez + 0.4, 0.9, 0.8, 1.1);
+  b.collider(ex - 2.1, ex + 1.6, ez - 1.5, ez + 1.5, 0, 2.1);
+  // site trailer
+  const trailer = atlas.slot(420, 130, (p) => {
+    rect(p, 0, 0, p.w, p.h, '#eeeeea');
+    for (const wx of [40, 300]) shopWindow(p, wx, 40, 80, 50, false);
+    rect(p, 180, 30, 60, 100, '#8a8e94');
+    text(p, 'SITE OFFICE • HARD HATS REQUIRED', p.w / 2, 16, 'bold 18px Arial, sans-serif', '#c8202a', '#000', p.w - 20);
+  });
+  b.box(60, 0.4, 868 - 1.6, 9, 2.6, 2.8, mat(0xeeeeea, 0.7), true);
+  mg.at(trailer.mat, atlas.plane(trailer, 9, 2.6), 60, 1.7, 868 - 3.02, Math.PI);
+  for (const x of [56.5, 63.5]) mg.box(mat(0x6a6a6e, 0.8), x, 0.2, 866.4, 0.4, 0.4, 2.6);
+  // rebar bundles on timbers
+  for (let k = 0; k < 4; k++) mg.box(rebar, 38 + k * 0.35, 0.5, 868, 0.3, 0.28, 9);
+  for (const z of [864, 868, 872 - 0.5]) mg.box(mat(0x8a6a42, 0.9), 39, 0.15, Math.min(z, 871.5), 2.2, 0.3, 0.3);
+  // the wrapped fence along the Boulevard, its faded banner and the for-sale board
+  const wrap = atlas.slot(800, 110, (p) => {
+    rect(p, 0, 0, p.w, p.h, '#2f4a3a');
+    text(p, 'DREAM', 150, 48, 'bold 54px Georgia, serif', '#b8b2a2', '#000');
+    text(p, 'LAS VEGAS', 150, 88, 'bold 18px Georgia, serif', '#9a9488', '#000');
+    text(p, 'CONSTRUCTION SITE • KEEP OUT • NO TRESPASSING', 520, 56, 'bold 22px Arial, sans-serif', '#d8d2c2', '#000', 470);
+  });
+  // fence posts, rails and the dark green privacy screen (open at the site gate)
+  const post = mat(0x8c9196, 0.45, 0.7);
+  const screen = mat(0x24392c, 0.9, 0, { side: THREE.DoubleSide });
+  for (const [z0, z1] of [
+    [849.0, dz - 1.2],
+    [dz + 1.4, 869.3],
+  ]) {
+    for (let z = z0; z <= z1 + 0.01; z += (z1 - z0) / Math.max(1, Math.round((z1 - z0) / 3))) mg.beam(post, v3(21.4, 0, z), v3(21.4, 2.5, z), 0.05, 5);
+    mg.beam(post, v3(21.4, 2.5, z0), v3(21.4, 2.5, z1), 0.035, 4);
+    const pl = new THREE.PlaneGeometry(z1 - z0, 2.0);
+    pl.rotateY(Math.PI / 2);
+    mg.at(screen, pl, 21.42, 1.2, (z0 + z1) / 2);
+    b.collider(21.25, 21.55, z0, z1, 0, 2.9, true);
+  }
+  for (const z of [dz - 4.7, dz + 5.3]) {
+    mg.at(wrap.mat, atlas.plane(wrap, 7, 1.0), 21.36, 1.3, z, -Math.PI / 2);
+  }
+  const sale = atlas.slot(360, 220, (p) => {
+    rect(p, 0, 0, p.w, p.h, '#f4f2ec');
+    rect(p, 0, 0, p.w, 64, '#1a3a6a');
+    text(p, 'FOR SALE', p.w / 2, 34, 'bold 46px Arial, sans-serif', '#ffffff', '#000');
+    text(p, '±5.5 ACRES • STRIP FRONTAGE', p.w / 2, 104, 'bold 24px Arial, sans-serif', '#1a3a6a', '#000', p.w - 30);
+    text(p, 'ENTITLED HOTEL-CASINO SITE', p.w / 2, 146, 'bold 20px Arial, sans-serif', '#3a3a3a', '#000', p.w - 30);
+    text(p, '702-555-0123', p.w / 2, 190, 'bold 30px Arial, sans-serif', '#c8202a', '#000');
+  });
+  const steel = mat(0x6a6e74, 0.5, 0.6);
+  for (const s of [-1, 1]) mg.beam(steel, v3(22.6, 0, dz + s * 1.6), v3(22.6, 4.4, dz + s * 1.6), 0.08, 6);
+  mg.at(sale.mat, atlas.plane(sale, 3.6, 2.2), 22.6, 4.0, dz + 0.04, 0);
+  mg.at(sale.mat, atlas.plane(sale, 3.6, 2.2), 22.6, 4.0, dz - 0.04, Math.PI);
+  b.zone('Dream Las Vegas site (stalled, for sale)', 19, 70, 848.5, 869.5);
+}
+
+/** A few people actually going into the shops (paths from the walk to the doors). */
+function shoppers(b: WorldBuilder): void {
+  const t = b.crowd.tourists;
+  t.push(
+    { pts: [[16.5, 690], [24, 690], [29.6, 689.6]], prop: 'bag' },
+    { pts: [[16.5, 697.5], [25, 697.5], [29.6, 698]], prop: 'none' },
+    { pts: [[16.2, 709], [23, 709], [37.6, 712.5]], prop: 'cig' },
+    { pts: [[16.4, 832], [22, 832], [38.8, 838.4]], prop: 'camera' },
+    { pts: [[16.2, 824], [42.5, 823], [43.6, 822.8]], prop: 'camera' }
+  );
 }

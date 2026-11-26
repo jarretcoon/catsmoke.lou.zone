@@ -1602,7 +1602,9 @@ function buildAllegiant(b: WorldBuilder): void {
   const body = mesh(new THREE.CylinderGeometry(34, 30, 24, 56, 1), shell, x, 12, z);
   body.scale.set(1.12, 1, 1);
   b.add(body);
-  const rib = mat(0x2a2d33, 0.4, 0.8);
+  // the ribs carry the white LED lines that trace the black shell at night (YESCO)
+  const rib = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.4, metalness: 0.8, emissive: 0xeef4ff, emissiveIntensity: 0 });
+  b.nightGlow(rib, 0.0, 1.1);
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2;
     mg.beam(rib, v3(x + Math.cos(a) * 30.2 * 1.12, 0, z + Math.sin(a) * 30.2), v3(x + Math.cos(a) * 34.2 * 1.12, 24, z + Math.sin(a) * 34.2), 0.3, 4);
@@ -2340,52 +2342,10 @@ function buildPinballAndDream(b: WorldBuilder): void {
   b.building(52, pz, 24, 17, '#f1efe8', 'Pinball HoF');
   b.zone('Pinball Hall of Fame', 19, 66, 826, 848.5);
 
-  // Dream Las Vegas — stalled steel skeleton
-  const rust = mat(0x7a3e22, 0.92, 0.35);
-  const slab = mat(0x9a968e, 0.9);
+  // Dream Las Vegas: the site stalled at its foundations in 2023 (southFronts.ts builds what's there now)
   const dz = zFromS(-3408); // 856.9
-  const xs = [25, 31, 37, 43, 49, 55, 61];
-  const zs = [dz - 6.5, dz - 2.2, dz + 2.2, dz + 6.5];
-  const floors = (i: number, j: number) => 2 + ((i * 3 + j * 5) % 4) - (i === 0 || i === 6 ? 1 : 0);
-  const FL = 4.2;
-  xs.forEach((x, i) =>
-    zs.forEach((z, j) => {
-      const hgt = floors(i, j) * FL;
-      mg.box(rust, x, hgt / 2, z, 0.45, hgt, 0.45, 0, true);
-      b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, hgt, true);
-      for (let k = 0; k < 4; k++) mg.beam(mat(0x4a2a1a, 0.9, 0.3), v3(x - 0.15 + (k % 2) * 0.3, hgt, z - 0.15 + (k >> 1) * 0.3), v3(x - 0.15 + (k % 2) * 0.3, hgt + 1.1, z - 0.15 + (k >> 1) * 0.3), 0.02, 3);
-    })
-  );
-  for (let lvl = 1; lvl <= 4; lvl++) {
-    const y = lvl * FL;
-    xs.forEach((x, i) =>
-      zs.forEach((z, j) => {
-        if (i < xs.length - 1 && floors(i, j) >= lvl && floors(i + 1, j) >= lvl) mg.box(rust, (x + xs[i + 1]) / 2, y - 0.25, z, 6, 0.5, 0.3);
-        if (j < zs.length - 1 && floors(i, j) >= lvl && floors(i, j + 1) >= lvl) mg.box(rust, x, y - 0.25, (z + zs[j + 1]) / 2, 0.3, 0.5, zs[j + 1] - z);
-      })
-    );
-  }
-  b.box(43.5, FL, dz, 38.5, 0.3, 13.4, slab, false, true);
-  b.box(37, FL * 2, dz - 2.2, 12.5, 0.3, 9, slab, false, true);
-  stairs(b, 64.6, dz - 7.5, '+z', 2.4, FL + 0.3, 9, slab);
-  b.box(63.2, FL, dz + 1.9, 1.6, 0.3, 3.2, slab, false, false);
-  // Rusty, idle tower crane
-  const idle = mat(0x8a5a2a, 0.9, 0.3);
-  for (const [cx, cz] of [
-    [-0.9, -0.9],
-    [0.9, -0.9],
-    [-0.9, 0.9],
-    [0.9, 0.9],
-  ]) mg.box(idle, 33 + cx, 15, dz + 9.5 + cz, 0.2, 30, 0.2);
-  for (let y = 0; y < 30; y += 3) mg.box(idle, 33, y, dz + 9.5, 2, 0.12, 2);
-  mg.box(idle, 45, 31, dz + 9.5, 34, 1.0, 1.0);
-  mg.box(mat(0x555555, 0.8), 25, 30.4, dz + 9.5, 4, 2.4, 2.2);
-  b.collider(32, 34, dz + 8.5, dz + 10.5, 0, 30, true);
-  chainLink(b, mg, 21.4, dz - 8.4, 21.4, dz - 1);
-  chainLink(b, mg, 21.4, dz + 1.5, 21.4, dz + 8.4);
-  for (const z of [dz - 5, dz + 5]) sign(b, 'DREAM', '#4a4a48', '#d8d0c0', 5, 1.2, 21.25, 1.4, z, -Math.PI / 2, 'LAS VEGAS • COMING SOON', 0.05);
   mg.flush(b);
-  b.building(43, dz, 38, 14, '#7a3e22', 'Dream (stalled)');
+  b.building(43, dz, 38, 14, '#8a6e4e', 'Dream site (stalled)');
   b.zone('Dream Las Vegas (stalled construction)', 19, 66, 848.5, 869.5);
 }
 
