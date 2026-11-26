@@ -2147,8 +2147,9 @@ def author_animations(arm):
 
     an.make_action("VapeRip", 48, vape)
 
-    # ---------------- Run (1 cycle = 32 keys): rotary gallop. The back curls to swing the hind paws far
-    # forward (gathered flight, ~0.84), then stretches out as they push (extended flight, ~0.33)
+    # ---------------- Run (1 cycle = 48 keys; a fore paw is down only 13% of it): rotary gallop. The back
+    # curls to swing the hind paws far forward (gathered flight, ~0.84), then stretches out as they push
+    # (extended flight, ~0.33)
     def run(t):
         P = Pose()
         c2 = math.cos
@@ -2175,7 +2176,7 @@ def author_animations(arm):
         P.lids(-0.15, -0.15)
         return P
 
-    an.make_action("Run", 32, run)
+    an.make_action("Run", 48, run)
 
     # ---------------- Jump (1.0 s loop): tucked mid-air pose with a little float
     def jump(t):

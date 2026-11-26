@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * Lou's body in motion. One weighted blend over the GLB's 14 clips instead of hard switches, so every
+ * Lou's body in motion. One weighted blend over the GLB's 15 clips instead of hard switches, so every
  * change of pose cross-fades (no pops), plus the procedural motion a baked clip can't know about.
  *
  * - Locomotion: Idle / Walk / Trot / Run blended by ground speed on one shared gait phase. Walk is the
