@@ -16,8 +16,8 @@
     { "id": "fountains-day", "label": "Bellagio fountains (day)", "time": "day", "tp": [-9, 0.3, 66], "cam": [1.5708, 0.25, 10], "maxCalls": 850 },
     { "id": "caesars-day", "label": "Caesars Palace (day)", "time": "day", "tp": [6, 0.3, -90], "cam": [1.5708, 0.22, 16], "maxCalls": 900 },
     { "id": "forum-day", "label": "Forum Shops (inside, day)", "time": "day", "tp": [-62, 0.3, -140], "cam": [0, 0.14, 6], "maxCalls": 1250 },
-    { "id": "crystals-day", "label": "Crystals + ARIA from the Strip (day)", "time": "day", "tp": [-13, 0.3, 236], "cam": [1.5708, 0.2, 15], "maxCalls": 2000 },
-    { "id": "forum-front-night", "label": "Forum Shops front on the Strip (night)", "time": "night", "tp": [-14, 0.3, -150], "cam": [1.5708, 0.16, 15], "maxCalls": 2000 },
-    { "id": "palazzo-night", "label": "The Palazzo front (night)", "time": "night", "tp": [14, 0.3, -352], "cam": [-1.5708, 0.16, 15], "maxCalls": 2000 }
+    { "id": "crystals-day", "label": "Crystals + ARIA from the Strip (day)", "time": "day", "tp": [-13, 0.3, 236], "cam": [1.5708, 0.2, 15], "maxCalls": 900 },
+    { "id": "forum-front-night", "label": "Forum Shops front on the Strip (night)", "time": "night", "tp": [-14, 0.3, -150], "cam": [1.5708, 0.16, 15], "maxCalls": 900 },
+    { "id": "palazzo-night", "label": "The Palazzo front (night)", "time": "night", "tp": [13, 0.3, -350], "cam": [-1.5708, 0.16, 11], "maxCalls": 560 }
   ]
 }

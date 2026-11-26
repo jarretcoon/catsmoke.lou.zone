@@ -104,7 +104,7 @@ function shopGlass(b: WorldBuilder): THREE.MeshStandardMaterial {
   const map = canvasTex(W, H, (ctx) => interior(ctx, true), true);
   const glow = canvasTex(W, H, (ctx) => interior(ctx, false), true);
   shopGlassMat = new THREE.MeshStandardMaterial({ map, emissiveMap: glow, emissive: 0xffffff, emissiveIntensity: 0.1, roughness: 0.42, metalness: 0.05 });
-  b.nightGlow(shopGlassMat, 0.1, 0.85);
+  b.nightGlow(shopGlassMat, 0.1, 0.55);
   return shopGlassMat;
 }
 
