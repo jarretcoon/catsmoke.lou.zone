@@ -27,6 +27,14 @@
     { "id": "circus-day", "label": "Circus Circus porte-cochère from the median (day)", "time": "day", "tp": [0.5, 0.3, -766], "cam": [1.5708, 0.14, 7], "maxCalls": 670 },
     { "id": "slots-block-night", "label": "McDonald’s + Slots-A-Fun (night)", "time": "night", "tp": [-14, 0.3, -703], "cam": [1.15, 0.12, 15], "maxCalls": 830 },
     { "id": "welcome-close-night", "label": "First steps under the Welcome sign (night)", "time": "night", "tp": [1.5, 0.3, 907.8], "cam": [0, 0.12, 4.2], "maxCalls": 1340 },
+    { "id": "welcome-sign-day", "label": "Welcome to Fabulous Las Vegas sign, the photo line (day)", "time": "day", "tp": [-4.5, 0.3, 918], "cam": [-0.3, 0.06, 4], "maxCalls": 1580 },
+    { "id": "welcome-sign-night", "label": "Welcome to Fabulous Las Vegas sign, the photo line (night)", "time": "night", "tp": [-4.5, 0.3, 918], "cam": [-0.3, 0.06, 4], "maxCalls": 1460 },
+    { "id": "mandalay-front-night", "label": "Mandalay Bay from the Strip (night)", "time": "night", "tp": [17, 0.3, 676], "cam": [1.5708, 0.04, 8], "maxCalls": 590 },
+    { "id": "luxor-night", "label": "Luxor: obelisk, Sphinx and pyramid (night)", "time": "night", "tp": [-8, 0.3, 571], "cam": [1.45, 0.08, 14], "maxCalls": 590 },
+    { "id": "south-end-day", "label": "Looking north from Russell Rd (day)", "time": "day", "tp": [3, 0.3, 818], "cam": [0, 0.12, 8], "maxCalls": 1460 },
+    { "id": "pinball-church-day", "label": "Pinball Hall of Fame sign + Little Church of the West (day)", "time": "day", "tp": [8, 0.3, 840], "cam": [-0.45, 0.05, 10], "maxCalls": 1540 },
+    { "id": "east-row-day", "label": "East side shops: Shell, strip mall, motels (day)", "time": "day", "tp": [10, 0.3, 700], "cam": [-1.25, 0.16, 14], "maxCalls": 420 },
+    { "id": "diamond-inn-night", "label": "Diamond Inn pink elephant (night)", "time": "night", "tp": [16, 0.3, 772], "cam": [-1.0, 0.14, 10], "maxCalls": 470 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 }
   ]
 }

@@ -1,16 +1,17 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bakeGroup } from '../meshBake';
 import { viewer, type WorldBuilder } from './builder';
 import { facadeMaterial, stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
-import { LedBoard, makePaverTexture } from './textures';
+import { LedBoard } from './textures';
 import type { FacadeSpec } from './textures';
 import { basic, car, mat, mesh, neonSign, planter } from './props';
 import type { CarKind } from './props';
-import { palmPieces } from './props';
 import { beamMaterial } from './skyLife';
 import { buildLuxorAtrium, luxorColliders, luxorSkinGeometry } from './grandLuxor';
+import { buildSouthFronts } from './southFronts';
+import { buildWelcomeSign } from './welcomeSign';
+import { L0, L1, L2, Merger, UP, beamGeo, canvasTex, ground, palmInto, paving, v3 } from './southKit';
 import { xFromO, zFromS } from './strip';
 import { excaliburSigns, excaliburTowerLetters, luxorPyramidLetters, luxorSigns, mandalaySigns, mandalayTowerLetters } from './stripSigns';
 import { MGM, buildMGMRotunda, mgmFloorSet, mgmMarquee } from './mgmInterior';
@@ -40,6 +41,7 @@ export function buildSouthStrip(b: WorldBuilder): void {
   buildOYO(b);
   buildEastLots(b);
   buildPinballAndDream(b);
+  buildSouthFronts(b);
   buildAirport(b);
   buildBaliHai(b);
   buildWelcomeSign(b);
@@ -58,120 +60,6 @@ const RUSSELL_S = RUSSELL_Z + 12.2;
 /** Ground-level half-width of the Welcome sign median island (inner-lane cars run from |x| ≈ 2.17). */
 const ISLAND = 2.1;
 
-// Floor layers (keep a few cm apart so distant floors do not z-fight)
-const L0 = 0.014;
-const L1 = 0.034;
-const L2 = 0.05;
-
-// ---------------------------------------------------------------- helpers
-const UP = new THREE.Vector3(0, 1, 0);
-const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
-
-function prepGeo(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
-  if (!g.attributes.normal) g.computeVertexNormals();
-  if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-  if (!g.index) {
-    const n = g.attributes.position.count;
-    const idx: number[] = new Array(n);
-    for (let i = 0; i < n; i++) idx[i] = i;
-    g.setIndex(idx);
-  }
-  g.clearGroups();
-  return g;
-}
-
-const _dir = new THREE.Vector3();
-const _q = new THREE.Quaternion();
-/** Cylinder from a to c (radius r at a, rTop at c). */
-function beamGeo(a: THREE.Vector3, c: THREE.Vector3, r: number, seg = 6, rTop = r): THREE.BufferGeometry {
-  _dir.subVectors(c, a);
-  const len = Math.max(0.001, _dir.length());
-  const g = new THREE.CylinderGeometry(rTop, r, len, seg, 1);
-  _q.setFromUnitVectors(UP, _dir.divideScalar(len));
-  g.applyQuaternion(_q);
-  g.translate((a.x + c.x) / 2, (a.y + c.y) / 2, (a.z + c.z) / 2);
-  return g;
-}
-
-/** Collects many small pieces and emits one merged mesh per material (keeps the mesh count low). */
-class Merger {
-  private readonly lists = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; cast: boolean }>();
-  add(g: THREE.BufferGeometry, m: THREE.Material, cast = false): void {
-    let e = this.lists.get(m);
-    if (!e) {
-      e = { geos: [], cast: false };
-      this.lists.set(m, e);
-    }
-    e.geos.push(prepGeo(g));
-    e.cast ||= cast;
-  }
-  /** Box centred at (x, y, z). */
-  box(m: THREE.Material, x: number, y: number, z: number, w: number, h: number, d: number, ry = 0, cast = false): void {
-    const g = new THREE.BoxGeometry(w, h, d);
-    if (ry) g.rotateY(ry);
-    g.translate(x, y, z);
-    this.add(g, m, cast);
-  }
-  beam(m: THREE.Material, a: THREE.Vector3, c: THREE.Vector3, r: number, seg = 6, rTop = r, cast = false): void {
-    this.add(beamGeo(a, c, r, seg, rTop), m, cast);
-  }
-  at(m: THREE.Material, g: THREE.BufferGeometry, x: number, y: number, z: number, ry = 0, cast = false): void {
-    if (ry) g.rotateY(ry);
-    g.translate(x, y, z);
-    this.add(g, m, cast);
-  }
-  /** Emit into the static root (default) or straight into the scene (for animated materials). */
-  flush(b: WorldBuilder, toScene = false): THREE.Mesh[] {
-    const out: THREE.Mesh[] = [];
-    for (const [m, e] of this.lists) {
-      if (!e.geos.length) continue;
-      const merged = mergeGeometries(e.geos, false);
-      for (const g of e.geos) g.dispose();
-      if (!merged) continue;
-      merged.computeBoundingSphere();
-      const me = new THREE.Mesh(merged, m);
-      me.castShadow = e.cast;
-      me.receiveShadow = true;
-      if (toScene) b.scene.add(me);
-      else b.add(me);
-      out.push(me);
-    }
-    this.lists.clear();
-    return out;
-  }
-}
-
-const paverTex = new Map<string, THREE.CanvasTexture>();
-function paving(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, base = '#cdbfa6', joint = '#a99a82', tile = 4, y = L0): void {
-  const w = Math.abs(x1 - x0);
-  const d = Math.abs(z1 - z0);
-  let t = paverTex.get(base + joint);
-  if (!t) {
-    t = makePaverTexture(base, joint, 4);
-    paverTex.set(base + joint, t);
-  }
-  const tex = t.clone();
-  tex.needsUpdate = true;
-  tex.repeat.set(w / tile, d / tile);
-  b.floor((x0 + x1) / 2, (z0 + z1) / 2, w, d, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }), y);
-}
-
-function ground(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, color: number, y = L0, rough = 0.95): void {
-  b.floor((x0 + x1) / 2, (z0 + z1) / 2, Math.abs(x1 - x0), Math.abs(z1 - z0), mat(color, rough), y);
-}
-
-function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  draw(c.getContext('2d')!, w, h);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
-
 /** Strip-side LED marquee: the board faces ±z (Boulevard traffic), spanning `w` along x. */
 function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: number, h: number, poleH: number, frame = 0x18181c): void {
   const face = new THREE.MeshBasicMaterial({ map: led.tex });
@@ -185,15 +73,6 @@ function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: numbe
   b.add(mesh(new THREE.BoxGeometry(1.4, poleH, 1.4), dark, x, poleH / 2, z, true));
   b.collider(x - 0.8, x + 0.8, z - 0.8, z + 0.8, 0, poleH + h, true);
   b.every((_dt, t) => led.draw(t));
-}
-
-/** A palm into a merger (shared palm pieces: ringed trunk, alpha-tested frond crown, dates). */
-function palmInto(mg: Merger, x: number, z: number, h: number, seed: number, y0 = 0): void {
-  for (const p of palmPieces(h, false, seed)) {
-    const g = p.geo.clone().applyMatrix4(p.matrix);
-    g.translate(x, y0, z);
-    mg.add(g, p.mat, p.cast);
-  }
 }
 
 /** Raised gravel bed with agave rosettes (desert landscaping). */
@@ -1381,7 +1260,8 @@ function buildLuxor(b: WorldBuilder): void {
   const mg = new Merger();
 
   // Black-glass pyramid
-  const skin = facadeMaterial(b, { wall: '#0d1116', mullion: '#1a2129', glass: '#0a0d12', lit: '#ffcf8a', cols: 16, rows: 14, style: 2, seed: 401 }, half * 2, Math.hypot(h, half), { metal: 0.85, rough: 0.12, glow: 1.0 });
+  // (scaled so the room windows come out about as small as the real pyramid's 30 floors of them)
+  const skin = facadeMaterial(b, { wall: '#0d1116', mullion: '#1a2129', glass: '#0a0d12', lit: '#ffcf8a', cols: 16, rows: 14, style: 2, seed: 401 }, half * 2 * 2.4, Math.hypot(h, half) * 2.4, { metal: 0.85, rough: 0.12, glow: 0.62 });
   // Skin with a doorway notch on the east face; hollow inside (the atrium, grandLuxor.ts)
   const pyr = new THREE.Mesh(luxorSkinGeometry(half, h), skin);
   pyr.position.set(px, 0, pz);
@@ -1561,6 +1441,8 @@ function buildMandalay(b: WorldBuilder): void {
   const tcx = -66;
   const tcz = 671;
   const angs = [Math.PI / 3 - 0.25, Math.PI - 0.25, (5 * Math.PI) / 3 - 0.25];
+  const goldLine = new THREE.MeshStandardMaterial({ color: 0xf2c46a, emissive: 0xffc04a, emissiveIntensity: 0.05, roughness: 0.4, metalness: 0.5 });
+  b.nightGlow(goldLine, 0.05, 1.5);
   angs.forEach((a, i) => {
     for (const [r0, r1, hh] of [
       [0, 15, 46],
@@ -1569,6 +1451,19 @@ function buildMandalay(b: WorldBuilder): void {
     ]) {
       const rm = (r0 + r1) / 2;
       tower(b, { x: tcx + Math.cos(a) * rm, z: tcz + Math.sin(a) * rm, w: r1 - r0, d: 11, h: hh, facade: { ...gold, seed: 412 + i * 3 + r0 }, rotY: -a, metal: 0.85, rough: 0.18, minimal: true, accent: 0xffe6a0, wash: 0xffc860, washZone: 18, washStrength: 1.0 });
+    }
+    for (const [r0, r1, hh] of [
+      [0, 15, 46],
+      [13, 22, 40],
+      [20, 28, 32],
+    ]) {
+      void r0;
+      for (const s of [-1, 1]) {
+        const cx = tcx + Math.cos(a) * r1 - Math.sin(a) * 5.56 * s;
+        const cz = tcz + Math.sin(a) * r1 + Math.cos(a) * 5.56 * s;
+        mg.box(goldLine, cx, (12.2 + hh) / 2, cz, 0.14, hh - 12.2, 0.14);
+      }
+      mg.box(goldLine, tcx + Math.cos(a) * (r1 - 0.05), hh + 0.06, tcz + Math.sin(a) * (r1 - 0.05), 0.14, 0.14, 11.2, -a);
     }
     if (i !== 1) {
       const dx = Math.cos(a);
@@ -2356,9 +2251,9 @@ function buildEastLots(b: WorldBuilder): void {
   const d0 = zFromS(-2364); // 624.9
   const d1 = zFromS(-2770); // 715.1
   ground(b, 19.4, xFromO(414), d0, d1, 0x8f7656);
-  chainLink(b, mg, 19.7, d0 + 1, 19.7, 660);
-  chainLink(b, mg, 19.7, 672, 19.7, d1 - 1);
-  chainLink(b, mg, 19.7, d1 - 1, xE - 1, d1 - 1);
+  // frontage fence only up to the motels (3961 → the Shell at 4207 are open businesses: southFronts.ts)
+  chainLink(b, mg, 19.7, d0 + 1, 19.7, 648.2);
+  chainLink(b, mg, 46, 648.2, 46, 702);
   const fabric = mat(0xf4f4f0, 0.7, 0, { side: THREE.DoubleSide });
   for (const [tx, tz] of [
     [50, 648],
@@ -2390,8 +2285,8 @@ function buildEastLots(b: WorldBuilder): void {
     mg.beam(mat(0x8a8f94, 0.4, 0.6), v3(lx, 0, lz), v3(lx, 8, lz), 0.12, 6);
     mg.box(lampM, lx, 8.3, lz, 2.0, 0.9, 0.4);
   }
-  for (let i = 0; i < 3; i++) mg.box(mat(0x2a66cc, 0.6), 30 + i * 1.4, 1.15, 704, 1.2, 2.3, 1.2);
-  sign(b, 'EVENT PARKING', '#0a2a5a', '#ffffff', 5, 1.2, 20.6, 2.2, 666, -Math.PI / 2, 'ENTER HERE', 0.08);
+  for (let i = 0; i < 3; i++) mg.box(mat(0x2a66cc, 0.6), 60 + i * 1.4, 1.15, 704, 1.2, 2.3, 1.2);
+  sign(b, 'EVENT PARKING', '#0a2a5a', '#ffffff', 5, 1.2, 20.6, 2.2, 637, -Math.PI / 2, 'DIAMOND LOT • ENTER HERE', 0.08);
   const parked: Array<[CarKind, number, number]> = [
     ['suv', 0x1d1f24, 640],
     ['sedan', 0xd9d9d9, 646],
@@ -2410,8 +2305,10 @@ function buildEastLots(b: WorldBuilder): void {
   const c1 = RUSSELL_N - 0.2;
   ground(b, 19.4, xE, c0, c1, 0xa89272);
   scatter(c0, c1, 34, 0.53);
-  chainLink(b, mg, 19.7, c0 + 1, 19.7, c1 - 1);
-  billboard(b, mg, 32, 756, 'FOR LEASE', 'STRIP FRONTAGE • 27 ACRES', '#ffffff', '#c8202e');
+  // fenced, but open at the (closed) Diamond Inn's driveway
+  chainLink(b, mg, 19.7, 723.5, 19.7, 759.5);
+  chainLink(b, mg, 19.7, 784.5, 19.7, c1 - 1);
+  billboard(b, mg, 32, 752, 'FOR LEASE', 'STRIP FRONTAGE • 27 ACRES', '#ffffff', '#c8202e');
   b.zone('Vacant Lot (Hacienda)', 19, xE, c0, c1);
   mg.flush(b);
 }
@@ -2422,11 +2319,9 @@ function buildPinballAndDream(b: WorldBuilder): void {
   ground(b, 19.2, 70, RUSSELL_S, 869.5, 0x9a8c74);
   // Pinball Hall of Fame
   const pz = zFromS(-3325); // 838.4
-  b.box(52, 0, pz, 24, 7.5, 17, mat(0x4a5f8a, 0.6, 0.4), true);
-  mg.box(mat(0xff4fd8, 0.5, 0.2), 52, 6.8, pz, 24.3, 0.5, 17.3);
-  mg.box(mat(0x2a2a30, 0.7), 52, 7.6, pz, 24.4, 0.25, 17.4);
-  sign(b, 'PINBALL HALL OF FAME', '#120a2a', '#ff4fd8', 15, 2.0, 39.85, 5.2, pz, -Math.PI / 2, 'FREE ADMISSION • PLAY THE CLASSICS');
-  b.add(mesh(new THREE.BoxGeometry(0.15, 2.6, 4), basic(0xffe9a0), 39.95, 1.3, pz));
+  // white "airplane hangar" (its red PINBALL facade and the roadside sign are in southFronts.ts)
+  b.box(52, 0, pz, 24, 7.5, 17, mat(0xf1efe8, 0.8), true);
+  mg.box(mat(0xc8202a, 0.6), 52, 7.55, pz, 24.3, 0.3, 17.3);
   mg.box(mat(0x1a1a20, 0.4, 0.6), 38.6, 3.1, pz, 2.8, 0.3, 6);
   ground(b, 22, 39.6, 828, 848.5, 0x2e2e33, L1, 0.85);
   for (let z = 830; z <= 847; z += 3.4) b.floor(30.8, z, 7.4, 0.12, basic(0xf2f0ea), L2);
@@ -2441,61 +2336,8 @@ function buildPinballAndDream(b: WorldBuilder): void {
     b.add(cc.group, 31, 0, z, Math.PI / 2);
     b.collider(28.4, 33.6, z - 1.1, z + 1.1, 0, 1.6);
   }
-  // Fun pylon sign with a bouncing chrome ball
-  const pinTex = canvasTex(512, 340, (ctx, w, h) => {
-    const gr = ctx.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, '#2a0a4a');
-    gr.addColorStop(1, '#0a0418');
-    ctx.fillStyle = gr;
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = '#ffd23a';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(6, 6, w - 12, h - 12);
-    const cols = ['#ff3b3b', '#ff9a2a', '#ffe23a', '#3bff7a', '#3ad8ff', '#b06cff', '#ff4fd8'];
-    ctx.font = 'bold 92px "Arial Black", Impact, sans-serif';
-    ctx.textBaseline = 'middle';
-    let x = 34;
-    'PINBALL'.split('').forEach((ch, i) => {
-      ctx.fillStyle = cols[i % cols.length];
-      ctx.shadowColor = cols[i % cols.length];
-      ctx.shadowBlur = 16;
-      ctx.fillText(ch, x, 110);
-      x += ctx.measureText(ch).width + 4;
-    });
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ffe23a';
-    ctx.shadowColor = '#ffe23a';
-    ctx.font = 'bold 50px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('HALL OF FAME', w / 2, 200);
-    ctx.fillStyle = '#ffffff';
-    for (const s of [-1, 1]) {
-      ctx.save();
-      ctx.translate(w / 2 + s * 90, 280);
-      ctx.rotate(s * -0.35);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 70, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  });
-  const pinMat = new THREE.MeshBasicMaterial({ map: pinTex });
-  const dark = mat(0x18181c, 0.5, 0.4);
-  const signX = 26;
-  const signZ = 827.4;
-  const board = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 0.6), [dark, dark, dark, dark, pinMat, pinMat]);
-  board.position.set(signX, 8, signZ);
-  b.add(board);
-  mg.box(dark, signX, 3, signZ, 0.8, 6, 0.8, 0, true);
-  b.collider(signX - 0.5, signX + 0.5, signZ - 0.5, signZ + 0.5, 0, 10, true);
-  const ball = mesh(new THREE.SphereGeometry(0.85, 20, 14), mat(0xe8ecf2, 0.05, 1), signX, 10.9, signZ);
-  b.scene.add(ball);
-  b.every((_dt, t) => {
-    ball.position.y = 10.9 + Math.abs(Math.sin(t * 2.4)) * 1.8;
-    ball.position.x = signX + Math.sin(t * 0.9) * 1.6;
-  });
   b.pickup(39.2, 0.45, pz + 3, 2, 'Pinball Wizard Pack', false);
-  b.building(52, pz, 24, 17, '#4a5f8a', 'Pinball HoF');
+  b.building(52, pz, 24, 17, '#f1efe8', 'Pinball HoF');
   b.zone('Pinball Hall of Fame', 19, 66, 826, 848.5);
 
   // Dream Las Vegas — stalled steel skeleton
@@ -2859,236 +2701,6 @@ function buildBaliHai(b: WorldBuilder): void {
   b.building(-104, 834, 16, 14, '#d8c8a8', 'Bali Hai');
   b.feature({ kind: 'park', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0, color: '#5f8a3a', label: 'Bali Hai Golf' });
   b.zone('Bali Hai Golf Club', x0, x1, z0, z1);
-}
-
-// ================================================================ Welcome to Fabulous Las Vegas sign
-function welcomeFace(back: boolean): THREE.CanvasTexture {
-  return canvasTex(1024, 688, (ctx, w, h) => {
-    const hex = (inset: number) => {
-      ctx.beginPath();
-      ctx.moveTo(inset * 1.6, h * 0.25 + inset * 0.4);
-      ctx.lineTo(w / 2, inset);
-      ctx.lineTo(w - inset * 1.6, h * 0.25 + inset * 0.4);
-      ctx.lineTo(w - inset * 1.6, h * 0.75 - inset * 0.4);
-      ctx.lineTo(w / 2, h - inset);
-      ctx.lineTo(inset * 1.6, h * 0.75 - inset * 0.4);
-      ctx.closePath();
-    };
-    ctx.clearRect(0, 0, w, h);
-    hex(0);
-    ctx.fillStyle = '#d7262e';
-    ctx.fill();
-    hex(30);
-    ctx.fillStyle = '#f6f1e4';
-    ctx.fill();
-    hex(38);
-    ctx.strokeStyle = '#d7262e';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (!back) {
-      const letters = 'WELCOME';
-      for (let i = 0; i < 7; i++) {
-        const cx = w / 2 + (i - 3) * w * 0.106;
-        const cy = h * 0.205 + Math.abs(i - 3) * h * 0.032;
-        const r = w * 0.047;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#b9bcc4';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(cx, cy, r * 0.86, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.fillStyle = '#d7262e';
-        ctx.font = `bold ${Math.round(r * 1.25)}px Georgia, serif`;
-        ctx.fillText(letters[i], cx, cy + 3);
-      }
-      ctx.fillStyle = '#1f5fae';
-      ctx.font = 'italic bold 76px "Brush Script MT", "Segoe Script", cursive';
-      ctx.fillText('to Fabulous', w / 2, h * 0.405);
-      ctx.font = 'bold 172px "Arial Black", Impact, sans-serif';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = 12;
-      ctx.strokeStyle = '#ffffff';
-      ctx.strokeText('LAS VEGAS', w / 2, h * 0.6, w * 0.86);
-      ctx.fillStyle = '#d7262e';
-      ctx.shadowColor = 'rgba(80,0,0,0.5)';
-      ctx.shadowBlur = 6;
-      ctx.fillText('LAS VEGAS', w / 2, h * 0.6, w * 0.86);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#1f5fae';
-      ctx.font = 'bold 52px Georgia, serif';
-      ctx.fillText('NEVADA', w / 2, h * 0.815);
-    } else {
-      ctx.fillStyle = '#1f5fae';
-      ctx.font = 'italic bold 118px "Brush Script MT", "Segoe Script", cursive';
-      ctx.fillText('Drive Carefully', w / 2, h * 0.37, w * 0.8);
-      ctx.fillStyle = '#d7262e';
-      ctx.font = 'bold 104px "Arial Black", Impact, sans-serif';
-      ctx.fillText('Come Back Soon', w / 2, h * 0.63, w * 0.84);
-    }
-  });
-}
-
-function buildWelcomeSign(b: WorldBuilder): void {
-  const zSign = zFromS(-3635); // 907.3
-  const zLot0 = zFromS(-3687); // 918.9
-  const zLot1 = zFromS(-3804); // 944.9
-  const zIsl0 = 890.6;
-  const zIsl1 = 951.4;
-  const mg = new Merger();
-
-  // Island: raised curbs, paved photo plaza, the small median lot, a planted tip
-  const curb = mat(0xd8d2c4, 0.8);
-  for (const s of [-1, 1]) {
-    for (const [a, c] of s < 0
-      ? [
-          [zIsl0, zLot1 - 5],
-          [zLot1 + 0.6, zIsl1],
-        ]
-      : [[zIsl0, zIsl1]]) b.box(s * (ISLAND - 0.12), 0, (a + c) / 2, 0.24, 0.2, c - a, curb, false, false);
-  }
-  b.box(0, 0, zIsl0 + 0.12, ISLAND * 2, 0.2, 0.24, curb, false, false);
-  b.box(0, 0, zIsl1 - 0.12, ISLAND * 2, 0.2, 0.24, curb, false, false);
-  b.box(0, 0, zLot0 - 1.2, ISLAND * 2 - 0.4, 0.15, 0.24, curb, false, false);
-  paving(b, -ISLAND + 0.24, ISLAND - 0.24, zIsl0 + 0.24, zLot0 - 1.3, '#e2d8c4', '#bfb39c', 2, L1);
-  ground(b, -ISLAND + 0.24, ISLAND - 0.24, zLot0 - 1.1, zLot1 + 0.4, 0x2e2e33, L1, 0.85);
-  ground(b, -ISLAND + 0.24, ISLAND - 0.24, zLot1 + 0.6, zIsl1 - 0.24, 0x5f7d45, L1, 0.95);
-  for (let z = zLot0 + 1; z <= zLot1; z += 6.2) b.floor(-0.2, z, ISLAND * 2 - 0.8, 0.12, mat(0xdedcd4, 0.85), L2);
-  sign(b, 'WELCOME SIGN PARKING', '#0a2a5a', '#ffffff', 3.2, 0.7, 0, 1.4, zLot1 + 1.6, 0, '15 MIN • PHOTO STOP', 0.06);
-  mg.beam(mat(0x8c8f94, 0.4, 0.6), v3(0, 0, zLot1 + 1.65), v3(0, 1.05, zLot1 + 1.65), 0.04, 4);
-  const parked: Array<[CarKind, number, number]> = [
-    ['sedan', 0xe8e8ea, zLot0 + 4],
-    ['suv', 0x1d1f24, zLot0 + 10.2],
-    ['limo', 0xf4f4f4, zLot0 + 17.6],
-  ];
-  for (const [k, c, z] of parked) {
-    const cc = car(k, c);
-    bakeGroup(cc.group);
-    b.add(cc.group, -0.25, 0, z, 0);
-    b.collider(-1.2, 0.7, z - cc.length / 2, z + cc.length / 2, 0, 1.55);
-  }
-  palmInto(mg, 0, 893.6, 6.4, 301);
-  palmInto(mg, 0, 899.6, 7.2, 302);
-  palmInto(mg, 0, zIsl1 - 2.2, 6.8, 303);
-
-  // The sign (life-size): lozenge face, silver dollars, star, chaser bulbs, two poles
-  const W = 5.8;
-  const H = 3.9;
-  const cy = 4.45;
-  const outline: Array<[number, number]> = [
-    [0, 0.25],
-    [0.5, 0],
-    [1, 0.25],
-    [1, 0.75],
-    [0.5, 1],
-    [0, 0.75],
-  ];
-  const toLocal = ([u, vv]: [number, number]) => new THREE.Vector2((u - 0.5) * W, (0.5 - vv) * H);
-  const shape = new THREE.Shape(outline.map(toLocal));
-  const remapUV = (g: THREE.BufferGeometry) => {
-    const p = g.attributes.position;
-    const uvs = new Float32Array(p.count * 2);
-    for (let i = 0; i < p.count; i++) {
-      uvs[i * 2] = p.getX(i) / W + 0.5;
-      uvs[i * 2 + 1] = p.getY(i) / H + 0.5;
-    }
-    g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    return g;
-  };
-  const faceMat = (back: boolean) => {
-    const t = welcomeFace(back);
-    const m = new THREE.MeshStandardMaterial({ map: t, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.0, roughness: 0.5 });
-    b.nightGlow(m, 0.0, 0.5);
-    return m;
-  };
-  const signG = new THREE.Group();
-  const body = new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false });
-  body.translate(0, 0, -0.15);
-  signG.add(mesh(body, mat(0xc81e28, 0.5, 0.2), 0, 0, 0, true));
-  const front = remapUV(new THREE.ShapeGeometry(shape));
-  signG.add(mesh(front, faceMat(false), 0, 0, 0.16));
-  const backG = remapUV(new THREE.ShapeGeometry(shape));
-  const backM = mesh(backG, faceMat(true), 0, 0, -0.16);
-  backM.rotation.y = Math.PI;
-  signG.add(backM);
-  // Eight-point star on a post
-  const star = (R: number, r: number) => {
-    const pts: THREE.Vector2[] = [];
-    for (let i = 0; i < 16; i++) {
-      const a = Math.PI / 2 + (i / 16) * Math.PI * 2;
-      const rr = i % 2 ? r : R;
-      pts.push(new THREE.Vector2(Math.cos(a) * rr, Math.sin(a) * rr));
-    }
-    return new THREE.Shape(pts);
-  };
-  const starY = H / 2 + 1.15;
-  const sy = new THREE.ExtrudeGeometry(star(0.86, 0.46), { depth: 0.1, bevelEnabled: false });
-  sy.translate(0, starY, -0.05);
-  signG.add(mesh(sy, mat(0xf2c230, 0.4, 0.4)));
-  const sr = new THREE.ExtrudeGeometry(star(0.72, 0.38), { depth: 0.16, bevelEnabled: false });
-  sr.translate(0, starY, -0.08);
-  signG.add(mesh(sr, mat(0xd7262e, 0.4, 0.2)));
-  signG.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8), mat(0xe8e4da, 0.5, 0.3), 0, H / 2 + 0.3, 0));
-  b.add(signG, 0, cy, zSign);
-  for (const s of [-1, 1]) {
-    mg.add(new THREE.CylinderGeometry(0.16, 0.18, 3.2, 12).translate(s * 1.45, 1.6, zSign), mat(0xe8e4da, 0.5, 0.3), true);
-    b.collider(s * 1.45 - 0.2, s * 1.45 + 0.2, zSign - 0.2, zSign + 0.2, 0, 3.2, true);
-    b.add(planter(1.1, 1.1, 0xff3b5c), s * 1.45, 0, zSign + 0.8);
-    mg.box(mat(0x2a2a30, 0.5, 0.6), s * 1.5, 0.25, zSign + 3.4, 0.45, 0.5, 0.45);
-  }
-  b.collider(-W / 2, W / 2, zSign - 0.2, zSign + 0.2, cy - H / 2, cy + H / 2 + 2, true);
-
-  // Chaser bulbs around the rim on both faces + the star tips
-  const bulbMats = [0, 1, 2].map(() => new THREE.MeshBasicMaterial({ color: 0xe8dcc0 }));
-  const verts = outline.map(([u, vv]) => {
-    const p = toLocal([u, vv]);
-    return p.multiplyScalar(0.955);
-  });
-  let bi = 0;
-  for (let e = 0; e < verts.length; e++) {
-    const a = verts[e];
-    const c = verts[(e + 1) % verts.length];
-    const n = Math.max(2, Math.round(a.distanceTo(c) / 0.3));
-    for (let k = 0; k < n; k++) {
-      const p = a.clone().lerp(c, k / n);
-      for (const fz of [0.19, -0.19]) mg.add(new THREE.SphereGeometry(0.065, 6, 4).translate(p.x, cy + p.y, zSign + fz), bulbMats[bi % 3]);
-      bi++;
-    }
-  }
-  for (let i = 0; i < 8; i++) {
-    const a = Math.PI / 2 + (i / 8) * Math.PI * 2;
-    for (const fz of [0.12, -0.12]) mg.add(new THREE.SphereGeometry(0.06, 6, 4).translate(Math.cos(a) * 0.8, cy + starY + Math.sin(a) * 0.8, zSign + fz), bulbMats[i % 3]);
-  }
-  const on = new THREE.Color(0xfff1b8);
-  const off = new THREE.Color(0x6a5a30);
-  const dim = new THREE.Color(0xe8dcc0);
-  b.every((_dt, t, night) => {
-    const k = Math.floor(t * 7) % 3;
-    bulbMats.forEach((m, i) => {
-      if (night < 0.3) m.color.copy(dim);
-      else m.color.copy(i === k ? off : on);
-    });
-  });
-  // Ground flood aimed up at the face, like the real sign's. A spot, not a point light: a point light this low
-  // lit the pavement and the photo line ~25x brighter than the sign and washed out the first steps of a new game.
-  b.spot(0xfff2d8, 8, 14, new THREE.Vector3(0, 0.25, zSign + 3.4), new THREE.Vector3(0, cy + 0.3, zSign), 0.42, 0.55, 0);
-  mg.flush(b);
-
-  b.zone('Welcome to Fabulous Las Vegas Sign', -ISLAND - 0.6, ISLAND + 0.6, zIsl0, zLot0 - 1.2);
-  b.zone('Welcome Sign Parking Lot', -ISLAND - 0.6, ISLAND + 0.6, zLot0 - 1.2, zIsl1);
-  b.staticMarkers.push({ x: 0, z: zSign, color: '#ff3b3b', glyph: '★', size: 3.2 });
-  b.pickup(1.45, 1.05, zSign + 0.8, 3, 'Welcome Sign Selfie Pack', false);
-  // The photo line + the regulars posing out front
-  b.crowd.performers.push({ kind: 'elvis', x: -1.0, z: zSign + 1.9, facing: 0 }, { kind: 'showgirl', x: 1.0, z: zSign + 1.7, facing: 0 });
-  const queue: Array<'camera' | 'cig' | 'yard-drink' | 'bag'> = ['camera', 'camera', 'yard-drink', 'cig', 'camera', 'bag'];
-  queue.forEach((prop, i) => {
-    const x = i % 2 ? 0.55 : -0.45;
-    const z = zSign + 5.2 + i * 1.05;
-    b.crowd.tourists.push({ pts: [[x, z], [x + 0.12, z + 0.3]], prop });
-  });
 }
 
 // ================================================================ Sidewalk crowds
