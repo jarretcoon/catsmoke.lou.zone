@@ -66,6 +66,13 @@ export interface LightAnchor {
   night: number;
 }
 
+/**
+ * Where the camera and the cat are, refreshed every frame just before the `every(...)` updaters run.
+ * Use it to hide interiors and dynamic dressing nobody can see (things added straight to `b.scene`
+ * are never culled by the world). `zone` is the cat's current zone name.
+ */
+export const viewer = { cam: new THREE.Vector3(), cat: new THREE.Vector3(), zone: '' };
+
 /** Shared state every district writes into while the world is assembled. */
 export class WorldBuilder {
   readonly root = new THREE.Group();

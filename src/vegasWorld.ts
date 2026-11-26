@@ -4,7 +4,7 @@ import type { MapFeature, MapMarker } from './minimap';
 import type { CrowdConfig } from './npcs';
 import type { Rideable } from './rides';
 import { buildBackdrop } from './world/backdrop';
-import { CigPickup, GamblingSpot, PlatformBox, ShopSpot, WorldBuilder } from './world/builder';
+import { CigPickup, GamblingSpot, PlatformBox, ShopSpot, viewer, WorldBuilder } from './world/builder';
 import { buildEastSide } from './world/eastSide';
 import type { RestaurantDef } from './world/food';
 import { buildFoodAndShops } from './world/foodAndShops';
@@ -224,6 +224,9 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
         k.m.visible = cam.distanceTo(k.c) - k.r < k.limit * far;
       }
     }
+    viewer.cam.copy(camera.position);
+    viewer.cat.copy(focus);
+    viewer.zone = b.zoneAt(focus.x, focus.z);
     for (const fn of b.updaters) fn(dt, elapsed, night);
     for (const p of b.cigPickups) {
       if (p.stolenCooldown > 0) {
