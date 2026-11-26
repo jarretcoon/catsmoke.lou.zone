@@ -5,6 +5,7 @@ import { buildCasinoFloor } from './casinos';
 import { LedBoard, makeBalloonTexture, makePaverTexture } from './textures';
 import { buildAbcStore } from './abcStore';
 import { buildInNOut } from './food';
+import { buildSphereVenue } from './sphere';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 
 /**
@@ -854,123 +855,8 @@ function buildVenetian(b: WorldBuilder): void {
 
 // ---------------------------------------------------------------- Sphere
 function buildSphere(b: WorldBuilder): void {
-  const sx = 176;
-  const sz = -230;
-  const R = 24.5;
-  const cy = 10.5;
-  const c = document.createElement('canvas');
-  c.width = 1024;
-  c.height = 512;
-  const ctx = c.getContext('2d')!;
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const sphere = new THREE.Mesh(new THREE.SphereGeometry(R, 48, 32), new THREE.MeshBasicMaterial({ map: tex }));
-  sphere.rotation.y = Math.PI; // face the Strip
-  b.add(sphere, sx, cy, sz);
-  b.collider(sx - R + 3, sx + R - 3, sz - R + 3, sz + R - 3, 0, cy + R, true);
-  b.box(sx - R - 2, 0, -230, 4, 8, 6, mat(0x2a2a32, 0.5));
-  stairs(b, sx - R - 20, -234.5, '+x', 3, 8, 16, mat(0xb8b2a8, 0.7));
-
-  let last = -1;
-  b.every((_dt, t, night) => {
-    const frame = Math.floor(t * 8);
-    if (frame === last) return;
-    last = frame;
-    const scene = Math.floor(t / 12) % 5;
-    const local = t % 12;
-    const dim = 0.35 + night * 0.65;
-    ctx.globalAlpha = 1;
-    if (scene === 0) {
-      // Giant blinking eye
-      ctx.fillStyle = `rgba(${Math.round(240 * dim)},${Math.round(230 * dim)},${Math.round(220 * dim)},1)`;
-      ctx.fillRect(0, 0, 1024, 512);
-      const blink = local % 4 > 3.7 ? 0.1 : 1;
-      ctx.fillStyle = '#2c6b3a';
-      ctx.beginPath();
-      ctx.ellipse(512, 256, 150, 150 * blink, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#050505';
-      ctx.beginPath();
-      ctx.ellipse(512 + Math.sin(t) * 30, 256, 26, 110 * blink, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (scene === 1) {
-      // Earth
-      ctx.fillStyle = '#123a7a';
-      ctx.fillRect(0, 0, 1024, 512);
-      ctx.fillStyle = '#3a8a3a';
-      for (let i = 0; i < 9; i++) {
-        ctx.beginPath();
-        ctx.ellipse(((i * 137 + t * 20) % 1100) - 40, 120 + ((i * 71) % 280), 80 + (i % 3) * 40, 50 + (i % 2) * 30, i, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillRect(0, 0, 1024, 40);
-      ctx.fillRect(0, 472, 1024, 40);
-    } else if (scene === 2) {
-      // Holiday ornament (it's the season)
-      ctx.fillStyle = '#b3121f';
-      ctx.fillRect(0, 0, 1024, 512);
-      ctx.fillStyle = '#f2c14e';
-      for (const y of [140, 256, 372]) ctx.fillRect(0, y - 14, 1024, 28);
-      ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < 40; i++) {
-        const x = (i * 97 + t * 15) % 1024;
-        const y = (i * 53 + t * 25) % 512;
-        ctx.beginPath();
-        ctx.arc(x, y, 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    } else if (scene === 3) {
-      // Emoji
-      ctx.fillStyle = '#ffcc22';
-      ctx.fillRect(0, 0, 1024, 512);
-      ctx.fillStyle = '#3a2408';
-      ctx.beginPath();
-      ctx.ellipse(440, 210, 24, 44, 0, 0, Math.PI * 2);
-      ctx.ellipse(584, 210, 24, 44, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.lineWidth = 22;
-      ctx.strokeStyle = '#3a2408';
-      ctx.beginPath();
-      ctx.arc(512, 270, 110, 0.15 * Math.PI, 0.85 * Math.PI);
-      ctx.stroke();
-    } else {
-      // Smoking-cat takeover 😼
-      const g = ctx.createLinearGradient(0, 0, 1024, 512);
-      g.addColorStop(0, `hsl(${(t * 40) % 360},90%,45%)`);
-      g.addColorStop(1, `hsl(${(t * 40 + 120) % 360},90%,35%)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 1024, 512);
-      ctx.fillStyle = '#ff9a3c';
-      ctx.beginPath();
-      ctx.arc(512, 270, 120, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(410, 200);
-      ctx.lineTo(430, 110);
-      ctx.lineTo(480, 170);
-      ctx.moveTo(614, 200);
-      ctx.lineTo(594, 110);
-      ctx.lineTo(544, 170);
-      ctx.fill();
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(468, 240, 18, 30);
-      ctx.fillRect(538, 240, 18, 30);
-      ctx.fillStyle = '#f4f1ea';
-      ctx.fillRect(540, 300, 110, 12);
-      ctx.fillStyle = '#ff5a1f';
-      ctx.fillRect(648, 298, 14, 16);
-    }
-    if (dim < 1) {
-      ctx.fillStyle = `rgba(0,0,0,${(1 - dim) * 0.6})`;
-      ctx.fillRect(0, 0, 1024, 512);
-    }
-    tex.needsUpdate = true;
-  });
-  b.feature({ kind: 'building', x: sx, z: sz, w: R * 2, d: R * 2, color: '#3a3a60', label: 'Sphere' });
-  b.zone('Sphere', sx - R - 6, sx + R, sz - R, sz + R);
-  b.pickup(sx - R - 2, 8.6, -228, 3, 'Sphere Bridge Pack', false);
-  b.staticMarkers.push({ x: sx, z: sz, color: '#b07dff', glyph: '●', size: 3.4 });
+  // The full venue (LED Exosphere, plaza, atrium, bowl and the show) lives in sphere.ts
+  buildSphereVenue(b);
 }
 
 // ---------------------------------------------------------------- Palazzo
