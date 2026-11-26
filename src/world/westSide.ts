@@ -8,6 +8,8 @@ import { LedBoard, makeCarpetTexture, makePaverTexture } from './textures';
 import { barCounter, basic, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
 import { waterJets } from './fountains';
 import type { JetSpec } from './fountains';
+import { bellagioCasinoRoof, buildBellagioCasinoDressing, buildBellagioLobby } from './grandInteriors';
+import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from './grandCaesars';
 
 /**
  * West side of Las Vegas Blvd, south → north:
@@ -307,8 +309,11 @@ function buildBellagio(b: WorldBuilder): void {
     maxZ: 62,
     height: 11,
     entrance: { side: 'east', at: 26, width: 7 },
-    extraEntrances: [{ side: 'south', at: -94, width: 6 }],
-    carpet: ['#144734', '#d4a64a', '#f2d48a'],
+    extraEntrances: [
+      { side: 'south', at: -94, width: 6 },
+      { side: 'south', at: -118, width: 8 }, // into the lobby
+    ],
+    carpet: ['#5a1a1e', '#d4a64a', '#2f6b4a'],
     wall: 0xc99c6d,
     ceiling: 0xebd9bc,
     light: 0xffd78c,
@@ -322,41 +327,42 @@ function buildBellagio(b: WorldBuilder): void {
     },
     slotLabel: 'Bellagio High-Limit Slots',
     tables: [
-      { game: 'roulette', x: -100, z: 26, label: 'Bellagio Roulette' },
-      { game: 'blackjack', x: -100, z: 40, label: 'Bellagio Blackjack' },
-      { game: 'craps', x: -101, z: 54, label: 'Bellagio Craps' },
+      { game: 'roulette', x: -109, z: 29, label: 'Bellagio Roulette' },
+      { game: 'blackjack', x: -91, z: 29, label: 'Bellagio Blackjack' },
+      { game: 'craps', x: -109, z: 52, label: 'Bellagio Craps' },
+      { game: 'blackjack', x: -91, z: 52, label: 'Bellagio Baccarat Salon Blackjack' },
     ],
     felt: 0x136f45,
     guard: { kick: [-70, 24] },
     pickups: [
       { x: -88, z: 58, amount: 3, label: 'Bellagio Slot Bar Pack' },
-      { x: -100, z: 40, y: 1.35, amount: 5, label: 'Bellagio Blackjack Table Pack!' },
+      { x: -91, z: 29, y: 1.35, amount: 5, label: 'Bellagio Blackjack Table Pack!' },
       { x: -120, z: 22, amount: 3, label: 'Bellagio Lounge Smokes' },
     ],
     tourists: [
       { pts: [[-84, 22], [-116, 22], [-116, 58], [-84, 58]], prop: 'cig' },
-      { pts: [[-94, 30], [-94, 52]], prop: 'yard-drink' },
+      { pts: [[-100, 34], [-100, 46], [-118, 60], [-118, 70]], prop: 'yard-drink' },
     ],
   });
-  // Dale Chihuly-style glass-flower ceiling piece in the lobby corner
-  const blossomColors = [0xff5e8e, 0xffc63d, 0x3bdcff, 0x76ff7a, 0xff7b29, 0xd16bff];
-  for (let i = 0; i < 24; i++) {
-    const c = blossomColors[i % blossomColors.length];
-    b.add(mesh(new THREE.IcosahedronGeometry(0.4 + (i % 3) * 0.12, 0), mat(c, 0.15, 0, { emissive: c, emissiveIntensity: 0.6 }), -84 - (i % 4) * 1.4, 9.6 + (i % 2) * 0.3, 20.5 + Math.floor(i / 4) * 1.3));
-  }
+  // Striped fabric tents + chandeliers over the floor, a shadow-casting roof, and the lobby with
+  // Chihuly's "Fiori di Como" between the casino and the Conservatory (grandInteriors.ts)
+  buildBellagioCasinoDressing(b);
+  bellagioCasinoRoof(b);
+  buildBellagioLobby(b);
 
   // Conservatory & Botanical Gardens — "Postcards From Christmas" (Nov 13 2026 – Jan 2 2027)
   buildConservatory(b);
 
-  // Bellagio Dr (main drive, signalised at the Strip) + porte-cochère
+  // Bellagio Dr (main drive, signalised at the Strip) + porte-cochère at the lobby doors
   const drive = mat(0x2b2b30, 0.85);
-  b.floor(-52, 104.5, 66, 9, drive, 0.015);
-  b.add(mesh(new THREE.BoxGeometry(16, 0.6, 11), mat(0xe9dcc0, 0.6), -96, 6, 105, true));
+  b.floor(-76, 105.5, 114, 9, drive, 0.015);
+  b.add(mesh(new THREE.BoxGeometry(16, 0.6, 10), mat(0xe9dcc0, 0.6), -122, 6, 106, true));
+  b.add(mesh(new THREE.BoxGeometry(15.6, 0.08, 9.6), basic(0xfff0c8), -122, 5.67, 106));
   for (const [px, pz] of [
-    [-89, 100.5],
-    [-103, 100.5],
-    [-89, 109.5],
-    [-103, 109.5],
+    [-115, 102],
+    [-129, 102],
+    [-115, 110],
+    [-129, 110],
   ]) b.box(px, 0, pz, 0.8, 6, 0.8, mat(0xe9dcc0, 0.6), true);
   const led = new LedBoard('BELLAGIO', ['FOUNTAINS EVERY 30 MINUTES', 'CONSERVATORY: POSTCARDS FROM CHRISTMAS', 'RESORT & CASINO', 'FREE • OPEN 24 HOURS'], ['#d4a64a', '#1f6f5a', '#a8323e', '#2c5fa8'], 512, 256);
   const signM = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 0.6), [basic(0x2a2016), basic(0x2a2016), basic(0x2a2016), basic(0x2a2016), new THREE.MeshBasicMaterial({ map: led.tex }), new THREE.MeshBasicMaterial({ map: led.tex })]);
@@ -390,7 +396,11 @@ function buildConservatory(b: WorldBuilder): void {
   const cz = (minZ + maxZ) / 2;
   b.floor(cx, cz, maxX - minX, maxZ - minZ, new THREE.MeshStandardMaterial({ map: makeCarpetTexture('#c9b89a', '#a8936e'), roughness: 0.8 }), 0.03);
   const wall = mat(0xe9dcc0, 0.7);
-  b.box(minX, 0, cz, 1, 9, maxZ - minZ, wall, true);
+  // West wall opens into the Bellagio lobby (doorway z 88…94, south of the train bed)
+  b.box(minX, 0, (minZ + 88) / 2, 1, 9, 88 - minZ, wall, true);
+  b.box(minX, 0, (94 + maxZ) / 2, 1, 9, maxZ - 94, wall, true);
+  b.box(minX, 4.6, 91, 1, 4.4, 6, wall, true);
+  b.add(mesh(new THREE.BoxGeometry(1.1, 0.18, 6), basic(0xffd27a), minX, 4.6, 91));
   b.box(cx, 0, minZ, maxX - minX, 9, 1, wall, true);
   b.box(cx, 0, maxZ, maxX - minX, 9, 1, wall, true);
   b.box(maxX, 0, minZ + 6.5, 1, 9, 13, wall, true);
@@ -541,22 +551,32 @@ function buildCaesars(b: WorldBuilder): void {
     ceiling: 0x8cb6e8,
     ceilingGlow: 0x3b6ca8,
     light: 0xffe2a8,
-    slots: { accent: '#f7d560', topper: 0xf7d560, rows: [{ x: -62, z: -40, count: 6, along: 'z', facing: Math.PI / 2 }] },
+    slots: {
+      accent: '#f7d560',
+      topper: 0xf7d560,
+      rows: [
+        { x: -96.5, z: -52, count: 8, along: 'z', facing: Math.PI / 2 },
+      ],
+    },
     slotLabel: 'Caesars Colosseum Slots',
     tables: [
-      { game: 'craps', x: -78, z: -34, label: 'Caesars Craps' },
-      { game: 'blackjack', x: -78, z: -52, label: 'Caesars Blackjack' },
-      { game: 'roulette', x: -78, z: -68, label: 'Caesars Roulette' },
+      { game: 'craps', x: -66, z: -36, label: 'Caesars Craps' },
+      { game: 'blackjack', x: -66, z: -68, label: 'Caesars Blackjack' },
+      { game: 'roulette', x: -91, z: -36, label: 'Caesars Roulette' },
+      { game: 'blackjack', x: -91, z: -68, label: 'Caesars Palace High-Limit Blackjack' },
     ],
     felt: 0x6b1414,
     guard: { kick: [-44, -52] },
     pickups: [
       { x: -95, z: -30, amount: 3, label: 'Caesars Cocktail Lounge Pack' },
-      { x: -78, z: -34, y: 1.3, amount: 5, label: 'Caesars Craps Rail Pack!' },
+      { x: -66, z: -36, y: 1.3, amount: 5, label: 'Caesars Craps Rail Pack!' },
     ],
     tourists: [{ pts: [[-60, -28], [-96, -28], [-96, -76], [-60, -76]], prop: 'cig' }, { pts: [[-70, -44], [-70, -64]], prop: 'yard-drink' }],
   });
   b.add(neonSign('CAESARS PALACE', '#1a140d', '#f7d560', 16, 2.6, 'LAS VEGAS'), -53.2, 10.6, -53, -Math.PI / 2);
+  // Domed rotunda round Caesar, statues and chandeliers inside; a roof that shades the floor (grandCaesars.ts)
+  buildCaesarsCasinoDressing(b);
+  caesarsCasinoRoof(b);
 
   // Forum Shops: temple-front entrance + painted-sky lobby with the boutique
   const fx0 = -46;
@@ -564,14 +584,15 @@ function buildCaesars(b: WorldBuilder): void {
   const fz0 = -162;
   const fz1 = -138;
   const lobbyWall = mat(0xe6dfd3, 0.6);
-  b.box(fx0, 0, (fz0 + fz1) / 2, 1, 10, fz1 - fz0, lobbyWall, true);
+  // West side opens into the Roman street (the Forum Shops hall, grandCaesars.ts); walls beside the arch
+  b.box(fx0, 0, (fz0 + -156) / 2, 1, 10, -156 - fz0, lobbyWall, true);
+  b.box(fx0, 0, (-144 + fz1) / 2, 1, 10, fz1 + 144, lobbyWall, true);
   b.box((fx0 + fx1) / 2, 0, fz0, fx1 - fx0, 10, 1, lobbyWall, true);
   b.box((fx0 + fx1) / 2, 0, fz1, fx1 - fx0, 10, 1, lobbyWall, true);
   b.box(fx1, 0, fz0 + 4.5, 1, 10, 9, lobbyWall, true);
   b.box(fx1, 0, fz1 - 4.5, 1, 10, 9, lobbyWall, true);
   b.box(fx1, 5, (fz0 + fz1) / 2, 1, 5, 6, lobbyWall, true);
-  const sky = new THREE.MeshStandardMaterial({ color: 0x8cc8ff, emissive: 0x6aa8f0, emissiveIntensity: 0.7 });
-  b.box((fx0 + fx1) / 2, 10, (fz0 + fz1) / 2, fx1 - fx0, 0.5, fz1 - fz0, sky);
+  b.box((fx0 + fx1) / 2, 10, (fz0 + fz1) / 2, fx1 - fx0, 0.5, fz1 - fz0, lobbyWall); // the painted sky hangs under it
   b.floor((fx0 + fx1) / 2, (fz0 + fz1) / 2, fx1 - fx0, fz1 - fz0, new THREE.MeshStandardMaterial({ map: makeCarpetTexture('#d8ccb4', '#a88a5a'), roughness: 0.6 }), 0.03);
   for (let z = fz0 + 2; z <= fz1 - 2; z += 4) {
     b.add(mesh(new THREE.CylinderGeometry(0.5, 0.55, 9, 12), marble, fx1 + 2, 4.5, z, true));
@@ -582,14 +603,14 @@ function buildCaesars(b: WorldBuilder): void {
   pediment.scale.set(0.3, 1, 1);
   b.add(pediment);
   b.add(neonSign('THE FORUM SHOPS', '#1a140d', '#f7d560', 10, 1.4, 'AT CAESARS'), fx1 + 2.6, 8.4, (fz0 + fz1) / 2, -Math.PI / 2);
+  // Boutique counter along the north wall, clear of the walk through to the street
   const counter = barCounter(6, 0x111111, 0x5a3a12);
-  b.add(counter, fx0 + 4, 0, -150, Math.PI / 2);
-  b.collider(fx0 + 3.4, fx0 + 4.6, -153, -147, 0, 1.15, true);
-  b.shopSpots.push({ kind: 'boutique', position: new THREE.Vector3(fx0 + 6.5, 0, -150), radius: 3.2, label: 'Forum Shops Boutique' });
-  b.light(0xfff0d0, 16, 26, (fx0 + fx1) / 2, 8, -150, 0.7);
+  b.add(counter, -36, 0, fz0 + 2.5);
+  b.collider(-39, -33, fz0 + 1.9, fz0 + 3.1, 0, 1.15, true);
+  b.shopSpots.push({ kind: 'boutique', position: new THREE.Vector3(-36, 0, fz0 + 5), radius: 3.2, label: 'Forum Shops Boutique' });
   b.zone('The Forum Shops at Caesars', fx0, fx1, fz0, fz1);
-  b.staticMarkers.push({ x: fx0 + 6, z: -150, color: '#ffd24d', glyph: '👒', size: 2.8 });
-  b.box(-68, 0, -150, 44, 14, 60, mat(0xe2d8c4, 0.7), true);
+  b.staticMarkers.push({ x: -36, z: fz0 + 4, color: '#ffd24d', glyph: '👒', size: 2.8 });
+  buildForumShops(b);
   b.box(-36, 0, -127, 20, 12, 16, mat(0xe2d8c4, 0.7), true);
   b.box(-36, 0, -172, 20, 12, 16, mat(0xe2d8c4, 0.7), true);
 

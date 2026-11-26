@@ -10,6 +10,7 @@ import { basic, car, mat, mesh, neonSign, planter } from './props';
 import type { CarKind } from './props';
 import { palmPieces } from './props';
 import { beamMaterial } from './skyLife';
+import { buildLuxorAtrium, luxorColliders, luxorSkinGeometry } from './grandLuxor';
 import { xFromO, zFromS } from './strip';
 
 /**
@@ -1294,16 +1295,14 @@ function buildLuxor(b: WorldBuilder): void {
 
   // Black-glass pyramid
   const skin = facadeMaterial(b, { wall: '#0d1116', mullion: '#1a2129', glass: '#0a0d12', lit: '#ffcf8a', cols: 16, rows: 14, style: 2, seed: 401 }, half * 2, Math.hypot(h, half), { metal: 0.85, rough: 0.12, glow: 1.0 });
-  const pyr = new THREE.Mesh(pyramidGeometry(half, h), skin);
+  // Skin with a doorway notch on the east face; hollow inside (the atrium, grandLuxor.ts)
+  const pyr = new THREE.Mesh(luxorSkinGeometry(half, h), skin);
   pyr.position.set(px, 0, pz);
   pyr.receiveShadow = true;
+  pyr.castShadow = true; // shades the atrium floor so it reads as indoors
   b.add(pyr);
-  for (let i = 0; i < 6; i++) {
-    const y0 = (i * h) / 6;
-    const y1 = ((i + 1) * h) / 6;
-    const hw = half * (1 - (y0 + y1) / (2 * h));
-    b.collider(px - hw, px + hw, pz - hw, pz + hw, y0, y1, true);
-  }
+  luxorColliders(b, px, pz, half, h);
+  buildLuxorAtrium(b, px, pz, half, h);
   const edgeGlow = new THREE.MeshStandardMaterial({ color: 0x2a2e36, emissive: 0xfff2d8, emissiveIntensity: 0.05, roughness: 0.3 });
   b.nightGlow(edgeGlow, 0.02, 1.4);
   for (const [cxx, czz] of [
@@ -1336,13 +1335,17 @@ function buildLuxor(b: WorldBuilder): void {
   // Entrance pavilion on the east face (under the tram's west platform)
   const sand = mat(0xd2b48a, 0.85);
   const sandDark = mat(0xb39669, 0.85);
-  b.box(-49, 0, pz, 6, 5.4, 14, sand, true);
+  // Walk-in doorway through the pavilion into the pyramid (z pz ± 3.1, 4.6 m tall)
+  b.box(-49, 0, pz - 5.05, 6, 5.4, 3.9, sand, true);
+  b.box(-49, 0, pz + 5.05, 6, 5.4, 3.9, sand, true);
+  b.box(-49, 4.6, pz, 6, 0.8, 6.2, sand, true);
   for (let z = pz - 6; z <= pz + 6; z += 3) {
+    if (Math.abs(z - pz) < 1) continue;
     mg.add(new THREE.CylinderGeometry(0.42, 0.5, 4.8, 10).translate(-45.6, 2.4, z), sand, true);
     mg.add(new THREE.CylinderGeometry(0.7, 0.42, 0.6, 10).translate(-45.6, 5.1, z), mat(0xe8c060, 0.5, 0.4));
   }
   mg.box(sandDark, -45.6, 5.55, pz, 1.4, 0.5, 14.5);
-  b.add(mesh(new THREE.BoxGeometry(0.15, 3.2, 6), basic(0xffd9a0), -45.95, 1.6, pz));
+  b.add(mesh(new THREE.BoxGeometry(0.2, 0.25, 6.4), basic(0xffd9a0), -45.95, 4.5, pz));
 
   buildSphinx(b, mg, -28.6, zFromS(-2173));
   // Obelisk with glowing hieroglyphs

@@ -5,6 +5,7 @@ import { buildCasinoFloor } from './casinos';
 import { LedBoard, makeBalloonTexture, makePaverTexture } from './textures';
 import { buildAbcStore } from './abcStore';
 import { buildInNOut } from './food';
+import { buildVenetianInteriors } from './grandVenetian';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 
 /**
@@ -734,10 +735,12 @@ function buildVenetian(b: WorldBuilder): void {
   b.add(roof);
   b.add(mesh(new THREE.SphereGeometry(0.5, 8, 6), mat(0xf2c14e, 0.2, 0.9), 30, 34.4, -238));
 
-  // Doge's Palace front: white arcade below, rose diamond-pattern wall above
-  b.box(64, 0, -276, 40, 18, 50, mat(0xe8c4b4, 0.75), true);
-  // Open arcade in front of the palace — the Rialto lands here
+  // Doge's Palace front: white arcade below, rose wall above. Behind it, walk-in: the lobby, the indoor
+  // Grand Canal Shoppes + St. Mark's Square and a casino wing (grandVenetian.ts, x 44…88, z −318…−246)
+  buildVenetianInteriors(b);
+  // Open arcade in front of the palace — the Rialto lands here (gap at the front doors, z −276)
   for (let z = -300; z <= -252; z += 3.4) {
+    if (Math.abs(z + 276) < 1.5) continue;
     b.add(mesh(new THREE.CylinderGeometry(0.35, 0.4, 6, 10), stone, 43.2, 3, z, true));
     b.collider(42.8, 43.6, z - 0.4, z + 0.4, 0, 6, true);
   }
@@ -840,7 +843,7 @@ function buildVenetian(b: WorldBuilder): void {
   for (const s of [-1, 1]) b.box(117, 8.4, -230 + s * 1.7, 66, 1.1, 0.12, glass, true, false);
   b.zone('Venetian ↔ Sphere Footbridge', 83, 151, -232, -228);
 
-  b.building(64, -276, 40, 50, '#e8c4b4', 'Venetian');
+  b.building(53, -282, 18, 72, '#e8c4b4', 'Venetian');
   b.building(98, -266, 20, 60, '#d9b98a');
   b.zone('The Venetian', 19, 130, -306, -226);
   b.crowd.performers.push({ kind: 'showgirl', x: 16, z: -262, facing: -Math.PI / 2 });
