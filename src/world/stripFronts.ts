@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { WorldBuilder } from './builder';
 import { cypressTree, mat, mesh, palmTree } from './props';
 import { canvasTex } from './themedKit';
+import { type InteriorKind, interiorCell, interiorMaterial, interiorPaneGeometry, PANE, registerStreetTick } from './streetTextures';
 
 /*
  * Street faces for the big blank podium walls along the central Strip, after real street-level photos:
@@ -125,6 +126,32 @@ function glassPane(b: WorldBuilder, side: 1 | -1, x: number, z0: number, z1: num
   const m = mesh(geo, shopGlass(b), x, (y0 + y1) / 2, (z0 + z1) / 2);
   m.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
   b.add(m);
+}
+
+/**
+ * A row of interior-mapped shop windows (a fake room behind each pane, see streetTextures.ts) facing
+ * +x / −x on a wall at x, filling z0…z1 from y0 (PANE.h tall), with slim mullions between panes.
+ */
+function shopRow(b: WorldBuilder, side: 1 | -1, x: number, z0: number, z1: number, y0: number, kinds: InteriorKind[], seed = 0): void {
+  registerStreetTick(b);
+  const glass = interiorMaterial();
+  const mull = mat(0x23262b, 0.5, 0.6);
+  const step = PANE.w + 0.12;
+  const n = Math.max(1, Math.floor((z1 - z0) / step));
+  const span = n * step;
+  const zs = (z0 + z1) / 2 - span / 2;
+  for (let i = 0; i < n; i++) {
+    const pz = zs + step * (i + 0.5);
+    const kind = kinds[(i + seed) % kinds.length];
+    const pane = new THREE.Mesh(interiorPaneGeometry(interiorCell(kind, (i + seed) >> 1)), glass);
+    pane.position.set(x + side * 0.02, y0 + PANE.h / 2, pz);
+    pane.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+    b.add(pane);
+    b.add(mesh(new THREE.BoxGeometry(0.12, PANE.h + 0.1, 0.12), mull, x + side * 0.06, y0 + PANE.h / 2, pz - PANE.w / 2 - 0.06));
+  }
+  b.add(mesh(new THREE.BoxGeometry(0.12, PANE.h + 0.1, 0.12), mull, x + side * 0.06, y0 + PANE.h / 2, zs + span - 0.06));
+  b.add(mesh(new THREE.BoxGeometry(0.14, 0.12, span), mull, x + side * 0.07, y0 - 0.02, zs + span / 2));
+  b.add(mesh(new THREE.BoxGeometry(0.14, 0.12, span), mull, x + side * 0.07, y0 + PANE.h + 0.04, zs + span / 2));
 }
 
 /** Arch-topped glass pane (rectangle + half-round head) facing +x / -x, centred on z, sill at y0, springing at y1. */
@@ -310,8 +337,12 @@ export function crystalsFront(b: WorldBuilder): void {
   const seam = mat(0x59626c, 0.6);
 
   // Glass storefront band under the shards (Tiffany, Louis Vuitton… behind it) and a steel ledge above
-  glassPane(b, 1, X + 0.05, 212, 223.5, 0, 4.6, 5.5);
-  glassPane(b, 1, X + 0.05, 240.5, 252, 0, 4.6, 5.5);
+  shopRow(b, 1, X, 212.3, 223.3, 0.35, ['jewelry', 'mannequins', 'racks'], 0);
+  shopRow(b, 1, X, 240.7, 251.7, 0.35, ['mannequins', 'jewelry', 'racks'], 1);
+  for (const [a, c] of [[212, 223.5], [240.5, 252]]) {
+    b.add(mesh(new THREE.BoxGeometry(0.12, 1.4, c - a), seam, X + 0.06, 3.95, (a + c) / 2));
+    b.add(mesh(new THREE.BoxGeometry(0.2, 0.35, c - a), seam, X + 0.1, 0.17, (a + c) / 2));
+  }
   b.add(mesh(new THREE.BoxGeometry(0.9, 0.35, 11.5), steel[0], X + 0.45, 4.78, 217.75));
   b.add(mesh(new THREE.BoxGeometry(0.9, 0.35, 11.5), steel[0], X + 0.45, 4.78, 246.25));
   // Tall glass entry (the atrium behind) with a slim steel frame
@@ -540,4 +571,52 @@ export function palazzoFront(b: WorldBuilder, x: number, z0: number, z1: number,
     b.collider(px - 0.75, px + 0.75, z - 0.75, z + 0.75, 0, 0.75);
     k++;
   }
+}
+
+// ---------------------------------------------------------------- Casino Royale
+
+/**
+ * Casino Royale's street front (facing −x at x = `x`, z0…z1, `h` tall): the small casino between
+ * Harrah's and the Venetian with the 24-hour pharmacy, the casino doors under a gold bulb canopy and a
+ * slider joint on the ground floor, the hotel floor above (maroon and cream, a row of windows), cornice.
+ * `doors` is the z of the casino entrance; the CASINO ROYALE sign sits on the upper floor over it.
+ */
+export function casinoRoyaleFront(b: WorldBuilder, x: number, z0: number, z1: number, h: number, doors: number): void {
+  const maroon = mat(0x6a1e26, 0.7);
+  const cream = mat(0xeadfc8, 0.65);
+  const gold = mat(0xc9a24a, 0.35, 0.75);
+  const dark = mat(0x1c2430, 0.25, 0.4);
+  const len = z1 - z0;
+  const zc = (z0 + z1) / 2;
+  proud(b, -1, x, 0.25, zc, len, 0, 0.5, maroon);
+  // ground floor: pharmacy (south), casino doors, slider joint (north)
+  const dz0 = doors - 4;
+  const dz1 = doors + 4;
+  shopRow(b, -1, x, z0 + 0.6, dz0 - 0.6, 0.6, ['pharmacy', 'liquor', 'pharmacy'], 0);
+  shopRow(b, -1, x, dz1 + 0.6, z1 - 0.6, 0.6, ['foodcourt'], 0);
+  proud(b, -1, x, 0.1, (z0 + dz0) / 2, dz0 - z0, 3.45, 1.15, cream);
+  proud(b, -1, x, 0.1, (dz1 + z1) / 2, z1 - dz1, 3.45, 1.15, cream);
+  const doorGlass = mesh(new THREE.PlaneGeometry(dz1 - dz0 - 1.2, 3.9), dark, x - 0.05, 1.95 + 0.5, doors);
+  doorGlass.rotation.y = -Math.PI / 2;
+  b.add(doorGlass);
+  for (const z of [z0, dz0, dz1, z1]) proud(b, -1, x, 0.35, z, 1.1, 0.5, 4.1, cream);
+  // gold canopy over the casino doors with a row of lamps underneath
+  b.add(mesh(new THREE.BoxGeometry(3.4, 0.45, dz1 - dz0), gold, x - 1.7, 4.55, doors, true));
+  b.add(mesh(new THREE.BoxGeometry(3.0, 0.06, dz1 - dz0 - 0.6), sconceMat(b), x - 1.7, 4.3, doors));
+  for (const s of [-1, 1]) b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 4.3, 6), gold, x - 1.7, 6.1, doors + s * (dz1 - dz0) * 0.42)).rotation.z = -0.92;
+  // fascia band with gold edges, the hotel floor above with windows and maroon pilasters
+  proud(b, -1, x, 0.3, zc, len, 4.6, 1.2, maroon);
+  proud(b, -1, x, 0.38, zc, len, 4.55, 0.1, gold);
+  proud(b, -1, x, 0.38, zc, len, 5.75, 0.1, gold);
+  const win = new THREE.PlaneGeometry(1.8, 1.7);
+  for (let z = z0 + 2; z < z1 - 1; z += 3.2) {
+    if (z > doors - 5 && z < doors + 5) continue; // the CASINO ROYALE sign hangs here
+    const w = mesh(win, dark, x - 0.04, 7.6, z);
+    w.rotation.y = -Math.PI / 2;
+    b.add(w);
+    proud(b, -1, x, 0.12, z, 2.1, 6.6, 0.14, cream);
+  }
+  for (let z = z0; z <= z1 + 0.01; z += len / 6) proud(b, -1, x, 0.22, z, 0.6, 5.9, h - 6.5, maroon);
+  proud(b, -1, x, 0.5, zc, len + 0.8, h - 0.6, 0.6, cream, true);
+  proud(b, -1, x, 0.56, zc, len + 0.9, h - 0.68, 0.1, gold);
 }

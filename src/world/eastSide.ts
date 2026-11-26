@@ -9,7 +9,7 @@ import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
 import { flamingoSigns, harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, parisBalloonGlow, planetHollywoodSigns, venetianSigns } from './stripSigns';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
-import { palazzoFront } from './stripFronts';
+import { casinoRoyaleFront, palazzoFront } from './stripFronts';
 
 /**
  * East side of Las Vegas Blvd, south → north:
@@ -697,9 +697,12 @@ function buildHarrahs(b: WorldBuilder): void {
   b.building(62, -165, 40, 42, '#7a1c1c', "Harrah's");
   b.zone("Harrah's Las Vegas", 19, 90, -186, -140);
 
-  b.box(31, 0, -206, 22, 10, 34, mat(0x3a3a46, 0.6), true);
-  b.add(neonSign('CASINO ROYALE', '#0b0b12', '#ff3b3b', 8, 1.3), 19.9, 7.6, -198, -Math.PI / 2);
-  b.add(neonSign('PHARMACY', '#ffffff', '#d81e2a', 6, 1.1, 'OPEN 24 HOURS'), 19.9, 4, -214, -Math.PI / 2);
+  b.box(31, 0, -206, 22, 10, 34, mat(0xe2d6bf, 0.65), true);
+  // Storefronts, gold canopy over the casino doors, the hotel floor's windows, cornice (stripFronts.ts)
+  casinoRoyaleFront(b, 20, -223, -189, 10, -200);
+  b.add(neonSign('CASINO ROYALE', '#0b0b12', '#ff3b3b', 8, 1.3), 19.55, 7.6, -198, -Math.PI / 2);
+  b.add(neonSign('PHARMACY', '#ffffff', '#d81e2a', 6, 1.1, 'OPEN 24 HOURS'), 19.6, 5.2, -214, -Math.PI / 2);
+  b.add(neonSign('SLIDERS 24/7', '#f4f4f4', '#1d3f8f', 5, 1.0, 'BURGERS • FRIES • SHAKES'), 19.6, 5.2, -192.5, -Math.PI / 2);
   b.zone('Casino Royale', 19, 42, -224, -188);
   b.crowd.tourists.push({ pts: [[16, -142], [16, -224]], prop: 'bag' }, { pts: [[14, -222], [14, -146]], prop: 'camera' });
 }
@@ -732,13 +735,59 @@ function buildVenetian(b: WorldBuilder): void {
   b.zone('Rialto Bridge', cx0 - 4, cx1 + 4, rz - 3, rz + 3);
 
   // Campanile (96 m real)
+  // Campanile, after St Mark's: red-brick shaft with pilaster strips arched at the top, white stone
+  // belfry loggia (four arches a side), the attic with gold reliefs, green copper spire, gold angel
   const brick = mat(0xa8533a, 0.85);
-  b.box(30, 0, -238, 4.4, 24, 4.4, brick, true);
-  b.add(mesh(new THREE.BoxGeometry(5, 4, 5), mat(0xf0e6d2, 0.6), 30, 26, -238));
-  const roof = mesh(new THREE.ConeGeometry(3.4, 6, 4), mat(0x4a8a5a, 0.6, 0.3), 30, 31, -238, true);
+  const brickLite = mat(0xb9654a, 0.85);
+  const ivory = mat(0xf0e6d2, 0.6);
+  const CX = 30;
+  const CZ = -238;
+  b.box(CX, 0, CZ, 4.4, 24, 4.4, brick, true);
+  b.add(mesh(new THREE.BoxGeometry(5.0, 1.4, 5.0), ivory, CX, 0.7, CZ)); // stone base
+  for (const f of [0, 1, 2, 3]) {
+    const ax = f === 0 ? 1 : f === 1 ? -1 : 0;
+    const az = f === 2 ? 1 : f === 3 ? -1 : 0;
+    for (const t of [-1.6, -0.55, 0.55, 1.6]) {
+      const w = Math.abs(t) > 1 ? 0.5 : 0.32;
+      const px = CX + ax * 2.26 + (az !== 0 ? t : 0);
+      const pz = CZ + az * 2.26 + (ax !== 0 ? t : 0);
+      b.add(mesh(new THREE.BoxGeometry(ax !== 0 ? 0.14 : w, 20.4, az !== 0 ? 0.14 : w), brickLite, px, 11.6, pz));
+    }
+  }
+  b.add(mesh(new THREE.BoxGeometry(4.9, 0.5, 4.9), ivory, CX, 22.2, CZ));
+  b.add(mesh(new THREE.BoxGeometry(5.3, 0.35, 5.3), ivory, CX, 24.15, CZ));
+  // belfry: dark core behind four arched openings a side (corner piers + slim columns), cornice on top
+  b.add(mesh(new THREE.BoxGeometry(4.2, 3.6, 4.2), mat(0x2a2420, 0.9), CX, 26.1, CZ));
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) b.add(mesh(new THREE.BoxGeometry(0.9, 3.6, 0.9), ivory, CX + sx * 2.15, 26.1, CZ + sz * 2.15));
+  for (let f = 0; f < 4; f++) {
+    const ax = f === 0 ? 1 : f === 1 ? -1 : 0;
+    const az = f === 2 ? 1 : f === 3 ? -1 : 0;
+    for (const t of [-0.85, 0, 0.85]) {
+      b.add(mesh(new THREE.CylinderGeometry(0.13, 0.15, 2.7, 8), ivory, CX + ax * 2.3 + (az !== 0 ? t : 0), 25.7, CZ + az * 2.3 + (ax !== 0 ? t : 0)));
+    }
+    // arch heads: a band with the four arch crowns
+    b.add(mesh(new THREE.BoxGeometry(ax !== 0 ? 0.3 : 4.4, 0.55, az !== 0 ? 0.3 : 4.4), ivory, CX + ax * 2.3, 27.4, CZ + az * 2.3));
+  }
+  b.add(mesh(new THREE.BoxGeometry(5.4, 0.4, 5.4), ivory, CX, 28.1, CZ));
+  // attic with the winged-lion reliefs (gold panels), then the spire
+  b.add(mesh(new THREE.BoxGeometry(4.6, 2.6, 4.6), ivory, CX, 29.6, CZ));
+  const gilt = mat(0xf2c14e, 0.25, 0.85);
+  for (let f = 0; f < 4; f++) {
+    const ax = f === 0 ? 1 : f === 1 ? -1 : 0;
+    const az = f === 2 ? 1 : f === 3 ? -1 : 0;
+    b.add(mesh(new THREE.BoxGeometry(ax !== 0 ? 0.1 : 1.6, 1.2, az !== 0 ? 0.1 : 1.6), gilt, CX + ax * 2.32, 29.6, CZ + az * 2.32));
+  }
+  b.add(mesh(new THREE.BoxGeometry(4.9, 0.3, 4.9), ivory, CX, 31.05, CZ));
+  const roof = mesh(new THREE.ConeGeometry(3.3, 8.5, 4), mat(0x4a8a5a, 0.6, 0.3), CX, 35.45, CZ, true);
   roof.rotation.y = Math.PI / 4;
   b.add(roof);
-  b.add(mesh(new THREE.SphereGeometry(0.5, 8, 6), mat(0xf2c14e, 0.2, 0.9), 30, 34.4, -238));
+  b.add(mesh(new THREE.SphereGeometry(0.28, 8, 6), gilt, CX, 39.8, CZ));
+  b.add(mesh(new THREE.ConeGeometry(0.35, 1.1, 6), gilt, CX, 40.6, CZ)); // the archangel Gabriel
+  for (const s of [-1, 1]) {
+    const wing = mesh(new THREE.BoxGeometry(0.06, 0.55, 0.7), gilt, CX, 40.8, CZ + s * 0.35);
+    wing.rotation.x = s * 0.5;
+    b.add(wing);
+  }
 
   // Doge's Palace front: white arcade below, rose wall above. Behind it, walk-in: the lobby, the indoor
   // Grand Canal Shoppes + St. Mark's Square and a casino wing (grandVenetian.ts, x 44…88, z −318…−246)

@@ -334,6 +334,19 @@ function buildMisters(b: WorldBuilder, R: () => number): void {
     w.userData.clutter = true;
     b.add(w);
   }
+  // Real misters make a fine haze you barely see, fainter still at night under the lamps. Fade the
+  // streaks out as the camera comes in under a canopy, or they fill the frame with layered noise.
+  b.every((_dt, _t, night) => {
+    let d2 = Infinity;
+    for (const [x, z] of spots) {
+      const dx = viewer.cam.x - x;
+      const dz = viewer.cam.z - z;
+      d2 = Math.min(d2, dx * dx + dz * dz);
+    }
+    const near = THREE.MathUtils.smoothstep(Math.sqrt(d2), 3.5, 8);
+    mist.opacity = (0.5 - 0.28 * night) * near;
+    mist.visible = mist.opacity > 0.01;
+  });
 }
 
 // ---------------------------------------------------------------- sidewalk trade: water sellers, slapper flyers, trash overflow, performers
