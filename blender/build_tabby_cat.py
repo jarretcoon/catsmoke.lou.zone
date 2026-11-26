@@ -9,7 +9,7 @@ blender/preview.png.
 
 Game contract kept from the first model (src/ relies on it):
   bones Root Spine Neck Head Tail1-3 Leg_FL/FR/BL/BR (extra bones are children of these),
-  actions Idle Walk Puff Beg Steal VapeRip (+ Run Jump Pounce Sit Eat Drive Flop Dance),
+  actions Idle Walk Puff Beg Steal VapeRip (+ Run Jump Pounce Sit Eat Drive Flop Dance Trot),
   meshes named Cig* / Vape*, material CigEmber, empties CigTip / VapeTip on the Head bone,
   cat faces -Y (glTF +Z), feet at z=0, head centre (0,-0.262,0.542), eyes (+-0.053,-0.352,0.556),
   collar ring z 0.415 around y -0.218 (r 0.084), tag (0,-0.306,0.382).
@@ -49,14 +49,14 @@ def log(*args):
 # Anatomy constants (Blender space, metres; cat faces -Y, left side of the cat is +X)
 # ---------------------------------------------------------------------------------------------
 HEAD_C = Vector((0.0, -0.262, 0.542))
-EYE_R = 0.0205
+EYE_R = 0.0216              # Lou's eyes are big for his face
 EYE_C = {1: Vector((0.053, -0.347, 0.556)), -1: Vector((-0.053, -0.347, 0.556))}  # 5 mm deeper than the old iris
 EYE_OUT_DEG = 15.0          # eyes face forward, splayed out a little
-# Upper-lid line (elevation of the lid edge on the front meridian, degrees). Lou squints:
-# his left eye (+X) sits lower than the right, the "judgy" look from the photos.
-LID_UP_ELEV = {1: 1.0, -1: 7.0}
+# Upper-lid line (elevation of the lid edge on the front meridian, degrees). Lou's eyes are big and open, the
+# upper lids just flattening the tops of the irises (slightly squinty): his right eye (-X) a touch more than the left.
+LID_UP_ELEV = {1: 38.0, -1: 31.0}
 LID_UP_TILT = 26.0
-LID_LO_ELEV = -31.0
+LID_LO_ELEV = -42.0
 LID_LO_TILT = 22.0
 
 PAD_C = {s: Vector((0.029 * s, -0.357, 0.503)) for s in (1, -1)}
@@ -82,7 +82,7 @@ for _s, _lab in ((1, "L"), (-1, "R")):
 
 TAIL_PTS = [(0.0, 0.258, 0.330), (0.0, 0.345, 0.390), (0.020, 0.425, 0.490), (0.030, 0.452, 0.600),
             (0.020, 0.425, 0.700), (0.002, 0.392, 0.745), (-0.020, 0.356, 0.760)]
-TAIL_RAD = [0.043, 0.038, 0.033, 0.030, 0.027, 0.023, 0.016]
+TAIL_RAD = [0.046, 0.042, 0.037, 0.034, 0.031, 0.027, 0.020]
 
 NECK_PTS = [(0.0, -0.168, 0.305), (0.0, -0.203, 0.383), (0.0, -0.220, 0.418), (0.0, -0.246, 0.492)]
 NECK_RAD = [0.100, 0.079, 0.070, 0.079]
@@ -276,17 +276,17 @@ def build_body_parts():
         mid = max(0.0, 1.0 - u.y * u.y)
         ws = 0.95 + 0.07 * max(u.y, 0.0) + 0.03 * mid
         if u.z < 0:
-            ws *= 1.0 + 0.11 * mid * (-u.z)          # pear-shaped belly
+            ws *= 1.0 + 0.12 * mid * (-u.z)          # pear-shaped belly
         p.x *= ws
         if u.z > 0:
             p.z += 0.020 * mid * u.z
         else:
-            p.z -= 0.030 * mid * (-u.z) ** 1.3       # belly sag
+            p.z -= 0.036 * mid * (-u.z) ** 1.3       # belly sag
         return p
 
     parts.append(E("Torso", (0.0, 0.03, 0.300), (0.150, 0.262, 0.136), 36, 24, deform_fn=torso_deform))
     parts.append(E("Chest", (0.0, -0.180, 0.300), (0.128, 0.136, 0.135), 28, 20))
-    parts.append(E("BellyPouch", (0.0, 0.075, 0.188), (0.112, 0.175, 0.062), 28, 18))
+    parts.append(E("BellyPouch", (0.0, 0.090, 0.182), (0.116, 0.170, 0.064), 28, 18))  # low pouch between the hind legs
     for s in (1, -1):
         parts.append(E(f"Shoulder_{s}", (0.068 * s, -0.150, 0.368), (0.060, 0.085, 0.052), 18, 12))
         parts.append(E(f"Haunch_{s}", (0.078 * s, 0.172, 0.276), (0.088, 0.115, 0.118), 22, 16))
@@ -302,13 +302,13 @@ def build_body_parts():
             p.y *= 0.975
         return p
 
-    parts.append(E("Head", HEAD_C, (0.130, 0.116, 0.108), 32, 22, deform_fn=head_deform))
+    parts.append(E("Head", HEAD_C, (0.122, 0.113, 0.105), 32, 22, deform_fn=head_deform))  # a small head for his body
     for s in (1, -1):
-        parts.append(E(f"Jowl_{s}", (0.100 * s, -0.276, 0.498), (0.057, 0.061, 0.051), 18, 12,
+        parts.append(E(f"Jowl_{s}", (0.092 * s, -0.280, 0.500), (0.050, 0.056, 0.047), 18, 12,
                        rot=(0, math.radians(-15 * s), math.radians(-20 * s))))
         # scruffy cheek tufts: short spikes that survive the remesh as a ragged silhouette
         for k, (dz, dy, ln) in enumerate(((0.018, 0.010, 0.030), (-0.004, 0.022, 0.034), (-0.026, 0.030, 0.028))):
-            base = Vector((0.128 * s, -0.272 + dy, 0.505 + dz))
+            base = Vector((0.118 * s, -0.275 + dy, 0.505 + dz))
             d = Vector((1.0 * s, 0.45, -0.35 - 0.25 * k)).normalized()
             parts.append(create_tube(f"CheekTuft_{s}_{k}", [base, base + d * ln * 0.55, base + d * ln],
                                      [0.013, 0.007, 0.0012], segs=10))
@@ -331,14 +331,14 @@ def build_body_parts():
         s = g["side"]
         if g["front"]:
             pts = [g["top"], g["mid"], g["low"], Vector((g["top"].x, -0.204, 0.027))]
-            rad = [0.056, 0.043, 0.034, 0.036]
+            rad = [0.058, 0.046, 0.037, 0.038]
             toe_y = -0.250
         else:
             pts = [g["top"], g["mid"], g["low"], Vector((g["paw"].x, 0.190, 0.027))]
-            rad = [0.075, 0.051, 0.035, 0.037]
+            rad = [0.077, 0.054, 0.038, 0.039]
             toe_y = 0.130
         parts.append(create_tube(f"Leg_{key}", pts, rad, segs=16))
-        parts.append(E(f"Paw_{key}", g["paw"], (0.040, 0.047, 0.023), 16, 12))
+        parts.append(E(f"Paw_{key}", g["paw"], (0.042, 0.048, 0.024), 16, 12))
         for i, dx in enumerate((-0.024, -0.008, 0.008, 0.024)):
             outer = abs(dx) > 0.01
             parts.append(E(f"Toe_{key}_{i}", (g["paw"].x + dx, toe_y + (0.007 if outer else 0.0), 0.0165),
@@ -444,7 +444,7 @@ def build_body():
         res = bmesh.ops.create_uvsphere(bm, u_segments=128, v_segments=96, radius=1.0)
         for v in res["verts"]:
             d = v.co.normalized()
-            f = smooth01(b_up - math.radians(7), b_up - math.radians(2), d.angle(n_up)) *                 smooth01(b_lo - math.radians(7), b_lo - math.radians(2), d.angle(n_lo))
+            f = smooth01(b_up - math.radians(4.5), b_up - math.radians(1.0), d.angle(n_up)) *                 smooth01(b_lo - math.radians(4.5), b_lo - math.radians(1.0), d.angle(n_lo))
             r = (EYE_R - 0.004) + 0.016 * f
             v.co = EYE_C[s] + d * r
     cutter = mesh_obj("Sockets", bm)
@@ -661,12 +661,47 @@ def whisker_roots():
     return roots
 
 
+def _cell_rand(h, shift):
+    return ((h >> np.uint32(shift)) & np.uint32(0xFF)).astype(np.float32) / 255.0
+
+
+def tabby_spots(cu, cv, per_u, per_v, side_i, seed, ru0, ru1, elong, keep, size, rough):
+    """Broken-mackerel spots: one jittered blob per (stripe, row) cell of a frame that follows the coat (cu runs along
+    the body in stripe periods, cv round it in rows), so the spots line up in loose vertical rows like Lou's.
+    Returns 0..1 coverage."""
+    out = np.zeros(len(cu), np.float32)
+    iu0 = np.round(cu).astype(np.int64)
+    iv0 = np.floor(cv).astype(np.int64)
+    for du in (-1, 0, 1):
+        for dv in (-1, 0, 1):
+            iu = iu0 + du
+            iv = iv0 + dv
+            h = _hash3(iu, iv, side_i, seed)
+            fu = iu + 0.46 * (_cell_rand(h, 0) - 0.5)
+            fv = iv + 0.5 + 0.72 * (_cell_rand(h, 8) - 0.5)
+            ru = (ru0 + (ru1 - ru0) * _cell_rand(h, 16)) * size
+            rv = ru * (1.0 + elong * _cell_rand(h, 24))
+            d = np.sqrt(((cu - fu) * per_u / ru) ** 2 + ((cv - fv) * per_v / rv) ** 2) + rough
+            h2 = _hash3(iu, iv, side_i, seed + 31)
+            on = _cell_rand(h2, 4) < keep
+            depth = 0.72 + 0.28 * _cell_rand(h2, 16)
+            out = np.maximum(out, (1.0 - sstep(0.70, 1.10, d)) * on * depth)
+    return out
+
+
 def paint_lou(P, N, AO, M, roots):
-    """Return (albedo sRGB (n,3), height (n,)) for texel positions P / normals N."""
+    """Return (albedo sRGB (n,3), height (n,), lid colour) for texel positions P / normals N.
+
+    Lou's coat from Jarret's photos: warm brown-gold with salt-and-pepper ticking, a greyer head, spotted (broken
+    mackerel) flanks over a darker spine, a big white belly patch between the hind legs, barred legs with dark
+    brown-black backs to the hind feet, a thick ringed tail with a dark tip. Face: a forehead M of four bold dark
+    bars, tan round the eyes and down the nose bridge, a dark liner and a "mascara" line from each outer corner,
+    tan-grey whisker pads with rows of dark dots, a white muzzle, upper lip and chin, grey-brown ears with pale insides."""
     n = len(P)
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     ax = np.abs(x)
     side = np.where(x >= 0, 1.0, -1.0).astype(np.float32)
+    side_i = (x >= 0).astype(np.int64)
     ear = M[:, 1] > 0.5
     inner_ear = np.clip(M[:, 0], 0, 1) * ear
 
@@ -674,7 +709,7 @@ def paint_lou(P, N, AO, M, roots):
     regions = {}
     regions["torso"] = poly_dist(P, [(0, -0.12, 0.30), (0, 0.20, 0.29)], [0.135, 0.140])
     regions["neck"] = poly_dist(P, NECK_PTS[1:3], NECK_RAD[1:3])
-    regions["head"] = poly_dist(P, [HEAD_C, HEAD_C + Vector((0, -0.07, -0.03))], [0.112, 0.045])
+    regions["head"] = poly_dist(P, [HEAD_C, HEAD_C + Vector((0, -0.07, -0.03))], [0.106, 0.045])
     regions["tail"] = poly_dist(P, TAIL_PTS, TAIL_RAD)
     for key, g in LEG_GEO.items():
         regions["leg" + key] = poly_dist(P, [g["top"], g["mid"], g["low"], g["paw"]], [0.05, 0.04, 0.034, 0.036])
@@ -711,36 +746,45 @@ def paint_lou(P, N, AO, M, roots):
     big = fbm(P * 7.0, 2, 14)                            # large colour variation
     warpA = fbm(P * 9.0, 2, 21)
     warpB = fbm(P * 34.0, 2, 22)
+    edge = fbm(P * 85.0, 2, 23)                          # ragged spot and bar edges
 
     zc = 0.300 + 0.018 * (1.0 - ((y - 0.03) / 0.27) ** 2)
     theta = np.arctan2(ax, z - zc)                      # 0 on the spine, pi under the belly
 
-    tick = np.clip(0.5 + 1.7 * strand + 0.12 * fine + 0.25 * clump, 0.0, 1.0)
-    # agouti ground: cool brown-grey ticked (Lou is grey-brown, not ginger), darker along the back
-    dark_hair = col("#25211d")
-    light_hair = col("#908779")
-    ground = lerp(dark_hair, light_hair, tick)
-    back_dark = (1.0 - sstep(0.25, 1.25, theta)) * w["torso"]
-    ground *= (1.0 + 0.09 * big - 0.16 * back_dark)[:, None]
-    stripe_col = lerp(col("#0e0c0b"), col("#2c2722"), np.clip(tick * 0.8, 0, 1))
-    dark = np.zeros(n, np.float32)
+    # salt-and-pepper ticking: banded hairs, light tips on dark roots (the sub-texel grain stays faint: it only
+    # costs download, the shell fur draws the strands up close)
+    tick = np.clip(0.5 + 1.8 * strand + 0.06 * fine + 0.25 * clump, 0.0, 1.0)
 
     def lines(phase, hw, soft=0.05):
         dph = np.abs(phase - np.round(phase))
         return 1.0 - sstep(hw - soft, hw + soft, dph)
 
-    # ---- torso mackerel stripes, spine band, cream belly
-    phase = (y + 0.026 * theta ** 1.5 + 0.015 * warpA + 0.005 * warpB) / 0.035 + np.where(x >= 0, 0.0, 0.35)
-    hw = 0.15 + 0.06 * sstep(0.9, 0.2, theta) + 0.05 * fbm(P * 55.0, 1, 31)
-    tor = lines(phase, hw, 0.045)
-    tor *= sstep(-0.45, -0.15, fbm(P * 20.0, 2, 32))   # broken mackerel lines
-    tor *= 1.0 - sstep(1.75, 2.35, theta)
-    band = (1.0 - sstep(0.36, 0.66, theta + 0.10 * warpA)) * sstep(-0.215, -0.17, y) * sstep(0.30, 0.25, y)
-    dark_t = np.maximum(tor, band * 0.96)
-    belly = sstep(2.20, 2.65, theta + 0.12 * warpA) * w["torso"]
-    dark += (w["torso"]) * dark_t
+    # ---- ground: warm brown-gold body, greyer head (and a greyer tail), darker down the spine
+    # (toned 11/26 after Jarret's look: greyer warm brown with beige tips, not a yellow "leopard" ground)
+    gold = lerp(col("#372d23"), col("#c8b797"), tick)
+    grey = lerp(col("#2f2a23"), col("#bcb19c"), tick)
+    grey_amt = np.clip(w_head + 0.45 * w["neck"] + 0.35 * w["tail"], 0.0, 1.0)
+    ground = lerp(gold, grey, grey_amt)
+    back_dark = (1.0 - sstep(0.30, 1.35, theta)) * w["torso"]
+    ground *= (1.0 + 0.08 * big - 0.20 * back_dark)[:, None]
+    stripe_col = lerp(col("#120e0a"), col("#2f251a"), np.clip(tick * 0.8, 0, 1))
+    dark = np.zeros(n, np.float32)
 
-    # chest necklaces + white locket (front of the chest/neck)
+    # ---- torso: spotted flanks in loose vertical rows, a dark spine line, cream underside, white belly patch
+    per_u, per_v = 0.043, 0.036
+    cu = (y + 0.022 * theta ** 1.5 + 0.011 * warpA + 0.004 * warpB) / per_u + np.where(x >= 0, 0.0, 0.5)
+    cv = (theta * 0.14 + 0.005 * warpB) / per_v
+    size = 1.04 - 0.46 * sstep(1.2, 2.2, theta)
+    spots = tabby_spots(cu, cv, per_u, per_v, side_i, 61, 0.0088, 0.0140, 0.35, 0.78, size, 0.24 * edge + 0.10 * warpB)
+    spots *= 1.0 - sstep(2.00, 2.35, theta + 0.10 * warpA)
+    spine = (1.0 - sstep(0.13, 0.30, theta + 0.07 * warpA + 0.05 * edge)) * sstep(-0.215, -0.17, y) * sstep(0.30, 0.25, y)
+    # Lou's flank spots are soft dark-brown smudges in the ticking, not crisp black rosettes: blend them at ~2/3
+    dark += w["torso"] * np.maximum(spots * 0.66, spine * 0.80)
+    belly = sstep(2.15, 2.60, theta + 0.12 * warpA) * w["torso"]
+    wp = np.sqrt((x / 0.088) ** 2 + ((y - 0.118) / 0.125) ** 2) + 0.12 * warpA + 0.05 * warpB
+    belly_white = (1.0 - sstep(0.86, 1.10, wp)) * sstep(-0.10, -0.50, N[:, 2]) * (z < 0.25)
+
+    # chest necklaces + a small white locket (front of the chest/neck)
     A = np.array([0.0, -0.16, 0.25], np.float32)
     u_ax = np.array([0.0, -0.10, 0.22], np.float32)
     u_ax /= np.linalg.norm(u_ax)
@@ -748,120 +792,137 @@ def paint_lou(P, N, AO, M, roots):
     radial = (P - A) - sN[:, None] * u_ax
     frontness = -radial[:, 1] / (np.linalg.norm(radial, axis=1) + 1e-6)
     neck_lines = np.zeros(n, np.float32)
-    for s0, wd in ((0.212, 0.0085), (0.166, 0.0085), (0.122, 0.0080), (0.052, 0.0075)):
+    for s0, wd in ((0.212, 0.0075), (0.166, 0.0080), (0.122, 0.0075), (0.052, 0.0070)):
         dd = np.abs(sN - s0 - 0.006 * warpA)
         neck_lines = np.maximum(neck_lines, 1.0 - sstep(wd - 0.003, wd + 0.003, dd))
+    neck_lines *= sstep(-0.45, -0.05, edge + 0.30 * warpA)          # broken necklaces
     # neck: nape lines down the back, necklace rings wrapping round the sides
     back_face = sstep(-0.1, 0.5, N[:, 1] * 0.6 + N[:, 2] * 0.8)
     nape = np.zeros(n, np.float32)
     for x0, hwid in ((0.010, 0.0055), (0.031, 0.0050), (0.052, 0.0045)):
         nape = np.maximum(nape, 1.0 - sstep(hwid - 0.0015, hwid + 0.0015, np.abs(ax - x0 - 0.002 * warpB)))
-    dark += w["neck"] * np.maximum(nape * back_face, neck_lines * sstep(-0.6, -0.1, frontness))
+    dark += w["neck"] * np.maximum(nape * back_face, 0.80 * neck_lines * sstep(-0.6, -0.1, frontness))
     chest_zone = sstep(-0.35, 0.25, frontness) * sstep(-0.16, -0.22, y) * (z > 0.22)
     chest_zone = chest_zone * np.clip(w["torso"] + w["neck"], 0, 1)
-    dark = np.maximum(dark * (1.0 - chest_zone), chest_zone * neck_lines * 0.92)
-    lk = np.sqrt((ax / 0.017) ** 2 + ((sN - 0.096) / 0.0085) ** 2) + 0.45 * warpB + 0.25 * warpA + 0.35 * strand
-    locket = 0.9 * (1.0 - sstep(0.6, 1.05, lk)) * sstep(0.2, 0.6, frontness) * (y < -0.2)
+    dark = np.maximum(dark * (1.0 - chest_zone), chest_zone * neck_lines * 0.72)   # mottled necklaces, not bold bands
+    lk = np.sqrt((ax / 0.015) ** 2 + ((sN - 0.096) / 0.0080) ** 2) + 0.45 * warpB + 0.25 * warpA + 0.35 * strand
+    locket = 0.85 * (1.0 - sstep(0.6, 1.05, lk)) * sstep(0.2, 0.6, frontness) * (y < -0.2)
 
-    # ---- legs: bars on the outside, plain-ish inside, dark paw soles handled by geometry
+    # ---- legs: bold bars on the outside, pale inside, dark brown-black backs to the hind feet
     for key in ("FL", "FR", "BL", "BR"):
         g = LEG_GEO[key]
         wl = w["leg" + key]
         outward = N[:, 0] * g["side"]
-        vis = sstep(-0.75, 0.15, outward + 0.55 * (-N[:, 1] if g["front"] else N[:, 1] * 0.3))
-        ph = z / 0.027 + 0.30 * warpA + 0.15 * warpB + (0.2 if g["front"] else 0.6)
-        bars = lines(ph, 0.21 + 0.04 * fbm(P * 40.0, 1, 41), 0.05)
-        bars *= sstep(0.032, 0.05, z) * (1.0 - sstep(0.23, 0.28, z))
-        leg_dark = bars * vis * 0.95
+        vis = sstep(-0.80, 0.10, outward + 0.55 * (-N[:, 1] if g["front"] else N[:, 1] * 0.3))
+        ph = z / 0.029 + 0.30 * warpA + 0.15 * warpB + (0.2 if g["front"] else 0.6)
+        bars = lines(ph, 0.23 + 0.05 * fbm(P * 40.0, 1, 41) + 0.04 * edge, 0.05)
+        bars *= sstep(0.030, 0.048, z) * (1.0 - sstep(0.24, 0.29, z))
+        leg_dark = bars * vis
         if not g["front"]:
-            boot = sstep(0.25, 0.65, N[:, 1]) * (1.0 - sstep(0.10, 0.13, z)) * sstep(0.012, 0.03, z)
-            leg_dark = np.maximum(leg_dark, boot * 0.85)
+            boot = sstep(0.05, 0.45, N[:, 1]) * (1.0 - sstep(0.108, 0.138, z + 0.006 * warpB))
+            leg_dark = np.maximum(leg_dark, boot)
         dark += wl * leg_dark
         inner = sstep(-0.1, -0.6, outward) * sstep(0.05, 0.12, z) * (1.0 - sstep(0.2, 0.26, z))
-        belly = np.maximum(belly, wl * inner * 0.30)
+        belly = np.maximum(belly, wl * inner * 0.45)
 
-    # ---- tail rings + black tip
+    # ---- tail: thick dark rings, a dark tip, a darker top line
     tdist, tarc, tdir, tlen = regions["tail"]
-    rings = lines(tarc / 0.040 + 0.15 * warpA, 0.26, 0.05)
-    tip = sstep(tlen - 0.070, tlen - 0.045, tarc)
-    tail_dark = np.maximum(rings * sstep(0.03, 0.06, tarc), tip)
+    rings = lines(tarc / 0.046 + 0.12 * warpA, 0.29 + 0.03 * edge, 0.05)
+    tip = sstep(tlen - 0.085, tlen - 0.055, tarc)
+    tail_top = sstep(0.2, 0.8, N[:, 2]) * 0.35
+    tail_dark = np.maximum(np.maximum(rings * sstep(0.03, 0.06, tarc), tip), tail_top)
     dark += w["tail"] * tail_dark
 
-    # ---- head: forehead stripes forming the M, crown/nape lines, cheek mascara lines
+    # ---- head: forehead M (four bold bars), crown lines, eye liner, tan round the eyes, cheek lines
     hp = P - np.array(HEAD_C, np.float32)
     v = np.arctan2(-hp[:, 1], hp[:, 2])                  # 0 on top, +1.57 face, -1.57 back of the head
-    hx = hp[:, 0]
     head_dark = np.zeros(n, np.float32)
-    line_defs = [  # (x at the brow, half width, v at the bottom end, convergence)
-        (0.0085, 0.0048, 1.24, 0.55),
-        (0.0265, 0.0050, 1.19, 0.15),
-        (0.0445, 0.0042, 1.02, -0.25),
-    ]
-    for x0, hwid, vend, conv in line_defs:
-        spread = 1.0 + 0.55 * sstep(0.2, -1.2, v)
-        bend = 1.0 - conv * sstep(0.62, vend, v)
-        xc = x0 * spread * bend + 0.0018 * warpB
-        dline = np.abs(ax - xc)
-        widen = 1.0 + 0.6 * sstep(0.4, -0.8, v)
-        stroke = 1.0 - sstep(hwid * widen - 0.0016, hwid * widen + 0.0016, dline)
-        stroke *= 1.0 - sstep(vend - 0.04, vend + 0.03, v)
-        stroke *= sstep(-1.75, -1.35, v)
-        head_dark = np.maximum(head_dark, stroke)
-    # brow arcs: the M's outer legs curve out over the eyes
+
+    def bar(x_top, x_bot, v_top, v_bot, hw_top, hw_bot, k=1.0):
+        t = np.clip((v - v_top) / (v_bot - v_top), 0.0, 1.0)
+        xc = x_top + (x_bot - x_top) * t + 0.0012 * warpB
+        hw = hw_top + (hw_bot - hw_top) * t
+        stroke = 1.0 - sstep(hw - 0.0013, hw + 0.0013, np.abs(ax - xc) + 0.0012 * edge)
+        stroke *= sstep(v_top - 0.05, v_top + 0.03, v) * (1.0 - sstep(v_bot - 0.03, v_bot + 0.03, v))
+        return stroke * k
+
+    for args in (
+        (0.036, 0.043, 0.84, 1.21, 0.0030, 0.0066, 1.0),    # outer bars: bold commas right above the inner half of each eye
+        (0.010, 0.012, -0.10, 1.27, 0.0030, 0.0042, 1.0),   # inner bars: from between the eyes up over the crown
+        (0.026, 0.030, -1.35, 0.62, 0.0022, 0.0028, 0.70),  # thin crown lines between and behind the bars
+        (0.050, 0.048, -1.45, 0.45, 0.0026, 0.0030, 0.70),  # side-of-crown lines down to the nape
+    ):
+        head_dark = np.maximum(head_dark, bar(*args))
+    solid = sstep(0.35, 0.60, v)                          # the forehead bars are solid, the crown lines broken
+    head_dark *= solid + (1.0 - solid) * (0.30 + 0.70 * sstep(-0.45, -0.10, edge + 0.4 * warpA))
+
+    # eye surroundings: a dark liner at the opening, warm tan round it (most below and at the inner corner)
+    tan = np.zeros(n, np.float32)
+    liner = np.zeros(n, np.float32)
     for s in (1, -1):
-        e = EYE_C[s]
-        brow_pts = [(0.030 * s, -0.352, 0.586), (0.052 * s, -0.345, 0.590), (0.075 * s, -0.325, 0.584)]
-        d_b, _, _, _ = poly_dist(P, brow_pts)
-        head_dark = np.maximum(head_dark, (1.0 - sstep(0.0028, 0.0052, d_b + 0.001 * warpB)) * 0.85 * (side * s > 0))
-    # cheek "mascara" lines, defined in head azimuth/elevation (degrees) so they always sit on the skin
+        e = np.array(EYE_C[s], np.float32)
+        de = np.linalg.norm(P - e, axis=1)
+        n_up, b_up, n_lo, b_lo = lid_axes(s)
+        dirs = (P - e) / (de[:, None] + 1e-9)
+        past = np.maximum(b_up - np.arccos(np.clip(dirs @ np.array(n_up, np.float32), -1, 1)),
+                          b_lo - np.arccos(np.clip(dirs @ np.array(n_lo, np.float32), -1, 1)))
+        liner = np.maximum(liner, (1.0 - sstep(math.radians(4.0), math.radians(6.5), past + 0.010 * warpB)) * (de < 0.033))
+        rel = P - e
+        below = sstep(0.004, -0.010, rel[:, 2])
+        inner_c = sstep(0.0, 0.020, -rel[:, 0] * s)
+        ring = (1.0 - sstep(0.029, 0.035 + 0.005 * below, de + 0.002 * warpB)) * sstep(0.0230, 0.0262, de)
+        tan = np.maximum(tan, ring * (0.22 + 0.55 * below + 0.30 * inner_c))
+        corner = np.exp(-np.sum(((P - np.array((0.028 * s, -0.372, 0.546), np.float32)) / np.array((0.010, 0.02, 0.012), np.float32)) ** 2, 1))
+        tan = np.maximum(tan, corner * 0.95)
+    bridge = np.exp(-np.sum(((P - np.array((0.0, -0.376, 0.543), np.float32)) / np.array((0.019, 0.03, 0.026), np.float32)) ** 2, 1))
+    tan = np.maximum(tan, np.clip(bridge * 1.25, 0, 1))
+    Q = np.stack([ax, y, z], 1)
+    nose_side = np.exp(-np.sum(((Q - np.array((0.020, -0.378, 0.526), np.float32)) / np.array((0.010, 0.02, 0.010), np.float32)) ** 2, 1))
+    tan = np.maximum(tan, nose_side * 0.75)
+
+    # cheek lines, in head azimuth / elevation (degrees) so they always sit on the skin: the "mascara" line runs
+    # back from the outer corner of each eye, a second one sweeps under the eye and across the cheek
     az = np.degrees(np.arctan2(ax, -hp[:, 1]))
     el = np.degrees(np.arctan2(hp[:, 2], np.hypot(hp[:, 0], hp[:, 1])))
     cheek_lines = [
-        ([(46.0, 11.0), (54.0, 11.5), (61.0, 9.5), (66.0, 6.0)], 1.0),
-        ([(38.0, -6.0), (46.0, -8.0), (54.0, -11.5), (59.0, -15.0)], 0.9),
-        ([(60.0, -21.0), (66.0, -23.5)], 0.75),
+        ([(43.0, 6.0), (50.0, 4.5), (57.0, 2.0), (64.0, -1.5), (69.0, -4.0)], 1.15, 1.0),
+        ([(34.0, -9.0), (42.0, -12.0), (51.0, -14.5), (59.0, -17.5), (65.0, -21.0)], 1.0, 0.9),
+        ([(57.0, -26.0), (64.0, -29.0)], 0.8, 0.7),
     ]
-    AE = np.stack([az, el], 1).astype(np.float32)
-    for pts, hwid in cheek_lines:
+    AE = np.concatenate([np.stack([az, el], 1), np.zeros((n, 1), np.float32)], 1).astype(np.float32)
+    for pts, hwid, k in cheek_lines:
         best = np.full(n, 1e9, np.float32)
         for a0, a1 in zip(pts, pts[1:]):
-            dd, _ = seg_dist(np.concatenate([AE, np.zeros((n, 1), np.float32)], 1), (a0[0], a0[1], 0.0), (a1[0], a1[1], 0.0))
+            dd, _ = seg_dist(AE, (a0[0], a0[1], 0.0), (a1[0], a1[1], 0.0))
             best = np.minimum(best, dd)
-        head_dark = np.maximum(head_dark, 0.82 * (1.0 - sstep(hwid - 0.5, hwid + 0.5, best + 0.4 * warpB)) * (hp[:, 1] < 0.03))
-    dark = dark * (1.0 - w_head) + w_head * head_dark * (~ear)
+        head_dark = np.maximum(head_dark, k * (1.0 - sstep(hwid - 0.45, hwid + 0.45, best + 0.5 * warpB)) * (hp[:, 1] < 0.03))
+    dark = dark * (1.0 - w_head) + w_head * np.maximum(head_dark, liner) * (~ear)
 
-    # ---- light / white / peach areas of the face
+    # ---- the face's light areas: white muzzle, upper lip and chin; tan-grey whisker pads
     white = np.zeros(n, np.float32)
-    peach = np.zeros(n, np.float32)
+    pads = np.zeros(n, np.float32)
     for s in (1, -1):
-        q = (P - np.array(PAD_C[s], np.float32)) / np.array(PAD_R, np.float32) / 1.08
+        q = (P - np.array(PAD_C[s], np.float32)) / np.array(PAD_R, np.float32) / 1.06
         dp = np.linalg.norm(q, axis=1)
-        pad = (1.0 - sstep(0.92, 1.12, dp + 0.05 * warpB)) * (side * s > -0.5)
-        white = np.maximum(white, pad * (0.55 + 0.45 * sstep(0.522, 0.498, z)))
-        de = np.linalg.norm(P - np.array(EYE_C[s], np.float32), axis=1)
-        ring = (1.0 - sstep(0.029, 0.036, de)) * sstep(0.019, 0.023, de)
-        peach = np.maximum(peach, ring * 0.55)
-        corner = np.exp(-np.sum(((P - np.array((0.030 * s, -0.372, 0.547), np.float32)) / np.array((0.011, 0.02, 0.012), np.float32)) ** 2, 1))
-        peach = np.maximum(peach, corner * 0.9)
-        under = np.exp(-np.sum(((P - np.array((0.068 * s, -0.338, 0.528), np.float32)) / np.array((0.022, 0.03, 0.012), np.float32)) ** 2, 1))
-        peach = np.maximum(peach, under * 0.55)
-        cheek = np.exp(-np.sum(((P - np.array((0.088 * s, -0.305, 0.512), np.float32)) / np.array((0.032, 0.04, 0.026), np.float32)) ** 2, 1))
-        peach = np.maximum(peach, cheek * 0.32)
-    bridge = np.exp(-np.sum(((P - np.array((0.0, -0.376, 0.540), np.float32)) / np.array((0.016, 0.03, 0.016), np.float32)) ** 2, 1))
-    peach = np.maximum(peach, bridge * 0.85)
-    chin = (1.0 - sstep(0.95, 1.25, np.linalg.norm((P - np.array((0.0, -0.343, 0.474), np.float32)) / np.array((0.036, 0.04, 0.026), np.float32), axis=1) + 0.06 * warpB))
-    lips = (1.0 - sstep(0.004, 0.012, np.abs(z - 0.489) - 0.004)) * (1.0 - sstep(0.030, 0.042, ax)) * (y < -0.355)
-    throat = (1.0 - sstep(0.025, 0.040, ax + 0.006 * warpB)) * sstep(0.43, 0.455, z) * (1.0 - sstep(0.47, 0.48, z)) * (y < -0.28)
-    white = np.maximum.reduce([white, chin, lips * 0.9, throat * 0.8, locket])
+        pad = (1.0 - sstep(0.90, 1.12, dp + 0.05 * warpB)) * (side * s > -0.5)
+        pads = np.maximum(pads, pad)
+        low = sstep(PAD_C[s].z + 0.002, PAD_C[s].z - 0.012, z + 0.002 * warpB)
+        inner = sstep(0.026, 0.008, ax)
+        white = np.maximum(white, pad * np.maximum(low, inner * sstep(PAD_C[s].z + 0.006, PAD_C[s].z - 0.004, z)))
+    philtrum = np.exp(-np.sum(((P - np.array((0.0, -0.387, 0.503), np.float32)) / np.array((0.013, 0.02, 0.010), np.float32)) ** 2, 1))
+    chin = (1.0 - sstep(0.95, 1.25, np.linalg.norm((P - np.array((0.0, -0.343, 0.474), np.float32)) / np.array((0.040, 0.042, 0.028), np.float32), axis=1) + 0.06 * warpB))
+    lips = (1.0 - sstep(0.004, 0.012, np.abs(z - 0.489) - 0.004)) * (1.0 - sstep(0.032, 0.044, ax)) * (y < -0.352)
+    throat = (1.0 - sstep(0.026, 0.042, ax + 0.006 * warpB)) * sstep(0.43, 0.455, z) * (1.0 - sstep(0.47, 0.48, z)) * (y < -0.28)
+    white = np.maximum.reduce([white, philtrum * 0.95, chin, lips * 0.95, throat * 0.85, locket])
     white *= (~ear)
 
     # whisker dots and the mouth line
     dots = np.zeros(n, np.float32)
     for s in (1, -1):
         for row, colm, p in roots[s]:
-            rr = 0.0017 if row < 3 else 0.0013
+            rr = 0.0021 if row < 3 else 0.0016
             dd = np.linalg.norm(P - np.array(p, np.float32), axis=1)
-            dots = np.maximum(dots, 1.0 - sstep(rr * 0.6, rr * 1.25, dd))
+            dots = np.maximum(dots, 1.0 - sstep(rr * 0.55, rr * 1.2, dd))
     mouth_pts_c = [(0.0, -0.392, 0.506), (0.0, -0.391, 0.497)]
     d_m, _, _, _ = poly_dist(P, mouth_pts_c)
     mouth = 1.0 - sstep(0.0009, 0.0019, d_m)
@@ -872,27 +933,28 @@ def paint_lou(P, N, AO, M, roots):
 
     # ---- compose
     rgb = ground.copy()
-    head_warm = w_head * (~ear)
-    rgb = lerp(rgb, rgb * np.array([1.02, 1.0, 0.975], np.float32), head_warm)
     rgb = lerp(rgb, stripe_col, np.clip(dark, 0, 1))
-    cream = lerp(col("#9c9384"), col("#d8d0c2"), tick)
-    rgb = lerp(rgb, cream, np.clip(belly * (1.0 - 0.6 * dark), 0, 1))
-    peach_col = lerp(col("#9b8676"), col("#d3c4b5"), tick)
-    rgb = lerp(rgb, peach_col, np.clip(peach * (1.0 - 0.8 * head_dark), 0, 1))
-    white_col = lerp(col("#d9d7d3"), col("#f6f5f2"), np.clip(tick + 0.3, 0, 1))
-    rgb = lerp(rgb, white_col, np.clip(white, 0, 1))
-    # ears: brown-grey backs with darker rims, pink furred insides
-    ear_back = lerp(col("#24221f"), col("#76716a"), tick)
+    cream = lerp(col("#b39d78"), col("#ead9b8"), tick)
+    rgb = lerp(rgb, cream, np.clip(belly * (1.0 - 0.7 * dark), 0, 1))
+    snow = lerp(col("#dedbd2"), col("#f7f5ef"), np.clip(tick + 0.3, 0, 1))
+    rgb = lerp(rgb, snow, np.clip(belly_white * w["torso"] * (1.0 - 0.8 * dark), 0, 1))
+    pad_col = lerp(col("#8c7a5f"), col("#d2c0a0"), tick)
+    rgb = lerp(rgb, pad_col, np.clip(pads * (1.0 - 0.8 * head_dark), 0, 1) * (~ear))
+    tan_col = lerp(col("#8f6a42"), col("#d9b07a"), tick)
+    rgb = lerp(rgb, tan_col, np.clip(tan * (1.0 - 0.85 * np.maximum(head_dark, liner)), 0, 1) * (~ear))
+    rgb = lerp(rgb, snow, np.clip(white, 0, 1))
+    # ears: grey-brown backs with darker rims, pale furred insides with only a hint of pink deep down
+    ear_back = lerp(col("#3b3630"), col("#7f786d"), 0.25 + 0.5 * tick)
     rgb = np.where(ear[:, None], ear_back, rgb)
     furnish = np.clip(0.5 + 3.0 * aniso(260.0, 30.0, 51, 1), 0, 1)
-    pink = lerp(col("#b9827b"), col("#e2b1a8"), np.clip(1.0 - inner_ear * 0.2, 0, 1))
-    pink = lerp(pink, col("#efe4dc"), furnish * 0.30 * sstep(0.3, 0.9, inner_ear))
-    rgb = lerp(rgb, pink, inner_ear)
-    rgb = lerp(rgb, col("#25211f"), dots * 0.9 * (~ear))
+    pale = lerp(col("#b3a69d"), col("#d9d2c8"), np.clip(0.55 + 0.45 * furnish, 0, 1))
+    pale = lerp(pale, col("#efeae2"), furnish * 0.30 * sstep(0.3, 0.9, inner_ear))
+    rgb = lerp(rgb, pale, inner_ear)
+    rgb = lerp(rgb, col("#16110d"), dots * 0.95 * (~ear))
     rgb = lerp(rgb, col("#20171a"), mouth * (~ear))
     # baked occlusion for creases (mouth, toes, ear cups)
     ao = np.clip(AO, 0.0, 1.0)
-    rgb *= (0.38 + 0.62 * ao)[:, None]
+    rgb *= (0.40 + 0.60 * ao)[:, None]
     rgb = np.clip(rgb, 0.0, 1.0)
 
     # ---- height for the fur normal map
@@ -904,8 +966,9 @@ def paint_lou(P, N, AO, M, roots):
     near = np.zeros(n, bool)
     for s in (1, -1):
         de = np.linalg.norm(P - np.array(EYE_C[s], np.float32), axis=1)
-        near |= (de > 0.025) & (de < 0.032) & (dark < 0.3)
+        near |= (de > 0.027) & (de < 0.034) & (dark < 0.3)
     lid_col = rgb[near].mean(0) if near.any() else col("#8d877e")
+    lid_col = lid_col * 0.85 + col("#2a221b") * 0.15      # a shade darker: the lid sits in the socket's shadow
     return rgb.astype(np.float32), height.astype(np.float32), lid_col
 
 
@@ -1060,15 +1123,15 @@ def make_iris_image(size=512, pupil=True, name="LouIris"):
     pts = np.stack([np.cos(a) * 3.0, np.sin(a) * 3.0, r * 6.0], -1).reshape(-1, 3)
     fib = perlin(np.stack([np.cos(a) * 40.0, np.sin(a) * 40.0, r * 3.0], -1).reshape(-1, 3), 3).reshape(size, size)
     blot = fbm(pts * 2.0, 3, 4).reshape(size, size)
-    gold = col("#cdb35e")
-    mid = col("#b4bf78")
-    green = col("#7f9a52")
+    gold = col("#c9c58e")
+    mid = col("#b0bf93")
+    green = col("#8da486")
     t = np.clip(r / 0.86, 0, 1)
     rgb = np.where((t < 0.45)[..., None], lerp(gold, mid, (t / 0.45).ravel()).reshape(size, size, 3),
                    lerp(mid, green, ((t - 0.45) / 0.55).clip(0, 1).ravel()).reshape(size, size, 3))
-    rgb *= (0.86 + 0.5 * fib + 0.25 * blot)[..., None]
-    rgb *= (1.0 - 0.55 * sstep(0.68, 0.87, r))[..., None]               # limbal ring
-    sclera = col("#cbc39e")
+    rgb *= (0.90 + 0.40 * fib + 0.20 * blot)[..., None]
+    rgb *= (1.0 - 0.62 * sstep(0.70, 0.87, r))[..., None]               # limbal ring
+    sclera = col("#c3c5a6")
     rgb = np.where((r > 0.88)[..., None], sclera * (1.0 - 0.2 * sstep(0.88, 1.0, r))[..., None], rgb)
     if pupil:
         # vertical slit pupil (squinty daylight pupil)
@@ -1082,7 +1145,7 @@ def make_iris_image(size=512, pupil=True, name="LouIris"):
     # painted depth: lid shadow on top, caustic glow at the bottom of the iris
     rgb *= (1.0 - 0.42 * sstep(-0.10, 0.62, y))[..., None]
     caus = np.exp(-(((x + 0.20) / 0.30) ** 2 + ((y + 0.48) / 0.20) ** 2)) * (r < 0.86)
-    rgb += (caus * 0.20)[..., None] * col("#e8f0a0")
+    rgb += (caus * 0.16)[..., None] * col("#e4efc0")
     rgb = np.clip(rgb, 0, 1)
     img = bpy.data.images.new(name, size, size, alpha=False)
     img.colorspace_settings.name = "sRGB"
@@ -1137,14 +1200,14 @@ def build_eyes():
     eyes = mesh_obj("Eyes", bm)
     eyes.data.materials.append(mat)
 
-    glint_mat = make_mat("EyeGlint", (1.0, 1.0, 1.0), 0.1, emission=(1.0, 1.0, 1.0), emission_strength=1.2)
+    glint_mat = make_mat("EyeGlint", (1.0, 1.0, 1.0), 0.1, emission=(1.0, 1.0, 1.0), emission_strength=0.75)
     bm = bmesh.new()
     for s in (1, -1):
         fwd, u_ax, up = eye_frame(s)
-        p = EYE_C[s] + (fwd * 0.97 - up * 0.07 + u_ax * 0.20).normalized() * (EYE_R + 0.0019)
-        tmp = bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=6, radius=0.0021)
+        p = EYE_C[s] + (fwd * 0.97 - up * 0.07 + u_ax * 0.20).normalized() * (EYE_R + 0.0016)
+        tmp = bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=6, radius=0.0016)
         for v in tmp["verts"]:
-            v.co = p + Vector((v.co.x * 1.15, v.co.y * 0.5, v.co.z * 0.9))
+            v.co = p + Vector((v.co.x * 1.15, v.co.y * 0.2, v.co.z * 0.9))   # flat: it hides under a closed lid
     glints = mesh_obj("EyeGlints", bm)
     glints.data.materials.append(glint_mat)
     return eyes, glints
@@ -1181,7 +1244,7 @@ def lid_axes(s):
     fwd, u_ax, up = eye_frame(s)
     e = math.radians(LID_UP_ELEV[s])
     tilt = math.radians(LID_UP_TILT)
-    slant = math.radians(9.0) * s
+    slant = math.radians(-7.0) * s      # almond eyes: the outer corners sit a little higher
     q_slant = Quaternion(fwd, -slant)
     n_up = q_slant @ (up * math.cos(tilt) - fwd * math.sin(tilt))
     beta_up = math.acos(max(-1.0, min(1.0, math.sin(e - tilt))))
@@ -1200,9 +1263,11 @@ def build_lids(lid_mat, rim_mat):
         for s in (1, -1):
             n_up, b_up, n_lo, b_lo = lid_axes(s)
             if part == "upper":
-                cap_mesh(bm, EYE_C[s], n_up, b_up, EYE_R + 0.0007, rings=10, segs=32)
+                _, rows_f = cap_mesh(bm, EYE_C[s], n_up, b_up, EYE_R + 0.0007, rings=12, segs=32)
             else:
-                cap_mesh(bm, EYE_C[s], n_lo, b_lo, EYE_R + 0.0005, rings=8, segs=32)
+                _, rows_f = cap_mesh(bm, EYE_C[s], n_lo, b_lo, EYE_R + 0.0005, rings=10, segs=32)
+            for f in rows_f[-1]:      # a dark band along each lid edge: Lou's eyeliner (fur-coloured lid behind it)
+                f.material_index = 1
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         # outward normals: flip if pointing to the eye centre
         for f in bm.faces:
@@ -1225,20 +1290,20 @@ def build_lids(lid_mat, rim_mat):
 
 
 def build_nose():
-    leather = make_mat("NoseLeather", srgb_to_lin((0.80, 0.52, 0.52)), roughness=0.36, spec=0.6)
-    nostril = make_mat("Nostril", srgb_to_lin((0.16, 0.10, 0.10)), roughness=0.5)
-    rim = make_mat("NoseRim", srgb_to_lin((0.25, 0.17, 0.16)), roughness=0.45)
+    leather = make_mat("NoseLeather", srgb_to_lin((0.69, 0.44, 0.40)), roughness=0.36, spec=0.6)   # brick pink
+    nostril = make_mat("Nostril", srgb_to_lin((0.09, 0.05, 0.05)), roughness=0.5)
+    rim = make_mat("NoseRim", srgb_to_lin((0.12, 0.08, 0.07)), roughness=0.45)
     bm = bmesh.new()
     bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=16, radius=1.0)
     for v in bm.verts:
         u = v.co.copy()
         wf = 0.42 + 0.58 * ((u.z + 1.0) / 2.0) ** 0.75
-        p = Vector((0.0172 * u.x * wf, 0.0092 * u.y, 0.0112 * u.z))
+        p = Vector((0.0190 * u.x * wf, 0.0097 * u.y, 0.0123 * u.z))
         # philtrum notch at the bottom centre
         p.y += 0.0025 * math.exp(-((u.x / 0.18) ** 2 + ((u.z + 0.95) / 0.25) ** 2))
         for sx in (1, -1):
             g = math.exp(-(((u.x - 0.60 * sx) / 0.22) ** 2 + ((u.z + 0.30) / 0.26) ** 2)) * (1.0 if u.y < 0 else 0.0)
-            p.y += 0.0046 * g
+            p.y += 0.0050 * g
             v.tag = v.tag or g > 0.22
         v.co = p
     for f in bm.faces:
@@ -1252,7 +1317,7 @@ def build_nose():
     for v in bm2.verts:
         u = v.co.copy()
         wf = 0.42 + 0.58 * ((u.z + 1.0) / 2.0) ** 0.75
-        v.co = Vector((0.0184 * u.x * wf, 0.0085 * u.y + 0.0021, 0.0121 * u.z - 0.0003))
+        v.co = Vector((0.0212 * u.x * wf, 0.0090 * u.y + 0.0022, 0.0140 * u.z - 0.0004))
     bmesh.ops.transform(bm2, matrix=mw, verts=bm2.verts)
     me2 = bpy.data.meshes.new("tmp")
     bm2.to_mesh(me2)
@@ -1280,7 +1345,7 @@ def build_whiskers(body, roots):
                 continue
             loc, nrm, fi, dist = bvh.find_nearest(p)
             base = loc - nrm * 0.001
-            L = 0.115 + 0.035 * (colm / 3.0) + 0.012 * (1 - row) + rnd.uniform(-0.008, 0.008)
+            L = 0.125 + 0.038 * (colm / 3.0) + 0.012 * (1 - row) + rnd.uniform(-0.008, 0.008)
             d = Vector((1.0 * s, -0.55 + 0.12 * colm, 0.10 - 0.16 * row)).normalized()
             p1 = base + d * L * 0.33
             p2 = base + d * L * 0.68 + Vector((0, 0, -0.010 - 0.004 * row))
@@ -1308,11 +1373,11 @@ def build_whiskers(body, roots):
 
 
 def build_ear_fur(ears):
-    mat = make_mat("EarFur", srgb_to_lin((0.84, 0.82, 0.79)), roughness=0.93, spec=0.1)
+    mat = make_mat("EarFur", srgb_to_lin((0.86, 0.84, 0.80)), roughness=0.93, spec=0.1)
     bm = bmesh.new()
     rnd = np.random.default_rng(3)
     for s, mw in ears.items():
-        for k in range(18):
+        for k in range(24):
             fx = rnd.uniform(-0.6, 0.6)
             tz = rnd.uniform(0.006, 0.060)
             ln = rnd.uniform(0.020, 0.040)
@@ -1332,7 +1397,7 @@ def build_ear_fur(ears):
 
 
 def build_paw_pads():
-    mat = make_mat("PawPad", srgb_to_lin((0.17, 0.13, 0.13)), roughness=0.45, spec=0.5)
+    mat = make_mat("PawPad", srgb_to_lin((0.06, 0.05, 0.05)), roughness=0.45, spec=0.5)
     bm = bmesh.new()
     spans = {}
     for key, g in LEG_GEO.items():
@@ -1720,7 +1785,9 @@ class Animator:
         arm.animation_data.action = act
         prev = {}
         worst = {}
-        for i in range(nframes + 1):
+        # frame 1 is keyed twice: the very first insert into a new action re-evaluates the armature and keys
+        # part of the rest pose instead (every clip used to start on a half-rest frame, a pop at each loop)
+        for i in [0] + list(range(nframes + 1)):
             t = i / nframes
             P = fn(t)
             self.diag = {}
@@ -1777,6 +1844,159 @@ REAR_CONTACTS = [("Root", (0.0, 0.05, 0.130)), ("Root", (0.0, 0.12, 0.136)), ("R
                  ("Root", (0.0, 0.275, 0.235)), ("Root", (0.0, 0.29, 0.29))]
 
 
+# ---------------- Gaits: Walk, Trot and Run share one engine (gait_feet / gait_trunk / gait_shoulders / gait_tail).
+# Reference: Muybridge's cat plates (Animal Locomotion, 1887: 716 walking, 718 trotting, 720 galloping) and
+# cat gait studies (Galvez-Lopez et al. 2011, Zoology 114): a cat walks in LATERAL sequence (left hind,
+# left fore, right hind, right fore; the fore lands ~25-30% of a cycle after the hind on its side) with each
+# paw down ~65% of the cycle, the paws set close to the midline, the head carried low and steady while the
+# shoulder blades roll up over the back in turn; it trots on diagonal pairs with a short float between them,
+# and gallops in a rotary sequence (hind left, hind right, fore right, fore left) with the back curling to
+# bring the hind paws far forward, then stretching out, and a flight after each pair.
+#
+# Each paw's stance is a straight line along the body at a constant rate, so a planted paw moves exactly
+# D metres per cycle (model scale 1) through the whole stance, including the heel/wrist roll at toe-off,
+# which pivots on the toe pads. src/catMotion.ts sets each clip's cadence from its D: keep them in sync.
+#
+# per paw: touchdown phase, duty (share of the cycle the paw is down), stance centre (y from the rest sole,
+# + is backward), track half-width (x), swing lift, heel/wrist roll at toe-off, swing tuck, reach before
+# touchdown (paw pitch, degrees) and over: how far the swing reaches past the touchdown spot before setting
+# the paw back on it (share of the sweep, default 0.10)
+GAIT_WALK = dict(D=0.30, feet={
+    "BL": dict(td=0.00, duty=0.66, c=0.000, x=0.070, lift=0.034, heel=34.0, tuck=48.0, reach=-6.0),
+    "FL": dict(td=0.27, duty=0.63, c=0.034, x=0.063, lift=0.044, heel=30.0, tuck=78.0, reach=-10.0),
+    "BR": dict(td=0.50, duty=0.66, c=0.000, x=0.070, lift=0.034, heel=34.0, tuck=48.0, reach=-6.0),
+    "FR": dict(td=0.77, duty=0.63, c=0.034, x=0.063, lift=0.044, heel=30.0, tuck=78.0, reach=-10.0),
+})
+GAIT_TROT = dict(D=0.98, feet={
+    "BL": dict(td=0.00, duty=0.27, c=-0.010, x=0.072, lift=0.050, heel=38.0, tuck=40.0, reach=-8.0),
+    "FR": dict(td=0.02, duty=0.24, c=0.052, x=0.066, lift=0.058, heel=40.0, tuck=100.0, reach=-12.0, over=0.04),
+    "BR": dict(td=0.50, duty=0.27, c=-0.010, x=0.072, lift=0.050, heel=38.0, tuck=40.0, reach=-8.0),
+    "FL": dict(td=0.52, duty=0.24, c=0.052, x=0.066, lift=0.058, heel=40.0, tuck=100.0, reach=-12.0, over=0.04),
+})
+GAIT_RUN = dict(D=1.65, feet={
+    "BL": dict(td=0.00, duty=0.18, c=-0.030, x=0.062, lift=0.080, heel=40.0, tuck=36.0, reach=-6.0),
+    "BR": dict(td=0.08, duty=0.18, c=-0.030, x=0.062, lift=0.080, heel=40.0, tuck=36.0, reach=-6.0),
+    "FR": dict(td=0.40, duty=0.13, c=0.045, x=0.060, lift=0.080, heel=46.0, tuck=112.0, reach=-20.0, over=0.03),
+    "FL": dict(td=0.48, duty=0.13, c=0.045, x=0.060, lift=0.080, heel=46.0, tuck=112.0, reach=-20.0, over=0.03),
+})
+# toe pads relative to the sole contact (the paw rolls over them as the heel / wrist lifts)
+GAIT_TOE = {"FL": Vector((0.0, -0.022, 0.0)), "FR": Vector((0.0, -0.022, 0.0)),
+            "BL": Vector((0.0, -0.023, 0.0)), "BR": Vector((0.0, -0.023, 0.0))}
+
+
+def min_jerk(s):
+    s = min(1.0, max(0.0, s))
+    return s * s * s * (10.0 - 15.0 * s + 6.0 * s * s)
+
+
+def gait_feet(P, t, gait, rest_sole):
+    """Place the four paws for gait phase t. Returns {key: (stance 0..1 or None, slide)}: how far through its
+    stance each paw is, and where the paw sits along its sweep (-0.5 forward .. +0.5 back), for the
+    shoulder blades."""
+    D = gait["D"]
+    out = {}
+    for key, g in gait["feet"].items():
+        base = rest_sole[key]
+        side = 1.0 if key[1] == "L" else -1.0
+        front = key[0] == "F"
+        duty = g["duty"]
+        S = D * duty
+        toe = GAIT_TOE[key]
+        x = side * g["x"]
+        y0 = base.y + toe.y + g["c"]  # toe pads at mid-stance
+        ph = (t - g["td"]) % 1.0
+        if ph < duty:
+            s = ph / duty
+            y = y0 + S * (s - 0.5)
+            z = 0.0
+            pitch = g["heel"] * smooth01(0.52, 1.0, s) ** 1.4
+            out[key] = (s, s - 0.5)
+        else:
+            s = (ph - duty) / (1.0 - duty)
+            over = g.get("over", 0.10) * S
+            e = min_jerk(s / 0.84) * (1.0 + over / S) - (over / S) * smooth01(0.84, 1.0, s)
+            y = (y0 + S * 0.5) - S * e
+            z = g["lift"] * math.sin(math.pi * (s ** (0.78 if front else 0.9)))
+            pitch = keyed(s, [(0.0, g["heel"]), (0.34 if front else 0.4, g["tuck"]), (0.80, g["reach"]), (1.0, 0.0)])
+            x += side * 0.010 * math.sin(math.pi * s)
+            out[key] = (None, 0.5 - e)
+        Rp = Matrix.Rotation(math.radians(pitch), 3, "X")
+        tp = Vector((x, y, z))
+        P.feet[key] = dict(sole=tp + Rp @ (-toe), pitch=pitch)
+    return out
+
+
+GAIT_ROOT = Vector((0.0, 0.0, 0.28))      # Root bone head (the trunk's pivot)
+GAIT_HIP = Vector((0.0, 0.18, 0.29))      # between the hip joints
+GAIT_SPINE = Vector((0.0, 0.14, 0.30))    # Spine bone head (the back bends here)
+GAIT_SHOULDER = Vector((0.0, -0.158, 0.29))
+GAIT_NECK = Vector((0.0, -0.18, 0.33))
+GAIT_HEADJ = Vector((0.0, -0.24, 0.48))
+
+
+def gait_quat(pitch=0.0, roll=0.0, yaw=0.0):
+    return qcompose([(AXES["x"], pitch), (AXES["y"], roll), (AXES["z"], yaw)])
+
+
+def gait_rot(P, bone, q):
+    axis, ang = q.to_axis_angle()
+    if abs(ang) > 1e-7:
+        P.rv(bone, axis, math.degrees(ang))
+
+
+def gait_trunk(P, hips=(0.0, 0.0, 0.0), chest=(0.0, 0.0, 0.0), root_rot=(0.0, 0.0, 0.0), chest_rot=(0.0, 0.0, 0.0),
+               head_keep=0.85, head_down=0.0, head_bob=0.35, chest_mean=0.0):
+    """Body for a gait frame, solved so the joints land where they're asked to.
+    hips / chest = (side, fore-aft, height) offsets of the hip joints and the shoulders from rest (+ fore-aft is
+    backward); root_rot / chest_rot = (pitch, roll, yaw) of the pelvis and the chest in degrees, both in the
+    world (pitch + is nose down, roll + is left side down, yaw + is nose to the left). The chest gets its height
+    by bending the back (Spine pivots at its rear end) and any fore-aft offset by sliding along it. The neck and
+    head take back head_keep of the chest's turn, so the head stays level and looking ahead, and the neck soaks
+    up all but head_bob of the chest's bounce about chest_mean (cats carry their heads steadily)."""
+    R = gait_quat(*root_rot)
+    t = GAIT_HIP + Vector(hips) - GAIT_ROOT - R @ (GAIT_HIP - GAIT_ROOT)
+    P.root(t=t, x=root_rot[0], y=root_rot[1], z=root_rot[2])
+    sp = GAIT_ROOT + t + R @ (GAIT_SPINE - GAIT_ROOT)
+    C = gait_quat(*chest_rot)
+    want = GAIT_SHOULDER + Vector(chest)
+    dz = want.z - (sp + C @ (GAIT_SHOULDER - GAIT_SPINE)).z
+    C = Quaternion(AXES["x"], -math.asin(max(-0.5, min(0.5, dz / 0.30)))) @ C
+    slide = want - (sp + C @ (GAIT_SHOULDER - GAIT_SPINE))
+    gait_rot(P, "Spine", R.inverted() @ C)
+    if slide.length > 1e-6:
+        P.locs["Spine"] = tuple(R.inverted() @ slide)
+    down = Quaternion(AXES["x"], math.radians(head_down))
+    H = down @ Quaternion().slerp(C, 1.0 - head_keep)
+    N = C.slerp(H, 0.55)
+    gait_rot(P, "Neck", C.inverted() @ N)
+    gait_rot(P, "Head", N.inverted() @ H)
+    # hold the head's height: where it is now vs. where a still trunk would carry it
+    nb = sp + slide + C @ (GAIT_NECK - GAIT_SPINE)
+    hc = nb + N @ (GAIT_HEADJ - GAIT_NECK) + H @ (HEAD_C - GAIT_HEADJ)
+    still = GAIT_NECK + down @ (HEAD_C - GAIT_NECK)
+    want_z = still.z + chest_mean + head_bob * (chest[2] - chest_mean)
+    lift = max(-0.02, min(0.02, want_z - hc.z))
+    P.locs["Neck"] = tuple(C.inverted() @ Vector((0.0, 0.0, lift)))
+
+
+def gait_shoulders(P, feet, lift, slide):
+    """The shoulder blades: each one rides up over the back while its paw is down (the trunk hangs between
+    them) and slides with the leg, forward as the paw reaches and back as it pushes off."""
+    for key in ("FL", "FR"):
+        s, pos = feet[key]
+        up = lift * math.sin(math.pi * s) if s is not None else 0.0
+        P.locs[f"Leg_{key}"] = (0.0, slide * 2.0 * pos, up)
+
+
+def gait_tail(P, t, carry, sway, bounce, lag=0.85, sway_phase=0.0, bounce_phase=0.0):
+    """Tail carried in a loose S (carry: pitch of Tail1..4, - is down / back), swinging side to side once a
+    stride and bouncing twice, each joint a little later than the one before."""
+    for i, b in enumerate(("Tail1", "Tail2", "Tail3", "Tail4")):
+        a = TAU * t - lag * i
+        P.r(b, x=carry[i] + bounce * (0.6 + 0.4 * i) * SIN(2.0 * (a - bounce_phase)),
+            z=sway * (0.55 + 0.3 * i) * SIN(a - sway_phase))
+
+
 def author_animations(arm):
     an = Animator(arm)
     arm.animation_data_create()
@@ -1811,40 +2031,51 @@ def author_animations(arm):
 
     an.make_action("Idle", 60, idle)
 
-    # ---------------- Walk (1.0 s): lateral-sequence waddle, planted feet via IK
-    def gait(P, t, offs, duty, stride, lift, fpk, hpk):
-        for key, off in offs.items():
-            ph = (t + off) % 1.0
-            base = rest_sole[key]
-            front = key[0] == "F"
-            if ph < duty:
-                s = ph / duty
-                yy = base.y + stride * (s - 0.5)
-                zz = 0.0
-                pitch = 22.0 * smooth01(0.70, 1.0, s)
-            else:
-                s = (ph - duty) / (1.0 - duty)
-                e = s * s * (3 - 2 * s)
-                yy = base.y + stride * (0.5 - e)
-                zz = lift * SIN(math.pi * s)
-                pk = fpk if front else hpk
-                pitch = 22.0 * (1 - s) + pk * SIN(math.pi * s)
-            P.feet[key] = dict(sole=Vector((base.x, yy, zz)), pitch=pitch)
-
+    # ---------------- Walk (1 cycle = 32 keys; cadence set by the game): lateral sequence, head low and level
     def walk(t):
         P = Pose()
-        P.root(t=(0.004 * SIN(TAU * t), 0.0, -0.014 + 0.005 * math.cos(2 * TAU * t)), y=3.0 * SIN(TAU * t), z=1.5 * SIN(TAU * t))
-        P.r("Spine", z=-3.0 * SIN(TAU * t), x=1.0 * math.cos(2 * TAU * t))
-        P.r("Neck", x=-2.0 * math.cos(2 * TAU * t), z=-2.0 * SIN(TAU * t))
-        P.r("Head", z=-2.0 * SIN(TAU * t))
-        P.locs["Belly"] = (0.004 * SIN(TAU * t - 0.6), 0, 0.005 * SIN(2 * TAU * t - 1.0))
-        gait(P, t, {"BL": 0.0, "FL": 0.25, "BR": 0.5, "FR": 0.75}, 0.62, 0.11, 0.035, 75.0, 30.0)
-        tail_sway(P, t, 12.0, base=8.0)
-        P.r("Ear_L", x=-3 * SIN(2 * TAU * t))
-        P.r("Ear_R", x=-3 * SIN(2 * TAU * t))
+        c2 = math.cos
+        # hips ride highest over a hind paw at mid-stance (0.33 / 0.83), the shoulders over a fore (0.58 / 0.08)
+        hz = -0.012 + 0.0035 * c2(2 * TAU * (t - 0.33))
+        cz = -0.014 + 0.0040 * c2(2 * TAU * (t - 0.585))
+        # pelvis rolls up on the standing hind leg's side and swings the stepping hip forward; the chest does
+        # the same a quarter-cycle later, so the back bends gently from side to side
+        gait_trunk(P, hips=(0.0, 0.0, hz), chest=(0.0, 0.0, cz),
+                   root_rot=(0.6 * c2(2 * TAU * (t - 0.08)), -2.0 * c2(TAU * (t - 0.33)), 2.4 * c2(TAU * (t - 0.33))),
+                   chest_rot=(0.0, -2.6 * c2(TAU * (t - 0.585)), -2.2 * c2(TAU * (t - 0.085))),
+                   head_keep=0.85, head_down=7.0, head_bob=0.35, chest_mean=-0.014)
+        feet = gait_feet(P, t, GAIT_WALK, rest_sole)
+        gait_shoulders(P, feet, lift=0.005, slide=0.012)
+        # the belly swings after the hips and bounces after each step (he's a solid boy)
+        P.locs["Belly"] = (0.005 * SIN(TAU * t - 0.33 * TAU - 1.1), 0.0, 0.003 * c2(2 * TAU * (t - 0.33) - 1.2))
+        gait_tail(P, t, (-44.0, -14.0, 22.0, 28.0), sway=7.0, bounce=1.6, sway_phase=0.33 * TAU + 0.6)
+        P.r("Ear_L", x=-2 * SIN(2 * TAU * t))
+        P.r("Ear_R", x=-2 * SIN(2 * TAU * t))
         return P
 
-    an.make_action("Walk", 24, walk)
+    an.make_action("Walk", 32, walk)
+
+    # ---------------- Trot (1 cycle = 32 keys): diagonal pairs with a short float between them
+    def trot(t):
+        P = Pose()
+        c2 = math.cos
+        # lowest as each diagonal pair takes the weight (0.13 / 0.63), up in the float between
+        hz = -0.016 - 0.0055 * c2(2 * TAU * (t - 0.135))
+        cz = -0.018 - 0.0060 * c2(2 * TAU * (t - 0.14))
+        gait_trunk(P, hips=(0.0, 0.0, hz), chest=(0.0, 0.0, cz),
+                   root_rot=(1.0 * c2(2 * TAU * (t - 0.05)), -1.2 * c2(TAU * (t - 0.13)), 2.0 * c2(TAU * (t - 0.13))),
+                   chest_rot=(0.5, 1.4 * c2(TAU * (t - 0.14)), -1.8 * c2(TAU * (t - 0.14))),
+                   head_keep=0.9, head_down=5.0, head_bob=0.3, chest_mean=-0.018)
+        feet = gait_feet(P, t, GAIT_TROT, rest_sole)
+        gait_shoulders(P, feet, lift=0.006, slide=0.022)
+        P.locs["Belly"] = (0.003 * SIN(TAU * (t - 0.13) - 1.0), 0.0, 0.005 * c2(2 * TAU * (t - 0.135) - 1.3))
+        gait_tail(P, t, (-58.0, -10.0, 18.0, 22.0), sway=4.0, bounce=3.0, sway_phase=0.13 * TAU + 0.6,
+                  bounce_phase=0.135 * TAU + 0.6)
+        P.r("Ear_L", x=-6 + 2 * SIN(2 * TAU * t), y=4)
+        P.r("Ear_R", x=-6 + 2 * SIN(2 * TAU * t), y=-4)
+        return P
+
+    an.make_action("Trot", 32, trot)
 
     # ---------------- Puff (1.5 s): savour a drag, eyes shut, then exhale skyward
     def puff(t):
@@ -1982,26 +2213,36 @@ def author_animations(arm):
 
     an.make_action("VapeRip", 48, vape)
 
-    # ---------------- Run (0.5 s): rotary gallop with spine flex/extend
+    # ---------------- Run (1 cycle = 48 keys; a fore paw is down only 13% of it): rotary gallop. The back
+    # curls to swing the hind paws far forward (gathered flight, ~0.84), then stretches out as they push
+    # (extended flight, ~0.33)
     def run(t):
         P = Pose()
-        ph = TAU * t
-        P.root(t=(0.0, 0.0, -0.042 + 0.022 * max(0.0, SIN(ph - 0.9))), x=6.0 * SIN(ph - 0.3))
-        P.r("Spine", x=10.0 * SIN(ph + 0.4))
-        P.r("Neck", x=-6.0 * SIN(ph - 0.3) - 6)
-        P.r("Head", x=-4.0 * SIN(ph + 0.4) + 4)
-        P.locs["Belly"] = (0, 0, 0.012 * SIN(ph - 1.6))
-        gait(P, t, {"BL": 0.0, "BR": 0.08, "FL": 0.46, "FR": 0.54}, 0.38, 0.21, 0.07, 95.0, 45.0)
-        P.r("Tail1", x=-55 + 6 * SIN(ph), y=6 * SIN(ph))
-        P.r("Tail2", x=-25 + 10 * SIN(ph - 0.8))
-        P.r("Tail3", x=-5 + 12 * SIN(ph - 1.6))
-        P.r("Tail4", x=10 * SIN(ph - 2.4))
+        c2 = math.cos
+        flex = c2(TAU * (t - 0.84))  # 1 = curled, -1 = stretched
+        hips_y = 0.034 * c2(TAU * (t - 0.30))  # the pelvis slides back as the back stretches
+        chest_y = 0.014 * c2(TAU * (t - 0.62))
+        # up in both flights (0.33 stretched, 0.84 curled), down as each pair takes the weight
+        hz = -0.010 + 0.016 * c2(2 * TAU * (t - 0.33))
+        cz = -0.016 + 0.015 * c2(2 * TAU * (t - 0.27))
+        # the curl is mostly in the loins: the pelvis tucks under while the chest stays nearly level
+        gait_trunk(P, hips=(0.0, hips_y, hz), chest=(0.0, chest_y, cz),
+                   root_rot=(-15.0 * flex + 1.5 * c2(TAU * (t - 0.55)), 1.5 * c2(TAU * (t - 0.12)), 1.5 * c2(TAU * (t - 0.12))),
+                   chest_rot=(4.0 * flex + 5.0 * c2(TAU * (t - 0.58)), -1.5 * c2(TAU * (t - 0.52)), -1.2 * c2(TAU * (t - 0.52))),
+                   head_keep=0.8, head_down=4.0, head_bob=0.3, chest_mean=-0.016)
+        feet = gait_feet(P, t, GAIT_RUN, rest_sole)
+        gait_shoulders(P, feet, lift=0.006, slide=0.032)
+        P.locs["Belly"] = (0.0, 0.004 * flex, 0.008 * c2(2 * TAU * (t - 0.33) - 1.4))
+        # tail streams out behind as a counterweight, rippling with the back
+        gait_tail(P, t, (-72.0, -6.0, 6.0, 10.0), sway=3.0, bounce=0.0, lag=0.9)
+        for i, b in enumerate(("Tail1", "Tail2", "Tail3", "Tail4")):
+            P.r(b, x=(5.0 + 3.0 * i) * SIN(TAU * (t - 0.84) - 0.9 * i))
         P.r("Ear_L", x=-22, y=8)
         P.r("Ear_R", x=-22, y=-8)
         P.lids(-0.15, -0.15)
         return P
 
-    an.make_action("Run", 12, run)
+    an.make_action("Run", 48, run)
 
     # ---------------- Jump (1.0 s loop): tucked mid-air pose with a little float
     def jump(t):
