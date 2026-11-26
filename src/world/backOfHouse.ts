@@ -135,26 +135,83 @@ function chainLinkMaterial(): THREE.MeshStandardMaterial {
 }
 
 // ---------------------------------------------------------------- vehicles (low-poly, static)
-const CAR_COLORS = [0xe8e8ea, 0x1d1f24, 0x6b6f76, 0xf2f2f0, 0x2d4f8c, 0xc4161c, 0x8a1c1c, 0x111111, 0xbfa77a, 0x3a5a3a, 0x4a4a52, 0xd9d9d9, 0x2a66cc, 0x7a6a5a];
-/** Parked car facing +z: body, glass cabin, roof, wheels, lamps (unlit). ~170 tris, plain materials. */
+// What's actually parked in a Vegas garage: lots of white, black and silver, a few colours.
+const CAR_COLORS = [0xd9dadc, 0x1b1d21, 0x8d9197, 0xe6e6e2, 0x24272c, 0x5d6168, 0x2c4a7c, 0x9a1a1e, 0xb4b7bb, 0x3d4148, 0x6e5a48, 0x1f3d2c, 0xcfd0d2, 0x15161a];
+
+/**
+ * Side-profile extrusions so a parked car has a hood, a raked windshield, a roof and a trunk instead of
+ * stacked boxes: a painted lower body with a slightly narrower glass greenhouse on top (tumblehome),
+ * a thin painted roof skin, wheels and lamps. ~200 tris; shapes are cached and shared.
+ */
+type CarShape = { body: THREE.BufferGeometry; cabin: THREE.BufferGeometry; roof: [number, number, number, number]; L: number; bed?: number };
+const carShapes = new Map<number, CarShape>();
+function extrudeSide(pts: Array<[number, number]>, width: number): THREE.BufferGeometry {
+  const s = new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(z, y)));
+  const geo = new THREE.ExtrudeGeometry(s, { depth: width, bevelEnabled: false, curveSegments: 1 });
+  geo.translate(0, 0, -width / 2);
+  geo.rotateY(-Math.PI / 2); // profile x → world z (front at +z), extrusion → world x
+  geo.computeVertexNormals();
+  return geo;
+}
+function carShape(kind: number): CarShape {
+  let c = carShapes.get(kind);
+  if (c) return c;
+  if (kind === 3) {
+    // SUV: tall, boxy, glass runs nearly to the tail
+    const L = 4.8;
+    c = {
+      L,
+      body: extrudeSide([[-2.4, 0.36], [2.4, 0.36], [2.4, 0.86], [2.25, 1.04], [1.25, 1.14], [-2.3, 1.16], [-2.4, 1.0]], 1.86),
+      cabin: extrudeSide([[1.2, 1.13], [0.55, 1.7], [-2.05, 1.72], [-2.28, 1.15]], 1.68),
+      roof: [1.56, 0.05, 2.5, -0.75],
+    };
+  } else if (kind === 4) {
+    // Pickup: tall hood, short cab, open bed behind
+    const L = 5.4;
+    c = {
+      L,
+      bed: -1.55,
+      body: extrudeSide([[-2.7, 0.38], [2.7, 0.38], [2.7, 0.9], [2.5, 1.08], [1.35, 1.12], [-2.7, 1.12]], 1.84),
+      cabin: extrudeSide([[1.3, 1.1], [0.75, 1.68], [-0.35, 1.68], [-0.4, 1.1]], 1.7),
+      roof: [1.58, 0.05, 1.0, 0.18],
+    };
+  } else {
+    // Sedan: low hood, raked glass, short trunk deck
+    const L = 4.5;
+    c = {
+      L,
+      body: extrudeSide([[-2.25, 0.3], [2.25, 0.3], [2.25, 0.7], [2.02, 0.84], [0.95, 0.93], [-1.55, 0.97], [-2.18, 0.92], [-2.25, 0.74]], 1.8),
+      cabin: extrudeSide([[0.94, 0.92], [0.22, 1.4], [-0.82, 1.4], [-1.52, 0.96]], 1.6),
+      roof: [1.48, 0.05, 1.0, -0.3],
+    };
+  }
+  carShapes.set(kind, c);
+  return c;
+}
+
+/** Parked car facing +z: shaped body, glass greenhouse, roof skin, wheels, lamps (unlit). */
 export function parkedCar(seed: number): THREE.Group {
   const g = new THREE.Group();
-  const kind = seed % 5; // 0-2 sedan, 3 suv, 4 pickup
-  const col = mat(CAR_COLORS[(seed * 7) % CAR_COLORS.length], 0.35, 0.45);
-  const suv = kind === 3;
-  const pickup = kind === 4;
-  const L = suv ? 4.8 : pickup ? 5.4 : 4.5;
-  const bodyH = suv ? 0.95 : 0.72;
-  part(g, BX(1.82, bodyH, L), col, 0, 0.32 + bodyH / 2, 0);
-  const cabL = pickup ? 2.0 : suv ? 3.0 : 2.4;
-  const cabZ = pickup ? 0.5 : suv ? -0.35 : -0.15;
-  part(g, BX(1.62, 0.56, cabL), K.glass, 0, 0.32 + bodyH + 0.28, cabZ);
-  part(g, BX(1.6, 0.08, cabL - 0.3), col, 0, 0.32 + bodyH + 0.6, cabZ);
-  if (pickup) part(g, BX(1.7, 0.5, 2.1), K.darkSteel, 0, 0.32 + bodyH + 0.05, -1.55);
+  // Seeds come from world coordinates and go negative on the west side: wrap them, or every car is white.
+  const n = Math.abs(Math.floor(seed));
+  const kind = n % 5; // 0-2 sedan, 3 suv, 4 pickup
+  // Satin clearcoat, not chrome: a glossy metal box mirrors the whole bright desert sky and reads as white.
+  const col = mat(CAR_COLORS[(n * 7 + (n >> 3)) % CAR_COLORS.length], 0.42, 0.3);
+  const s = carShape(kind);
+  part(g, s.body, col, 0, 0, 0);
+  part(g, s.cabin, K.glass, 0, 0, 0);
+  const [rw, rh, rl, rz] = s.roof;
+  const roofY = kind === 3 ? 1.72 : kind === 4 ? 1.68 : 1.4;
+  part(g, BX(rw, rh, rl), col, 0, roofY + rh / 2, rz);
+  if (s.bed !== undefined) part(g, BX(1.6, 0.06, 2.0), K.darkSteel, 0, 1.08, s.bed); // bed floor seen over the sides
+  const L = s.L;
   for (const sx of [-0.86, 0.86])
-    for (const sz of [-L * 0.32, L * 0.32]) part(g, CY(0.34, 0.34, 0.24, 7), K.rubber, sx, 0.34, sz, 0, 0, Math.PI / 2);
-  part(g, BX(1.5, 0.12, 0.06), K.white, 0, 0.75, L / 2 + 0.01);
-  part(g, BX(1.5, 0.12, 0.06), K.red, 0, 0.8, -L / 2 - 0.01);
+    for (const sz of [-L * 0.31, L * 0.31]) part(g, CY(0.34, 0.34, 0.24, 8), K.rubber, sx, 0.34, sz, 0, 0, Math.PI / 2);
+  for (const sx of [-0.6, 0.6]) {
+    part(g, BX(0.42, 0.11, 0.05), K.white, sx, 0.66, L / 2 + 0.01);
+    part(g, BX(0.36, 0.13, 0.05), K.red, sx, kind < 3 ? 0.62 : 0.9, -L / 2 - 0.01);
+  }
+  part(g, BX(1.1, 0.16, 0.04), K.darkSteel, 0, 0.5, L / 2 + 0.01); // grille
   return clutter(g);
 }
 

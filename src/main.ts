@@ -2057,7 +2057,9 @@ function step(now: number, render = true): void {
   camWant.set(camTarget.x + Math.sin(camYaw) * horiz, Math.max(0.4, camTarget.y + Math.sin(camPitch) * dist), camTarget.z + Math.cos(camYaw) * horiz);
   // Keep the camera on the cat's side of walls and under ceilings; ease back out once clear.
   const hit = boomHit(camTarget.x, camTarget.y, camTarget.z, camWant.x, camWant.y, camWant.z);
-  const fit = hit < 1 ? Math.max(0.06, hit - 0.3 / Math.max(dist, 0.5)) : 1;
+  // Never closer than ~1.1 m: with a wall right behind Lou it's better to see through the wall's back
+  // face (it's culled) than to put the camera inside the cat.
+  const fit = hit < 1 ? Math.max(Math.min(1, 1.1 / Math.max(dist, 0.5)), hit - 0.3 / Math.max(dist, 0.5)) : 1;
   camClip = fit < camClip ? fit : THREE.MathUtils.lerp(camClip, fit, Math.min(1, dt * 3));
   camera.position.lerpVectors(camTarget, camWant, camClip);
   camera.lookAt(rideView?.look ?? camLook.copy(camTarget));
