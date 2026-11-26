@@ -203,6 +203,17 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     // The key light is the sun by day and the moon by night, shining from where the sky draws it (low in the
     // south-east), so night shadows fall away from the moon you can see. It swings over late in the dusk.
     keyDir.copy(sunDir).lerp(sky.moonDir, night * night).normalize();
+    // Moon shadows only show near Lou under the neon, and the higher moon's box takes in more of the Strip than
+    // the old low light did. At night the box is tighter and stops a little past Lou (anything beyond him can only
+    // shadow things farther off still), which keeps the shadow draws where they were and the shadows sharper.
+    const reach = Math.round(THREE.MathUtils.lerp(70, 48, night));
+    const sc = sun.shadow.camera;
+    if (sc.right !== reach) {
+      sc.left = sc.bottom = -reach;
+      sc.right = sc.top = reach;
+      sc.far = Math.round(THREE.MathUtils.lerp(260, 165, night));
+      sc.updateProjectionMatrix();
+    }
     // Shadow frustum follows the cat so shadows stay crisp across a 700 m map
     sun.position.copy(focus).addScaledVector(keyDir, 120);
     sun.target.position.copy(focus);
