@@ -10,6 +10,7 @@ import { waterJets } from './fountains';
 import type { JetSpec } from './fountains';
 import { bellagioCasinoRoof, buildBellagioCasinoDressing, buildBellagioLobby } from './grandInteriors';
 import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from './grandCaesars';
+import { caesarsSigns, treasureIslandSigns } from './stripSigns';
 
 /**
  * West side of Las Vegas Blvd, south → north:
@@ -575,7 +576,7 @@ function buildCaesars(b: WorldBuilder): void {
     ],
     tourists: [{ pts: [[-60, -28], [-96, -28], [-96, -76], [-60, -76]], prop: 'cig' }, { pts: [[-70, -44], [-70, -64]], prop: 'yard-drink' }],
   });
-  b.add(neonSign('CAESARS PALACE', '#1a140d', '#f7d560', 16, 2.6, 'LAS VEGAS'), -53.2, 10.6, -53, -Math.PI / 2);
+  caesarsSigns(b); // roadside marquee at Flamingo Rd + gold letters on the colonnade and tower (stripSigns.ts)
   // Domed rotunda round Caesar, statues and chandeliers inside; a roof that shades the floor (grandCaesars.ts)
   buildCaesarsCasinoDressing(b);
   caesarsCasinoRoof(b);
@@ -621,7 +622,6 @@ function buildCaesars(b: WorldBuilder): void {
   tower(b, { x: -120, z: -50, w: 20, d: 46, h: 41, facade: caesarsSkin });
   tower(b, { x: -128, z: -104, w: 46, d: 18, h: 38, facade: { ...caesarsSkin, seed: 33 } });
   tower(b, { x: -152, z: -40, w: 14, d: 34, h: 30, facade: { ...caesarsSkin, seed: 35 } });
-  b.add(neonSign('CAESARS', '#1a140d', '#f7d560', 14, 2.6), -109.8, 37, -50, -Math.PI / 2);
 
   b.crowd.performers.push({ kind: 'showgirl', x: -16, z: -30, facing: Math.PI / 2 }, { kind: 'showgirl', x: -17, z: -33, facing: Math.PI / 2 });
   b.crowd.tourists.push(
@@ -823,10 +823,7 @@ function buildTreasureIsland(b: WorldBuilder): void {
     tower(b, { x: -104 + Math.cos(a) * 13, z: -364 + Math.sin(a) * 13, w: 28, d: 11, h: 34, facade: { ...ti, seed: 51 + i }, rotY: -a });
   }
   b.box(-80, 0, -364, 14, 10, 50, mat(0xb98f66, 0.8), true);
-  const tiSign = neonSign('TI', '#120a06', '#ff3b2f', 6, 4.4, 'TREASURE ISLAND', 0.6);
-  b.add(tiSign, -21.6, 7, -328, -Math.PI / 2);
-  b.add(mesh(new THREE.BoxGeometry(1.2, 5, 1.6), mat(0x3a2a1a, 0.6), -21.6, 2.5, -328));
-  b.collider(-22.4, -20.8, -329, -327, 0, 9, true);
+  treasureIslandSigns(b); // timber marquee with the skull and crossbones, gold TREASURE ISLAND, red TI (stripSigns.ts)
   b.building(-104, -364, 40, 40, '#c9a27a', 'TI');
   b.zone('Treasure Island', -142, -19, -405, -326);
   b.crowd.tourists.push({ pts: [[-21.8, -334], [-21.8, -392]], prop: 'camera' }, { pts: [[-16, -330], [-16, -400]], prop: 'yard-drink' });

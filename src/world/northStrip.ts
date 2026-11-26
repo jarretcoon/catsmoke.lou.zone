@@ -9,6 +9,7 @@ import type { FacadeSpec } from './textures';
 import { barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
 import type { CarKind } from './props';
 import { xFromO, zFromS } from './strip';
+import { wynnSignature } from './stripSigns';
 
 /**
  * North Strip, Spring Mountain Rd / Sands Ave → Circus Circus (Sahara + the STRAT as backdrop).
@@ -274,23 +275,10 @@ function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, h: numbe
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.2), [dark, dark, dark, dark, face, face]);
   m.rotation.y = HALF_PI;
   b.add(m, x, 2.6 + h / 2, z);
+  led.at(x, 2.6 + h / 2, z); // only redraws while the camera is near
   b.add(mesh(new THREE.BoxGeometry(1.6, 2.6, Math.min(w, 3)), mat(base, 0.5, 0.4)), x, 1.3, z);
   b.collider(x - 0.8, x + 0.8, z - w / 2, z + w / 2, 0, 2.6 + h, true);
   b.every((_dt, t) => led.draw(t));
-}
-
-/** Script logo (Wynn / Encore) on a transparent plane facing +z. */
-function scriptLogo(text: string, color: string, glow: string, w: number, h: number): THREE.Mesh {
-  const tex = canvasTex(1024, 320, (ctx) => {
-    ctx.fillStyle = color;
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = 26;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = 'italic 230px "Brush Script MT", "Segoe Script", "Lucida Handwriting", cursive';
-    ctx.fillText(text, 512, 168, 960);
-  });
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
 }
 
 /** Printed (unlit) sign board — banners, plaques, sandwich boards. Faces ±z. */
@@ -1292,7 +1280,7 @@ function buildWynn(b: WorldBuilder): void {
   // Bronze-gold curved glass; no LED fins, a warm crown wash
   const wynnSkin: FacadeSpec = { wall: '#a8703e', mullion: '#d2a060', glass: '#8c5a2c', lit: '#ffd9a0', cols: 10, rows: 30, style: 2, seed: 240 };
   curvedTower(b, 5, -454, 64, -0.15 * Math.PI, 0.15 * Math.PI, 5, 14, 60, wynnSkin, 0.8, { rough: 0.2, ledFins: false, wash: 0xffc88a, washZone: 16 });
-  b.add(place(scriptLogo('Wynn', '#ffe9c4', '#ffb35a', 11, 3.5), 61.8, 55.8, -454, -HALF_PI));
+  b.add(place(wynnSignature(b, 'Wynn', 12, 4.2), 61.8, 55.8, -454, -HALF_PI));
 
   // ---- Entrance plaza, porte-cochère, the Wynn | Encore marquee ----
   plaza(b, 19, 56, -475.5, -489.5, '#d8c7a8', '#b9a684');
@@ -1305,7 +1293,7 @@ function buildWynn(b: WorldBuilder): void {
     [40, -486.2],
     [52, -486.2],
   ]) b.box(x, 0, z, 0.8, 6.3, 0.8, bronze, true);
-  b.add(place(scriptLogo('Wynn', '#ffe9c4', '#ffb35a', 6, 1.9), 38.95, 6.6, -482.5, -HALF_PI));
+  b.add(place(wynnSignature(b, 'Wynn', 6.4, 2.2), 38.95, 6.6, -482.5, -HALF_PI));
   const ent: THREE.Object3D[] = [];
   for (const [x, z] of [
     [23.3, -477.2],
@@ -1336,7 +1324,7 @@ function buildEncore(b: WorldBuilder): void {
   const zN = zFromS(1940);
   const skin: FacadeSpec = { wall: '#a8703e', mullion: '#d2a060', glass: '#86562a', lit: '#ffd9a0', cols: 10, rows: 30, style: 2, seed: 241 };
   curvedTower(b, 5, -527, 66, -0.14 * Math.PI, 0.14 * Math.PI, 5, 14, 62, skin, 0.8, { rough: 0.2, ledFins: false, wash: 0xffc88a, washZone: 16 });
-  b.add(place(scriptLogo('Encore', '#ffe9c4', '#ff8a5a', 11, 3.5), 63.8, 57.8, -527, -HALF_PI));
+  b.add(place(wynnSignature(b, 'Encore', 12, 4.0), 63.8, 57.8, -527, -HALF_PI));
 
   // Esplanade garden: pavers by the sidewalk, lawn, red flower beds, trees
   plaza(b, 19, 26, zS, zN, '#d8c7a8', '#b9a684');
@@ -1349,7 +1337,7 @@ function buildEncore(b: WorldBuilder): void {
   }
   mergeAdd(b, garden);
   b.box(23, 0, -527, 1.2, 1.6, 12, mat(0x6b4a30, 0.6, 0.3), true);
-  b.add(place(scriptLogo('Encore', '#ffe9c4', '#ff8a5a', 7, 2.2), 22.35, 0.95, -527, -HALF_PI));
+  b.add(place(wynnSignature(b, 'Encore', 7.4, 2.4), 22.35, 0.95, -527, -HALF_PI));
   // Porte-cochère
   const bronze = mat(0x8a5a32, 0.35, 0.75);
   b.add(mesh(new THREE.BoxGeometry(14, 0.6, 9), bronze, 40, 6.4, -553, true));

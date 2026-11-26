@@ -175,6 +175,7 @@ function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: numbe
   const board = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.9), [dark, dark, dark, dark, face, face]);
   board.position.set(x, poleH + h / 2, z);
   b.add(board);
+  led.at(x, poleH + h / 2, z); // only redraws while the camera is near
   b.add(mesh(new THREE.BoxGeometry(w + 0.6, 0.6, 1.3), dark, x, poleH + h + 0.3, z));
   b.add(mesh(new THREE.BoxGeometry(w + 0.6, 0.4, 1.3), dark, x, poleH - 0.2, z));
   b.add(mesh(new THREE.BoxGeometry(1.4, poleH, 1.4), dark, x, poleH / 2, z, true));

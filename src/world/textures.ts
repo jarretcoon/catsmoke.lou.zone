@@ -1179,20 +1179,61 @@ export function makeCarpetTexture(primary: string, accent: string, accent2?: str
   return finish(c, [6, 6]);
 }
 
+/** Montgolfier balloon envelope (equirect, u wraps round): blue/red gores, a gold equator band with PARIS twice, gold suns. */
 export function makeBalloonTexture(): THREE.CanvasTexture {
-  const [c, ctx] = canvas(512, 256);
-  const colors = ['#c8202e', '#f7e5b7', '#1f3f86', '#f2b830'];
-  for (let i = 0; i < 12; i++) {
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.fillRect((i * 512) / 12, 0, 512 / 12 + 1, 256);
+  const [c, ctx] = canvas(1024, 512);
+  const colors = ['#1f3f86', '#c8202e'];
+  const n = 16;
+  for (let i = 0; i < n; i++) {
+    ctx.fillStyle = colors[i % 2];
+    ctx.fillRect((i * 1024) / n, 0, 1024 / n + 1, 512);
+    ctx.fillStyle = '#f7e5b7';
+    ctx.fillRect((i * 1024) / n - 2, 0, 4, 512);
   }
-  ctx.fillStyle = '#f5ca56';
-  ctx.fillRect(0, 108, 512, 34);
+  // crown cap and the lower skirt
+  ctx.fillStyle = '#f2b830';
+  ctx.fillRect(0, 0, 1024, 34);
   ctx.fillStyle = '#182442';
-  ctx.font = 'bold 24px Georgia, serif';
+  ctx.fillRect(0, 440, 1024, 72);
+  ctx.fillStyle = '#f2b830';
+  for (let x = 0; x < 1024; x += 32) {
+    ctx.beginPath();
+    ctx.moveTo(x, 440);
+    ctx.lineTo(x + 16, 470);
+    ctx.lineTo(x + 32, 440);
+    ctx.fill();
+  }
+  // gold suns on the upper gores
+  for (let i = 0; i < 8; i++) {
+    const cx = (i + 0.5) * 128;
+    ctx.fillStyle = '#f5ca56';
+    ctx.beginPath();
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      const r = k % 2 ? 14 : 24;
+      ctx.lineTo(cx + Math.cos(a) * r, 110 + Math.sin(a) * r);
+    }
+    ctx.fill();
+  }
+  // equator band with PARIS twice round
+  ctx.fillStyle = '#f5ca56';
+  ctx.fillRect(0, 196, 1024, 120);
+  ctx.fillStyle = '#182442';
+  ctx.fillRect(0, 196, 1024, 6);
+  ctx.fillRect(0, 310, 1024, 6);
+  ctx.font = 'bold 92px Georgia, "Times New Roman", serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('PARIS  •  LAS VEGAS  •  PARIS  •  LAS VEGAS', 256, 125);
+  ctx.letterSpacing = '10px';
+  // u = 0 / 0.5 face ±x (the Strip and the casino), so PARIS is centred there and wraps the seam
+  for (const x of [0, 512, 1024]) ctx.fillText('PARIS', x, 260, 440);
+  ctx.letterSpacing = '0px';
+  ctx.fillStyle = '#c8202e';
+  for (const x of [256, 768]) {
+    ctx.beginPath();
+    ctx.arc(x, 256, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
   return finish(c);
 }
 
@@ -1262,13 +1303,39 @@ function ledGridPattern(): HTMLCanvasElement {
  * headline slides with a light sweep, a starburst "spotlight" slide, and a jackpot 7-7-7 slide, with
  * chasing LED dots round the edge, twinkles and a scrolling ticker along the bottom.
  */
+export interface LedShow {
+  /** headliner / show name, big */
+  name: string;
+  /** dates or venue line */
+  sub: string;
+  color: string;
+  art: 'singer' | 'magic' | 'cirque' | 'dj' | 'comic' | 'band';
+}
+
 export class LedBoard {
+  /** The camera position (set by signKit); boards placed with at() skip redraws when it is far away. */
+  static viewer: THREE.Vector3 | null = null;
+  static range = 340;
   readonly tex: THREE.CanvasTexture;
   private readonly ctx: CanvasRenderingContext2D;
   private readonly w: number;
   private readonly h: number;
   private lastFrame = -1;
   private grid: CanvasPattern | null = null;
+  private pos: THREE.Vector3 | null = null;
+  private showList: LedShow[] = [];
+
+  /** Where the board stands, so it only animates while someone could read it. */
+  at(x: number, y: number, z: number): this {
+    this.pos = new THREE.Vector3(x, y, z);
+    return this;
+  }
+
+  /** Add headliner slides (a performer silhouette in a spotlight, the name, the dates). */
+  withShows(shows: LedShow[]): this {
+    this.showList = shows;
+    return this;
+  }
 
   constructor(
     private readonly title: string,
@@ -1282,6 +1349,192 @@ export class LedBoard {
     this.w = w;
     this.h = h;
     this.tex = finish(c);
+  }
+
+  /** Headliner ad: a spotlight cone, the performer's silhouette with a rim light, the name and the dates. */
+  private drawShow(s: LedShow, t: number, local: number, frame: number, bodyH: number, portrait: boolean): void {
+    const { ctx, w } = this;
+    const bg = ctx.createLinearGradient(0, 0, 0, bodyH);
+    bg.addColorStop(0, '#05040a');
+    bg.addColorStop(0.55, s.color);
+    bg.addColorStop(1, '#05040a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, bodyH);
+    // figure box: lower part (portrait) or the left half (landscape)
+    const fx = portrait ? w / 2 : w * 0.27;
+    const fh = portrait ? bodyH * 0.46 : bodyH * 0.8;
+    const fy = portrait ? bodyH * 0.96 : bodyH * 0.96;
+    // spotlight cone
+    const sway = Math.sin(t * 0.9) * w * 0.05;
+    const cone = ctx.createLinearGradient(0, 0, 0, fy);
+    cone.addColorStop(0, 'rgba(255,255,255,0.55)');
+    cone.addColorStop(1, 'rgba(255,255,255,0.08)');
+    ctx.fillStyle = cone;
+    ctx.beginPath();
+    ctx.moveTo(fx + sway - fh * 0.04, 0);
+    ctx.lineTo(fx + sway + fh * 0.04, 0);
+    ctx.lineTo(fx + fh * 0.42, fy);
+    ctx.lineTo(fx - fh * 0.42, fy);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(fx, fy - fh * 0.01, fh * 0.42, fh * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // silhouette (unit space: 0 = feet, 1 = top of head)
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.scale(fh, -fh);
+    ctx.fillStyle = '#07060c';
+    ctx.strokeStyle = '#07060c';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const head = (x: number, y: number, r = 0.07) => {
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    const limb = (pts: number[], wdt = 0.05) => {
+      ctx.lineWidth = wdt;
+      ctx.beginPath();
+      ctx.moveTo(pts[0], pts[1]);
+      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+      ctx.stroke();
+    };
+    const bob = Math.sin(t * 5) * 0.015;
+    switch (s.art) {
+      case 'singer': {
+        ctx.beginPath(); // gown
+        ctx.moveTo(-0.2, 0);
+        ctx.quadraticCurveTo(-0.06, 0.4, -0.07, 0.62);
+        ctx.lineTo(0.07, 0.62);
+        ctx.quadraticCurveTo(0.06, 0.4, 0.2, 0);
+        ctx.fill();
+        head(0, 0.86 + bob);
+        limb([-0.07, 0.6, -0.2, 0.78 + bob * 2, -0.26, 0.95 + bob * 3]);
+        limb([0.07, 0.6, 0.1, 0.7, 0.04, 0.8]);
+        limb([0.04, 0.8, 0.02, 0.84], 0.035); // mic
+        break;
+      }
+      case 'magic': {
+        ctx.beginPath(); // cape
+        ctx.moveTo(-0.22, 0.02);
+        ctx.lineTo(-0.08, 0.7);
+        ctx.lineTo(0.08, 0.7);
+        ctx.lineTo(0.22, 0.02);
+        ctx.fill();
+        head(0, 0.8);
+        ctx.fillRect(-0.075, 0.86, 0.15, 0.13); // top hat
+        ctx.fillRect(-0.11, 0.86, 0.22, 0.025);
+        limb([0.08, 0.66, 0.24, 0.78, 0.4, 0.86]);
+        ctx.fillStyle = '#fff6c8';
+        for (let i = 0; i < 6; i++) {
+          const a = t * 3 + i;
+          ctx.fillRect(0.42 + Math.cos(a) * 0.08 * (i % 3), 0.88 + Math.sin(a * 1.3) * 0.08, 0.02, 0.02);
+        }
+        break;
+      }
+      case 'cirque': {
+        ctx.lineWidth = 0.025;
+        ctx.strokeStyle = '#d8b25a';
+        ctx.beginPath();
+        ctx.arc(0, 0.55, 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#07060c';
+        const spin = Math.sin(t * 1.4) * 0.3;
+        ctx.save();
+        ctx.translate(0, 0.55);
+        ctx.rotate(spin);
+        head(0, 0.28, 0.06);
+        limb([0, 0.2, 0, -0.05], 0.07);
+        limb([0, 0.15, -0.36, 0.2]);
+        limb([0, 0.15, 0.36, 0.2]);
+        limb([0, -0.05, -0.3, -0.3]);
+        limb([0, -0.05, 0.3, -0.3]);
+        ctx.restore();
+        break;
+      }
+      case 'dj': {
+        ctx.fillRect(-0.4, 0, 0.8, 0.4); // decks
+        head(0, 0.74 + bob);
+        limb([0, 0.42, 0, 0.66], 0.12);
+        limb([-0.05, 0.62, -0.22, 0.8 + bob * 3, -0.24, 1.0 + bob * 4]);
+        limb([0.05, 0.62, 0.22, 0.8 - bob * 3, 0.26, 1.0 - bob * 4]);
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 0.012;
+        for (let i = 0; i < 7; i++) {
+          const a = -0.9 + i * 0.3 + Math.sin(t * 2 + i) * 0.1;
+          limb([0, 0.4, Math.sin(a) * 1.4, 0.4 + Math.cos(a) * 1.4], 0.012);
+        }
+        break;
+      }
+      case 'comic': {
+        limb([0.25, 0, 0.25, 0.62], 0.02); // mic stand
+        head(0.25, 0.66, 0.03);
+        ctx.beginPath();
+        ctx.moveTo(-0.14, 0);
+        ctx.lineTo(-0.1, 0.62);
+        ctx.lineTo(0.1, 0.62);
+        ctx.lineTo(0.14, 0);
+        ctx.fill();
+        head(0, 0.8);
+        limb([0.09, 0.58, 0.2, 0.62, 0.24, 0.66]);
+        limb([-0.09, 0.58, -0.26, 0.5 + bob * 4, -0.36, 0.62 + bob * 4]);
+        break;
+      }
+      case 'band': {
+        for (const [x, sc] of [
+          [-0.34, 0.8],
+          [0, 1],
+          [0.34, 0.85],
+        ] as Array<[number, number]>) {
+          ctx.save();
+          ctx.translate(x, 0);
+          ctx.scale(sc, sc);
+          ctx.fillRect(-0.07, 0, 0.14, 0.6);
+          head(0, 0.72 + bob * (x === 0 ? 1 : -1));
+          limb([-0.07, 0.5, 0.12, 0.38], 0.05);
+          ctx.restore();
+        }
+        ctx.save();
+        ctx.translate(-0.34, 0.36);
+        ctx.rotate(0.5);
+        ctx.fillRect(-0.15, -0.03, 0.3, 0.06); // guitar
+        ctx.restore();
+        break;
+      }
+    }
+    ctx.restore();
+    // rim light: a soft glow round the figure's top
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(0, 0, w, bodyH);
+    // name + dates
+    const tx = portrait ? w / 2 : w * 0.66;
+    const tw = portrait ? w * 0.9 : w * 0.62;
+    const nameY = portrait ? bodyH * 0.2 : bodyH * 0.38;
+    const big = Math.round(portrait ? w * 0.17 : bodyH * 0.26);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold ${big}px Georgia, serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = s.color;
+    ctx.shadowBlur = 14;
+    const words = s.name.split(' ');
+    if (portrait && words.length > 1 && ctx.measureText(s.name).width > tw) {
+      const half = Math.ceil(words.length / 2);
+      ctx.fillText(words.slice(0, half).join(' '), tx, nameY - big * 0.55, tw);
+      ctx.fillText(words.slice(half).join(' '), tx, nameY + big * 0.55, tw);
+    } else ctx.fillText(s.name, tx, nameY, tw);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = local > 0.5 && frame % 4 < 2 ? '#ffd23a' : '#ffffff';
+    ctx.font = `bold ${Math.round(big * 0.42)}px system-ui, sans-serif`;
+    ctx.fillText(s.sub, tx, portrait ? bodyH * 0.37 : bodyH * 0.66, tw);
+    ctx.fillStyle = s.color;
+    const bw = Math.min(tw, big * 3.2);
+    const by = portrait ? bodyH * 0.44 : bodyH * 0.8;
+    ctx.fillRect(tx - bw / 2, by - big * 0.24, bw * Math.min(1, local * 2.5), big * 0.48);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(big * 0.32)}px system-ui, sans-serif`;
+    if (local > 0.4) ctx.fillText('TICKETS ON SALE', tx, by, bw * 0.94);
   }
 
   private wrapText(text: string, y: number, maxW: number, lineH: number): void {
@@ -1304,10 +1557,12 @@ export class LedBoard {
   draw(t: number): void {
     const frame = Math.floor(t * 6);
     if (frame === this.lastFrame) return;
+    const v = LedBoard.viewer;
+    if (this.pos && v && this.pos.distanceToSquared(v) > LedBoard.range * LedBoard.range) return;
     this.lastFrame = frame;
     const { ctx, w, h } = this;
     const slideLen = 4;
-    const nSlides = this.lines.length + 2;
+    const nSlides = this.lines.length + 2 + this.showList.length;
     const slide = Math.floor(t / slideLen) % nSlides;
     const local = (t % slideLen) / slideLen;
     const hue = this.palette[slide % this.palette.length];
@@ -1365,6 +1620,8 @@ export class LedBoard {
       ctx.font = `bold ${Math.round(big * 0.7)}px system-ui, sans-serif`;
       ctx.fillText('JACKPOT!', w / 2, bodyH * 0.18, w * 0.9);
       ctx.fillText(this.title, w / 2, bodyH * 0.82, w * 0.9);
+    } else if (slide >= this.lines.length + 2) {
+      this.drawShow(this.showList[slide - this.lines.length - 2], t, local, frame, bodyH, portrait);
     } else {
       // Headline slide with a moving light sweep
       const sweep = ((t * 120) % (h + 200)) - 100;
