@@ -440,12 +440,20 @@ export class Hud {
 
   // ---------------------------------------------------------------- focus / visibility
   private setupFocusAndVisibility(): void {
+    // Like a PC game: switching away (alt-tab, another tab, the phone's home button) pauses into the menu, so a
+    // chase doesn't end in a bust while nobody's looking. Not under automation (the PR check drives a background page).
+    const automated = navigator.webdriver === true;
+    const pause = () => {
+      this.releaseHeld();
+      if (automated || !this.hooks.started() || document.querySelector('dialog[open]') || document.querySelector(':popover-open')) return;
+      this.openMenu();
+    };
     // The render loop already stops when the tab is hidden; this silences the sound too (the car engine, the casino).
     document.addEventListener('visibilitychange', () => {
       this.hooks.sfx.setPaused(document.hidden);
       this.hooks.ambience.setPaused(document.hidden);
-      if (document.hidden) this.releaseHeld();
+      if (document.hidden) pause();
     });
-    window.addEventListener('blur', () => this.releaseHeld());
+    window.addEventListener('blur', pause);
   }
 }

@@ -653,6 +653,23 @@ kbd {
   color: var(--text-muted);
 }
 
+/* Anything else dropped into the settings list (a brightness slider, say) lines up like a setting row. */
+.controls-footer > :not(.setting-row) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  min-height: 2.3rem;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.controls-footer input[type="range"] {
+  accent-color: var(--accent);
+  width: min(14rem, 100%);
+}
+
 .setting-btns {
   display: flex;
   flex-wrap: wrap;
@@ -1145,6 +1162,16 @@ kbd {
   outline-offset: 3px;
 }
 
+/* The focused button is what Enter does. */
+.hud--fine .title-actions .action-btn:focus-visible::after {
+  content: "Enter";
+  font: 600 0.62rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 0.18rem 0.38rem;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .title-card h1,
   .title-card,
@@ -1379,6 +1406,42 @@ kbd {
 
 .hud--touch .mission-dialog {
   bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 150px);
+}
+
+/* Phone held sideways: little height, room between the thumbs. The prompt sits between stick and buttons. */
+@media (pointer: coarse) and (max-height: 520px) {
+  .hud--touch .hud-bottom {
+    bottom: max(0.8rem, env(safe-area-inset-bottom));
+    width: min(calc(100vw - 2 * 230px), 26rem);
+  }
+  .hud--touch .mission-dialog {
+    bottom: max(0.8rem, env(safe-area-inset-bottom));
+    width: min(calc(100vw - 2 * 230px), 30rem);
+  }
+  .hud--touch .minimap {
+    width: 6.2rem;
+    height: 6.2rem;
+  }
+  .hud--touch .goal-tracker {
+    display: none;
+  }
+  .hud--touch .stat-pill--state {
+    display: none;
+  }
+  .hud--touch .stat-pill {
+    min-width: 3.8rem;
+    padding: 0.28rem 0.55rem 0.3rem;
+  }
+  .hud--touch .stat-value {
+    font-size: 0.92rem;
+  }
+  .hud--touch .degen-hud {
+    padding: 0.3rem 0.6rem;
+    min-width: 0;
+  }
+  .hud--touch .degen-points {
+    font-size: 1rem;
+  }
 }
 
 /* Narrow (phones): stats across the top, then where Lou is, then mission / score on the left and the map on the right. */
