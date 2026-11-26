@@ -62,8 +62,8 @@ function onlyGltfDraco(): Plugin {
 }
 
 // Three.js ships as two big ES modules (core + WebGL renderer). Splitting them into
-// their own long-cached vendor chunks keeps game-logic deploys tiny on Cloudflare Pages
-// and keeps every chunk under Vite's 500 KB warning.
+// their own long-cached vendor chunks keeps game-logic deploys tiny (only changed chunks re-download).
+// There's no size budget (the game is desktop-first, detail over download size); Vite's warning is off.
 export default defineConfig({
   server: { port: 5180, strictPort: true },
   preview: { port: 5181, strictPort: true },
@@ -74,6 +74,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
+    chunkSizeWarningLimit: 100_000,
     assetsInlineLimit: 0,
     rolldownOptions: {
       output: {
@@ -83,7 +84,7 @@ export default defineConfig({
             { name: 'three-renderer', test: /node_modules[\\/]three[\\/]build[\\/]/, priority: 2 },
             { name: 'three-addons', test: /node_modules[\\/]three[\\/]examples[\\/]/, priority: 1 },
             // The world's walk-in places (Sphere, casinos, grand interiors) and the districts, split so
-            // no chunk trips the 500 KB warning.
+            // a change to one area only re-downloads that chunk.
             { name: 'interiors', test: /src[\\/]world[\\/](sphere|grand|interior|casino|circus|mgm|nyny|via|cosmo|themed)/, priority: 1 },
             { name: 'signs', test: /src[\\/]world[\\/](signKit|stripSigns|westSigns|luckySign)/, priority: 1 },
             { name: 'districts', test: /src[\\/]world[\\/]/, priority: 0 },

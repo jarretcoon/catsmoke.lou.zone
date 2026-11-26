@@ -1,6 +1,5 @@
 {
   "_about": "Fixed views the PR check snapshots and measures (scripts/check.mjs). tp = where Lou stands; cam = [yaw, pitch, dist] (yaw 0 = camera south of Lou looking north, 1.5708 = east of Lou looking west); ride = sit in the first ride whose id starts with this instead of tp; sphereT = pin the Sphere show to that second; airT = pin the airport traffic clock to that second of its cycle. keys = hold these keys from the start of the settle through the shot (Lou on the move; with settle, a fixed point of his stride). maxCalls = draw-call budget for the view (measured + ~20%, crowds vary a little run to run): raise it in the same PR when new content needs it, and say why.",
-  "maxChunkKB": 500,
   "maxLoadSeconds": 240,
   "blownOutWarnPct": 2,
   "views": [
