@@ -16,6 +16,10 @@ export default defineConfig({
             { name: 'three-core', test: /node_modules[\\/]three[\\/]build[\\/]three\.core/, priority: 3 },
             { name: 'three-renderer', test: /node_modules[\\/]three[\\/]build[\\/]/, priority: 2 },
             { name: 'three-addons', test: /node_modules[\\/]three[\\/]examples[\\/]/, priority: 1 },
+            // The world's walk-in places (Sphere, casinos, grand interiors) and the districts, split so
+            // no chunk trips the 500 KB warning.
+            { name: 'interiors', test: /src[\\/]world[\\/](sphere|grand|interior|casino)/, priority: 1 },
+            { name: 'districts', test: /src[\\/]world[\\/]/, priority: 0 },
           ],
         },
       },
