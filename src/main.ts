@@ -2084,7 +2084,8 @@ updateMoodButton();
 trackZone();
 rafId = requestAnimationFrame(tick);
 
-if (import.meta.env.DEV) {
+// Dev hooks: on in `vite dev` and in the PR-check build (`vite build --mode check`), never in the live build.
+if (import.meta.env.DEV || import.meta.env.MODE === 'check') {
   (window as unknown as { __game: unknown }).__game = {
     renderer,
     scene,

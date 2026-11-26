@@ -34,6 +34,20 @@ bun run preview  # serve dist/ on http://localhost:5181
 - Hosting: a Cloudflare Worker serving static assets (`wrangler.jsonc`). Merging to `main` deploys
   the live site, and every pull request gets a preview link.
 
+## Checks
+
+Every pull request runs the **Game check** (`.github/workflows/check.yml`). It builds the game, opens it
+in a headless browser, checks it reaches "Ready" with no errors, and takes a dozen fixed snapshots
+(`checks/postcards.json`). Each snapshot is measured for draw calls (against a budget per view), brightness,
+blown-out white and black frames. The snapshots are posted in a PR comment next to `main`'s.
+
+Run it locally (uses your installed Chrome):
+
+```sh
+bun run build && bun run build:check
+bun run check          # software WebGL, like GitHub; add -- --gpu for this machine's GPU
+```
+
 ## Notes
 
 This is a free fan project. It isn't affiliated with or endorsed by any casino, resort or brand
