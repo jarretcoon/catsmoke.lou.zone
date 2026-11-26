@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 /** Sky state the world publishes every frame (see vegasWorld applyAtmosphere). */
 export interface AtmosphereState {
@@ -9,6 +10,30 @@ export interface AtmosphereState {
   sunDir: THREE.Vector3;
   top: THREE.Color;
   horizon: THREE.Color;
+}
+
+/**
+ * Caps the peak of the direct-light specular (sun, moon, street lamps) on every lit material.
+ * Tower glass is close to a mirror (roughness ~0.05), and a GGX highlight that sharp turns the low
+ * moon into a spot thousands of times brighter than anything else on screen: bloom then smears it
+ * into a blue-white glare the size of a building (the MGM Grand seen walking north). Capping the
+ * BRDF value keeps every glint where it was and still bright, just never hotter than `cap` times
+ * the light's own colour, so a moonlit window glints instead of flaring. Call before the first render.
+ */
+export function capSpecularHighlights(cap = 1.5): void {
+  const chunk = THREE.ShaderChunk as unknown as Record<string, string>;
+  const from = 'reflectedLight.directSpecular += irradiance * specularBRDF * material.multiScatteringCompensation;';
+  const src = chunk.lights_physical_pars_fragment;
+  if (!src.includes(from)) {
+    console.warn('capSpecularHighlights: three.js lighting chunk changed; highlights are not capped');
+    return;
+  }
+  chunk.lights_physical_pars_fragment = src.replace(
+    from,
+    /* glsl */ `vec3 capBRDF = specularBRDF * material.multiScatteringCompensation;
+	capBRDF *= min( 1.0, ${cap.toFixed(3)} / max( max3( capBRDF ), 1e-4 ) );
+	reflectedLight.directSpecular += irradiance * capBRDF;`
+  );
 }
 
 const rand = (() => {
@@ -161,31 +186,100 @@ export class EnvLighting {
 }
 
 /**
+ * Bloom that keys on the brightest colour channel instead of luminance, with a soft knee: only the
+ * part of a pixel above the threshold glows. Luminance keying let near-white surfaces (lit hotel
+ * windows, pale walls) bloom at full strength while saturated red, pink and blue neon, whose
+ * luminance is low, barely glowed at all. Now a neon tube glows by how hot it is whatever its colour,
+ * the hottest cores and bulbs glow most, and a wall of windows sitting under the threshold stays crisp.
+ * The input is clamped so one runaway pixel can't flood the frame (or turn it black with a NaN).
+ */
+export function makeBloomPass(width: number, height: number): UnrealBloomPass {
+  const pass = new UnrealBloomPass(new THREE.Vector2(width, height), 0.6, 0.5, 0.9);
+  (pass.highPassUniforms as Record<string, THREE.IUniform>).smoothWidth.value = 0.35; // knee width
+  pass.materialHighPassFilter.fragmentShader = /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform float luminosityThreshold;
+    uniform float smoothWidth;
+    varying vec2 vUv;
+    void main() {
+      vec3 c = texture2D(tDiffuse, vUv).rgb;
+      c = clamp(c, vec3(0.0), vec3(48.0));
+      if (c.r != c.r || c.g != c.g || c.b != c.b) c = vec3(0.0);
+      float br = max(c.r, max(c.g, c.b));
+      float knee = max(smoothWidth, 1e-3);
+      float soft = clamp(br - luminosityThreshold + knee, 0.0, 2.0 * knee);
+      soft = soft * soft / (4.0 * knee);
+      float k = max(soft, br - luminosityThreshold) / max(br, 1e-4);
+      gl_FragColor = vec4(c * k, 1.0);
+    }`;
+  pass.materialHighPassFilter.needsUpdate = true;
+  return pass;
+}
+
+export interface StripLook {
+  /** Tone-mapping exposure before the player's brightness setting. */
+  exposure: number;
+  bloomStrength: number;
+  bloomThreshold: number;
+}
+
+/**
+ * Exposure and bloom for the time of day. Day: a touch under 1.1 so sunlit white stucco keeps its
+ * texture under ACES instead of going chalky. Sunset: open up slightly for the warm low light.
+ * Night: the eye adapts to the dark street, so exposure rises, and bloom gets strong enough for neon
+ * and bulbs to throw a halo while lit windows (kept below the threshold) stay sharp.
+ */
+export function stripLook(a: AtmosphereState, out: StripLook): StripLook {
+  const day = THREE.MathUtils.clamp(a.day, 0, 1);
+  const sunset = THREE.MathUtils.clamp(a.sunset, 0, 1);
+  const night = THREE.MathUtils.clamp(a.night, 0, 1);
+  out.exposure = 1.04 + sunset * 0.08 + night * 0.16 - day * 0.02;
+  out.bloomStrength = 0.12 + sunset * 0.15 + night * 1.0;
+  out.bloomThreshold = THREE.MathUtils.lerp(1.15, 0.85, Math.max(night, sunset * 0.6));
+  return out;
+}
+
+/**
  * Final grade (runs in linear HDR, before tone mapping): a touch more saturation, cool shadows
  * and warm highlights after dark, a soft vignette. Keeps the neon punchy without crushing faces.
  */
+/** Feeds the time of day to the grade pass. */
+export function applyGrade(pass: ShaderPass, a: AtmosphereState): void {
+  pass.uniforms.night.value = a.night;
+  pass.uniforms.day.value = a.day;
+  pass.uniforms.sunset.value = a.sunset;
+}
+
 export function makeGradePass(): ShaderPass {
   return new ShaderPass({
     name: 'StripGrade',
     uniforms: {
       tDiffuse: { value: null },
       night: { value: 0 },
+      day: { value: 1 },
+      sunset: { value: 0 },
       vignette: { value: 0.55 },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
-      uniform sampler2D tDiffuse; uniform float night; uniform float vignette;
+      uniform sampler2D tDiffuse; uniform float night; uniform float day; uniform float sunset; uniform float vignette;
       varying vec2 vUv;
       void main() {
         vec4 c = texture2D(tDiffuse, vUv);
-        vec3 col = c.rgb;
+        vec3 col = max(c.rgb, 0.0);
         float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
-        col = max(mix(vec3(l), col, 1.0 + mix(0.07, 0.12, night)), 0.0);
+        // Daylight contrast around mid-grey (on luminance, so hues hold): sunlit stucco keeps its
+        // shading instead of going chalky under ACES, shade stays a little deeper.
+        float lc = 0.18 * pow(max(l, 1e-5) / 0.18, 1.0 + 0.08 * day);
+        col *= lc / max(l, 1e-5);
+        l = lc;
+        col = max(mix(vec3(l), col, 1.0 + mix(0.1, 0.12, night)), 0.0);
         float t = smoothstep(0.02, 0.9, l / (l + 0.6));
         vec3 shadowTint = mix(vec3(1.0, 1.0, 1.02), vec3(0.95, 0.98, 1.07), night);
         vec3 highTint = mix(vec3(1.025, 1.0, 0.97), vec3(1.05, 0.99, 0.95), night);
+        highTint *= mix(vec3(1.0), vec3(1.04, 0.99, 0.93), sunset);
         col *= mix(shadowTint, highTint, t);
         vec2 d = (vUv - 0.5) * vec2(1.0, 0.8);
         col *= clamp(1.0 - dot(d, d) * vignette, 0.0, 1.0);

@@ -1983,13 +1983,15 @@ function buildMGMGrand(b: WorldBuilder): void {
   });
   sign(b, 'MGM GRAND', '#05200f', '#ffe9a0', 11, 2.2, MGM.rx0 - 1.0, 9.6, MGM.door, -Math.PI / 2, 'THE CITY OF ENTERTAINMENT');
 
-  // Emerald-glass X tower, standing on the casino's roof
-  const em: FacadeSpec = { wall: '#2f9e6a', mullion: '#5fd29a', glass: '#1d5e40', lit: '#d8ffe8', cols: 10, rows: 22, style: 2, seed: 432 };
+  // Emerald-glass X tower, standing on the casino's roof. After dark the real one reads deep green:
+  // green LED floods wash the glass from the casino roof to the crown, and the rooms behind the
+  // emerald glass show as scattered warm, slightly green-tinted lights (never a pale glow).
+  const em: FacadeSpec = { wall: '#1b744c', mullion: '#2f9a68', glass: '#0c4a2e', lit: '#f0e6a8', cols: 10, rows: 22, style: 2, seed: 432 };
   const tx = 97;
   const tz = 400;
   for (let k = 0; k < 4; k++) {
     const a = Math.PI / 4 + (k * Math.PI) / 2;
-    tower(b, { x: tx + Math.cos(a) * 10, z: tz + Math.sin(a) * 10, w: 24, d: 12, h: 36, y: MGM.h, facade: { ...em, seed: 432 + k }, rotY: -a, metal: 0.55, rough: 0.2, minimal: true, accent: 0x7dffb8, wash: 0x7dffb8, washZone: 18 });
+    tower(b, { x: tx + Math.cos(a) * 10, z: tz + Math.sin(a) * 10, w: 24, d: 12, h: 36, y: MGM.h, facade: { ...em, seed: 432 + k }, rotY: -a, metal: 0.55, rough: 0.2, minimal: true, accent: 0x3dff8c, wash: 0x2ee07a, washZone: 36, washStrength: 0.85 });
     if (k === 1 || k === 2) {
       const dx = Math.cos(a);
       const dz = Math.sin(a);

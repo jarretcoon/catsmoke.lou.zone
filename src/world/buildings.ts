@@ -17,6 +17,13 @@ function facadeTextures(spec: FacadeSpec): FacadeTex {
   return t;
 }
 
+/**
+ * Night strength of the lit hotel-room windows. Kept just under the bloom threshold (look.ts) so a
+ * tower at night is a crisp grid of warm and cool rooms, not a glowing slab: neon, bulbs and the
+ * crown/wash lighting carry the glow. (At 1.25 every lit window bloomed and whole towers hazed over.)
+ */
+const WINDOW_GLOW = 0.9;
+
 /** Glass reads glossy and a bit metallic; `metal`/`rough` scale the per-texel roughness/metalness map. */
 function facadeParams(spec: FacadeSpec, opts: { metal?: number; rough?: number }): THREE.MeshStandardMaterialParameters {
   const metal = opts.metal ?? 0.1;
@@ -44,7 +51,7 @@ export function facadeMaterial(b: WorldBuilder, spec: FacadeSpec, w: number, h: 
     tx.needsUpdate = true;
   }
   const m = new THREE.MeshStandardMaterial({ map, emissiveMap: em, roughnessMap: rmap, metalnessMap: rmap, ...facadeParams(spec, opts) });
-  b.nightGlow(m, 0.04, opts.glow ?? 1.25);
+  b.nightGlow(m, 0.04, opts.glow ?? WINDOW_GLOW);
   installInteriors(b, m, { cols: spec.cols, rows: spec.rows });
   return m;
 }
@@ -73,7 +80,7 @@ function sharedFacade(b: WorldBuilder, spec: FacadeSpec, opts: { metal?: number;
   if (!m) {
     const t = facadeTextures(spec);
     m = new THREE.MeshStandardMaterial({ map: t.map, emissiveMap: t.emissiveMap, roughnessMap: t.roughnessMap, metalnessMap: t.roughnessMap, ...facadeParams(spec, opts) });
-    b.nightGlow(m, 0.04, 1.25);
+    b.nightGlow(m, 0.04, WINDOW_GLOW);
     installInteriors(b, m, { cols: spec.cols, rows: spec.rows, topRef: true, wash: opts.wash ?? new THREE.Color(spec.lit).getHex(), washStrength: opts.washStrength, washZone: opts.washZone });
     cache.set(key, m);
   }

@@ -15,6 +15,9 @@
     { "id": "sphere-oz", "label": "Inside the Sphere (Oz show)", "time": "night", "tp": [168.7, 14.6, -230], "cam": [-1.5708, 0.3, 4.5], "sphereT": 52, "maxCalls": 300 },
     { "id": "fountains-day", "label": "Bellagio fountains (day)", "time": "day", "tp": [-9, 0.3, 66], "cam": [1.5708, 0.25, 10], "maxCalls": 850 },
     { "id": "caesars-day", "label": "Caesars Palace (day)", "time": "day", "tp": [6, 0.3, -90], "cam": [1.5708, 0.22, 16], "maxCalls": 900 },
-    { "id": "forum-day", "label": "Forum Shops (inside, day)", "time": "day", "tp": [-62, 0.3, -140], "cam": [0, 0.14, 6], "maxCalls": 1250 }
+    { "id": "forum-day", "label": "Forum Shops (inside, day)", "time": "day", "tp": [-62, 0.3, -140], "cam": [0, 0.14, 6], "maxCalls": 1250 },
+    { "id": "walk-north-night", "label": "Walking north from the Welcome sign (night)", "time": "night", "tp": [1.5, 0.3, 635], "cam": [0, 0.08, 5.5], "maxCalls": 1600 },
+    { "id": "walk-north-day", "label": "Walking north from the Welcome sign (day)", "time": "day", "tp": [1.5, 0.3, 635], "cam": [0, 0.08, 5.5], "maxCalls": 1750 },
+    { "id": "mgm-tower-night", "label": "MGM Grand tower from Tropicana Ave (night)", "time": "night", "tp": [-12, 0.3, 455], "cam": [-0.8, 0.1, 6], "maxCalls": 1500 }
   ]
 }

@@ -3,10 +3,11 @@ import { DRACO_GLTF_CONFIG, DRACOLoader } from 'three/examples/jsm/loaders/DRACO
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { EnvLighting, makeGradePass } from './look';
+import { EnvLighting, applyGrade, capSpecularHighlights, makeBloomPass, makeGradePass, stripLook } from './look';
+import { getBrightness, mountBrightnessSlider } from './brightness';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import type { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { AbcItem, AbcShopController } from './abcShop';
 import { SoundFX } from './audio';
 import { CasinoController } from './casino';
@@ -73,6 +74,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
+capSpecularHighlights();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.25, 1600);
@@ -107,10 +109,12 @@ let composer: EffectComposer | null = null;
 let dynCullScale = 1;
 let bloom: UnrealBloomPass | null = null;
 let grade: ShaderPass | null = null;
+const look = { exposure: 1.12, bloomStrength: 0.6, bloomThreshold: 0.9 };
 const btnQuality = document.createElement('button');
 btnQuality.type = 'button';
 btnQuality.className = 'action-btn';
 document.querySelector('#controls-popover .controls-footer')?.prepend(btnQuality);
+mountBrightnessSlider(document.querySelector('#controls-popover .controls-footer'));
 
 function applyQuality(): void {
   renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : quality === 'medium' ? Math.min(window.devicePixelRatio, 1.25) : 1);
@@ -146,7 +150,7 @@ function applyQuality(): void {
     const rt = new THREE.WebGLRenderTarget(window.innerWidth * pr, window.innerHeight * pr, { type: THREE.HalfFloatType, samples });
     composer = new EffectComposer(renderer, rt);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.86);
+    bloom = makeBloomPass(window.innerWidth, window.innerHeight);
     composer.addPass(bloom);
     grade = makeGradePass();
     composer.addPass(grade);
@@ -2069,9 +2073,12 @@ function step(now: number, render = true): void {
   camera.lookAt(rideView?.look ?? camLook.copy(camTarget));
 
   if (render) {
+    stripLook(world.atmosphere, look);
+    renderer.toneMappingExposure = look.exposure * getBrightness();
     if (composer && bloom) {
-      bloom.strength = 0.16 + world.getNight() * 0.75;
-      if (grade) grade.uniforms.night.value = world.getNight();
+      bloom.strength = look.bloomStrength;
+      bloom.threshold = look.bloomThreshold;
+      if (grade) applyGrade(grade, world.atmosphere);
       composer.render(dt);
     } else {
       renderer.render(scene, camera);
