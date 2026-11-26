@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bakeGroup } from '../meshBake';
-import type { WorldBuilder } from './builder';
+import { viewer, type WorldBuilder } from './builder';
 import { facadeMaterial, stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
 import { LedBoard, makePaverTexture } from './textures';
@@ -12,6 +12,9 @@ import { palmPieces } from './props';
 import { beamMaterial } from './skyLife';
 import { buildLuxorAtrium, luxorColliders, luxorSkinGeometry } from './grandLuxor';
 import { xFromO, zFromS } from './strip';
+import { MGM, buildMGMRotunda, mgmFloorSet, mgmMarquee } from './mgmInterior';
+import { uvScale } from './themedKit';
+import { NY, nynyMarquee, nynyVillageSet } from './nynyInterior';
 
 /**
  * South Strip, north → south: Park MGM & The Park · New York-New York (Big Apple Coaster) ·
@@ -427,27 +430,115 @@ function buildNYNY(b: WorldBuilder): void {
   paving(b, -19, -44, zN, RING_N, '#b9ada0', '#958978');
   paving(b, -30, -44, RING_N, TROP_N, '#b9ada0', '#958978');
 
-  // Casino podium: brownstone street-front of Manhattan
-  const brown = facadeMaterial(b, { wall: '#9a6a52', mullion: '#d8c8a8', glass: '#28303a', lit: '#ffd9a0', cols: 4, rows: 3, style: 0, seed: 311 }, 47, 10);
-  const roofM = mat(0x4a4038, 0.8);
-  const pod = new THREE.Mesh(new THREE.BoxGeometry(42, 10, 47), [brown, brown, roofM, roofM, brown, brown]);
-  pod.position.set(-65, 5, 400.5);
-  pod.castShadow = true;
-  pod.receiveShadow = true;
-  b.add(pod);
-  b.collider(-86, -44, 377, 424, 0, 10, true);
-  const podium = { x0: -86, x1: -44, z0: 377, z1: 424, top: 10 };
+  // ---- the casino: Greenwich Village under a painted night sky (set pieces in nynyInterior.ts)
+  const pad = 2.6;
+  buildCasinoFloor(b, {
+    id: 'nyny',
+    casinoName: 'New York-New York',
+    minX: NY.x0,
+    maxX: NY.x1,
+    minZ: NY.z0,
+    maxZ: NY.z1,
+    height: NY.h,
+    entrance: { side: 'east', at: NY.mainDoor, width: NY.mainW },
+    extraEntrances: [
+      { side: 'east', at: NY.bridgeDoor, width: NY.bridgeW },
+      { side: 'north', at: NY.northDoor, width: NY.northW },
+    ],
+    theme: 'nyny',
+    interior: {
+      ceilingY: NY.cy,
+      chandeliers: false,
+      columns: false,
+      bar: false,
+      sportsbook: false,
+      fill: 0.7,
+      paths: [NY.broadway, NY.bleecker, NY.seventh, NY.bridgeSt],
+      keepOut: [
+        [NY.park[0] - 0.6, NY.park[1] + 2.6, NY.park[2] - 0.6, NY.park[3] + 0.6],
+        [NY.subway[0] - 0.8, NY.subway[1] + 0.6, NY.subway[2] - 0.6, NY.subway[3] + 0.6],
+        [NY.news[0] - 0.6, NY.news[1] + 0.6, NY.news[2] - 1.4, NY.news[3] + 0.6],
+        [NY.pianoTables[0] - 0.8, NY.pianoTables[1] + 0.8, NY.pianoTables[2] - 0.6, NY.z1],
+        [NY.x0, NY.x1, NY.z0, NY.z0 + pad],
+        [NY.x0, NY.x1, NY.z1 - pad, NY.z1],
+        [NY.x1 - pad, NY.x1, NY.z0, NY.z1],
+        [NY.x0, NY.x0 + pad, NY.z0, NY.cashierGap[0]],
+        [NY.x0, NY.x0 + pad, NY.cashierGap[1], NY.z1],
+        [NY.deli[0], NY.deli[1] + 0.6, NY.z0, NY.deli[3] + 1.6],
+        [-56.6, -49.4, NY.z0, NY.z0 + 7.2],
+      ],
+    },
+    carpet: ['#3a1414', '#d9a63a', '#1a3a6a'],
+    wall: 0x5a3428,
+    ceiling: 0x10143a,
+    ceilingGlow: 0x10143a,
+    light: 0xffd9a0,
+    slots: { accent: '#ffd23a', topper: 0xffd23a, rows: [{ x: -60.5, z: 383, count: 5, along: 'x', facing: 0 }] },
+    slotLabel: 'Big Apple Slots',
+    tables: [
+      { game: 'blackjack', x: -60, z: 389.5, label: 'NYNY Blackjack' },
+      { game: 'blackjack', x: -75, z: 389, label: 'Village Blackjack' },
+      { game: 'roulette', x: -58.5, z: 407.6, label: 'Broadway Roulette' },
+    ],
+    felt: 0x1a3a7a,
+    guard: { kick: [-29, 396] },
+    pickups: [{ x: -60, z: 389.5, y: 1.35, amount: 3, label: 'NYNY Blackjack Pack' }],
+    tourists: [
+      { pts: [[-45.4, NY.mainDoor], [-79, NY.mainDoor]], prop: 'camera' },
+      { pts: [[-66.5, 379.5], [-66.5, 420.6]], prop: 'yard-drink' },
+      { pts: [[-45.4, NY.bridgeDoor], [-64, NY.bridgeDoor]], prop: 'cig' },
+    ],
+  });
+  nynyVillageSet(b, {
+    minX: NY.x0,
+    maxX: NY.x1,
+    minZ: NY.z0,
+    maxZ: NY.z1,
+    height: NY.h,
+    doors: [
+      { x: NY.x1, z: NY.mainDoor, nx: 1, nz: 0, half: NY.mainW / 2 },
+      { x: NY.x1, z: NY.bridgeDoor, nx: 1, nz: 0, half: NY.bridgeW / 2 },
+      { x: NY.northDoor, z: NY.z0, nx: 0, nz: -1, half: NY.northW / 2 },
+    ],
+  });
+  b.zone('Times Square (NYNY Casino)', NY.x1 - 6, NY.x1, NY.z0, NY.mainDoor - NY.mainW / 2);
+  b.zone('Central Park (NYNY Casino)', NY.park[0], NY.park[1] + 2, NY.park[2], NY.park[3]);
+  b.zone('The Bar at Times Square (NYNY Casino)', NY.pianoTables[0] - 1, NY.x1, NY.pianoTables[2] - 0.5, NY.z1);
+  b.zone('Village Deli (NYNY Casino)', NY.deli[0], NY.deli[1], NY.z0, NY.deli[3] + 2);
+  b.zone('Bleecker St (NYNY Casino)', NY.bleecker[0], NY.bleecker[1], NY.z0, NY.z1);
+  b.zone('Broadway (NYNY Casino)', NY.broadway[0], NY.broadway[1], NY.broadway[2], NY.broadway[3]);
+  const podium = { x0: NY.x0, x1: NY.x1, z0: NY.z0, z1: NY.z1, top: NY.h };
+
+  // Brownstone street-front skin over the casino walls (windows lit after dark)
+  const brown = facadeMaterial(b, { wall: '#9a6a52', mullion: '#d8c8a8', glass: '#28303a', lit: '#ffd9a0', cols: 4, rows: 3, style: 0, seed: 311 }, 47, 9);
+  const wrap = (x: number, z: number, w: number, ry: number) => {
+    const g = new THREE.PlaneGeometry(w, 9);
+    uvScale(g, w / 47, 1);
+    b.add(mesh(g, brown, x, 4.5, z), undefined, undefined, undefined, ry);
+  };
+  const ex = NY.x1 + 1.05;
+  const eGaps: Array<[number, number]> = [
+    [NY.z0, NY.mainDoor - NY.mainW / 2],
+    [NY.mainDoor + NY.mainW / 2, NY.bridgeDoor - NY.bridgeW / 2],
+    [NY.bridgeDoor + NY.bridgeW / 2, NY.z1],
+  ];
+  for (const [a, c] of eGaps) wrap(ex, (a + c) / 2, c - a, Math.PI / 2);
+  wrap(NY.x0 - 1.05, (NY.z0 + NY.z1) / 2, NY.z1 - NY.z0, -Math.PI / 2);
+  wrap((NY.x0 + NY.x1) / 2, NY.z1 + 1.05, NY.x1 - NY.x0, 0);
+  wrap((NY.x0 + NY.northDoor - NY.northW / 2) / 2, NY.z0 - 1.05, NY.northDoor - NY.northW / 2 - NY.x0, Math.PI);
+  wrap((NY.northDoor + NY.northW / 2 + NY.x1) / 2, NY.z0 - 1.05, NY.x1 - NY.northDoor - NY.northW / 2, Math.PI);
 
   const mg = new Merger();
   // Street-front storefront awnings and cornice
   const awnings = [0x1f5a3a, 0xa8261e, 0x1f3a6a, 0x2a2a2a, 0xa8261e, 0x1f5a3a];
-  awnings.forEach((c, i) => mg.box(mat(c, 0.7), -43.2, 3.6, 380 + i * 7.3, 1.6, 0.25, 4.6));
-  mg.box(mat(0xd8c8a8, 0.6), -43.8, 9.6, 400.5, 0.6, 0.8, 47.4);
-  b.add(mesh(new THREE.BoxGeometry(0.2, 2.4, 6), basic(0xffd9a0), -43.9, 1.5, 400.5)); // main doors
-  mg.box(mat(0x1a1a20, 0.4, 0.6), -41.8, 4.4, 400.5, 4.4, 0.45, 9);
-  b.add(mesh(new THREE.BoxGeometry(4.0, 0.06, 8.6), basic(0xfff0c8), -41.8, 4.15, 400.5));
-  sign(b, 'NEW YORK-NEW YORK', '#0b1730', '#ffffff', 15, 2.3, -43.6, 7.2, 400.5, Math.PI / 2, 'HOTEL & CASINO');
-  sign(b, 'NEW YORK', '#101010', '#ffcf3a', 4.4, 0.9, -43.6, 2.7, 386, Math.PI / 2, 'PIZZA • DELI • BAR', 0.1);
+  awnings.forEach((c, i) => {
+    const zc = 380 + i * 7.3;
+    if (Math.abs(zc - NY.mainDoor) < NY.mainW / 2 + 2.6 || Math.abs(zc - NY.bridgeDoor) < NY.bridgeW / 2 + 2.6) return;
+    mg.box(mat(c, 0.7), ex + 0.8, 3.6, zc, 1.6, 0.25, 4.6);
+  });
+  sign(b, 'NEW YORK-NEW YORK', '#0b1730', '#ffffff', 15, 2.3, ex + 0.25, 7.2, NY.mainDoor, Math.PI / 2, 'HOTEL & CASINO');
+  sign(b, 'NEW YORK', '#101010', '#ffcf3a', 4.4, 0.9, ex + 0.25, 2.7, 386, Math.PI / 2, 'PIZZA • DELI • BAR', 0.1);
+  nynyMarquee(b, -40.4, 421.3, Math.PI / 4);
 
   // Manhattan skyline cluster on the podium roof
   const skin = (wall: string, seed: number, glass = '#5a5f66'): FacadeSpec => ({ wall, mullion: '#e8dcc4', glass, lit: '#ffe6b0', cols: 4, rows: 14, style: 0, seed });
@@ -511,7 +602,7 @@ function buildNYNY(b: WorldBuilder): void {
   b.zone('Statue of Liberty (NYNY)', -37, -29, 405.5, 412.5);
   b.crowd.tourists.push(
     { pts: [[-27.5, 374], [-27.5, 403], [-30.5, 403], [-30.5, 374]], prop: 'camera' },
-    { pts: [[-31, 414], [-42, 419], [-31, 423.5]], prop: 'yard-drink' }
+    { pts: [[-31, 414], [-37, 417.2], [-31, 423.5]], prop: 'yard-drink' }
   );
   b.crowd.performers.push({ kind: 'showgirl', x: -28, z: 400.5, facing: Math.PI / 2 });
 }
@@ -1800,64 +1891,156 @@ function buildMGMGrand(b: WorldBuilder): void {
   const zN = zFromS(-1376); // 405.3
   paving(b, 19, 44, zN, RING_N, '#cfc6b4', '#aea38e');
   paving(b, 30, 44, RING_N, TROP_N, '#cfc6b4', '#aea38e');
+  paving(b, 68.2, 122, MGM.z0 - 2.4, MGM.z0, '#cfc6b4', '#aea38e');
   const mg = new Merger();
-  const emer = facadeMaterial(b, { wall: '#1f7a52', mullion: '#e0c27a', glass: '#0f4a32', lit: '#d8ffe8', cols: 6, rows: 3, style: 1, seed: 431 }, 48, 13);
-  const roofM = mat(0x2a3a30, 0.8);
-  const pod = new THREE.Mesh(new THREE.BoxGeometry(48, 13, 19), [emer, emer, roofM, roofM, emer, emer]);
-  pod.position.set(68, 6.5, 415.1);
-  pod.castShadow = true;
-  pod.receiveShadow = true;
-  b.add(pod);
-  b.collider(44, 92, 405.6, 424.6, 0, 13, true);
+  const wallM = mat(0x1f5a3e, 0.6, 0.15);
   const goldM = mat(0xd4a640, 0.3, 0.85);
-  mg.box(goldM, 68, 12.7, 415.1, 48.6, 0.8, 19.6);
-  mg.box(goldM, 68, 5.0, 415.1, 48.4, 0.3, 19.4);
 
-  // Emerald-glass X tower
+  // ---- the casino floor (the Strip's biggest): x 68.6…120, z 380…424.6, tower on top
+  const [bx, bz] = MGM.bar;
+  const [hx0, hx1, hz0, hz1] = MGM.habitat;
+  const [px0, px1, pz0, pz1] = MGM.poker;
+  const [sx0, sx1, sz0, sz1] = MGM.book;
+  buildCasinoFloor(b, {
+    id: 'mgm',
+    casinoName: 'MGM Grand',
+    minX: MGM.x0,
+    maxX: MGM.x1,
+    minZ: MGM.z0,
+    maxZ: MGM.z1,
+    height: MGM.h,
+    entrance: { side: 'west', at: MGM.door, width: MGM.innerDoorW },
+    extraEntrances: [{ side: 'south', at: 100, width: 7 }],
+    // Emerald and gold Art-Deco Hollywood: tray ceiling, deco carpet, the Center Bar's crown, the BetMGM
+    // LED wall, the poker room and the Lion Habitat (set pieces in mgmInterior.ts)
+    theme: 'mgm',
+    interior: {
+      fill: 0.75,
+      bar: false,
+      sportsbook: false,
+      keepOut: [
+        [hx0 - 1.0, hx1 + 0.6, hz0 - 1.0, hz1 + 1.0],
+        [px0 - 0.6, px1 + 0.6, pz0 - 0.6, pz1 + 0.6],
+        [sx0 - 0.6, sx1 + 0.6, MGM.z0, sz1 + 0.6],
+        [bx - 6, bx + 6, bz - 6, bz + 6],
+      ],
+    },
+    carpet: ['#0f3a26', '#d9ae4a', '#3a9a6a'],
+    wall: 0x1f5a3e,
+    ceiling: 0x0c1a12,
+    ceilingGlow: 0x0a3a22,
+    light: 0x9affd0,
+    slots: { accent: '#7dffb8', topper: 0x7dffb8, rows: [{ x: 108, z: 402.6, count: 6, along: 'x', facing: 0 }] },
+    slotLabel: 'MGM Grand Lion Slots',
+    tables: [
+      { game: 'blackjack', x: 76, z: 389, label: 'MGM Grand Blackjack' },
+      { game: 'blackjack', x: 76, z: 397, label: 'MGM Grand Blackjack' },
+      { game: 'roulette', x: 78.5, z: 404.5, label: 'MGM Grand Roulette' },
+      { game: 'craps', x: 90, z: 417, label: 'MGM Grand Craps' },
+    ],
+    felt: 0x0f5a32,
+    guard: { kick: [26, 413] },
+    pickups: [
+      { x: 90, z: 417, y: 1.35, amount: 4, label: 'MGM Grand Craps Rail Pack' },
+      { x: 108, z: 404.4, amount: 2, label: 'Lion Slots Pack' },
+    ],
+    tourists: [
+      { pts: [[70.2, MGM.door], [82, 412], [97.6, 412], [100, 421.6]], prop: 'yard-drink' },
+      { pts: [[83, 396.4], [97.6, 396.4], [97.6, 411.2], [83, 411.2]], prop: 'cig' },
+      { pts: [[103, 386], [103, 400.6], [116.6, 401.6], [116.6, 384]], prop: 'camera' },
+    ],
+  });
+  mgmFloorSet(b, { minX: MGM.x0, maxX: MGM.x1, minZ: MGM.z0, maxZ: MGM.z1, height: MGM.h, doors: [{ x: MGM.x0, z: MGM.door, nx: -1, nz: 0, half: MGM.innerDoorW / 2 }, { x: 100, z: MGM.z1, nx: 0, nz: 1, half: 3.5 }] }, {
+    felt: 0x0f5a32,
+    rail: 0x0a0a0a,
+    wood: 0x3b2116,
+    trim: 0xd4a640,
+    seat: 0x1f5a3a,
+    dealerShirt: 0xf4f4f0,
+    dealerVest: 0x0f4a2a,
+  });
+
+  // ---- the Lion Rotunda: the Strip entrance behind the bronze lion
+  buildMGMRotunda(b, wallM);
+
+  // Emerald-glass skin over the podium walls (gold mullions, lit at night)
+  const emer = facadeMaterial(b, { wall: '#1f7a52', mullion: '#e0c27a', glass: '#0f4a32', lit: '#d8ffe8', cols: 6, rows: 3, style: 1, seed: 431 }, 48, 11.6);
+  const skin = (x: number, z: number, w: number, ry: number) => {
+    const g = new THREE.PlaneGeometry(w, 11.6);
+    uvScale(g, w / 48, 1);
+    b.add(mesh(g, emer, x, 5.8, z), undefined, undefined, undefined, ry);
+  };
+  skin((MGM.x0 + MGM.x1) / 2, MGM.z0 - 1.05, MGM.x1 - MGM.x0, Math.PI);
+  skin(MGM.x1 + 1.05, (MGM.z0 + MGM.z1) / 2, MGM.z1 - MGM.z0, Math.PI / 2);
+  skin((MGM.x0 + 96.5) / 2, MGM.z1 + 1.05, 96.5 - MGM.x0, 0);
+  skin((103.5 + MGM.x1) / 2, MGM.z1 + 1.05, MGM.x1 - 103.5, 0);
+  skin((MGM.rx0 + MGM.x0) / 2, MGM.rz1 + 0.65, MGM.x0 - MGM.rx0, 0);
+  const dz0 = MGM.door - MGM.stripDoorW / 2;
+  const dz1 = MGM.door + MGM.stripDoorW / 2;
+  skin(MGM.rx0 - 0.65, (MGM.rz0 + dz0) / 2, dz0 - MGM.rz0, -Math.PI / 2);
+  skin(MGM.rx0 - 0.65, (dz1 + MGM.rz1) / 2, MGM.rz1 - dz1, -Math.PI / 2);
+  mg.box(goldM, (MGM.rx0 + MGM.x0) / 2, 12.55, MGM.rz1 + 0.75, MGM.x0 - MGM.rx0, 0.9, 0.5);
+  mg.box(goldM, MGM.rx0 - 0.75, 12.55, (MGM.rz0 + MGM.rz1) / 2, 0.5, 0.9, MGM.rz1 - MGM.rz0 + 1.4);
+  mg.box(goldM, MGM.rx0 - 0.75, 5.6, (MGM.rz0 + MGM.rz1) / 2, 0.3, 0.3, MGM.rz1 - MGM.rz0 + 1.2);
+
+  // Strip entrance: deco portal, emerald canopy with a lit soffit, LED screens either side, the name above
+  const glowU = basic(0xfff0c8);
+  mg.box(mat(0x0f2a1c, 0.4, 0.6), MGM.rx0 - 3.4, 5.6, MGM.door, 5.8, 0.5, MGM.stripDoorW + 4.4);
+  b.add(mesh(new THREE.BoxGeometry(5.5, 0.06, MGM.stripDoorW + 4.0), glowU, MGM.rx0 - 3.4, 5.33, MGM.door));
+  mg.box(goldM, MGM.rx0 - 6.3, 5.6, MGM.door, 0.16, 0.7, MGM.stripDoorW + 4.5);
+  for (const s of [-1, 1]) {
+    mg.box(goldM, MGM.rx0 - 0.9, 6.2, MGM.door + s * (MGM.stripDoorW / 2 + 0.5), 0.8, 12.4, 0.8);
+    mg.box(goldM, MGM.rx0 - 1.0, 12.6, MGM.door + s * (MGM.stripDoorW / 2 + 0.5), 1.1, 0.5, 1.1);
+  }
+  const doorLed = new LedBoard('MGM GRAND', ['WELCOME TO THE CITY OF ENTERTAINMENT', 'KÀ', 'BetMGM', 'LION HABITAT'], ['#0f6a3a', '#c9a04a', '#101010', '#7a1c2a'], 192, 384);
+  const doorLedM = new THREE.MeshBasicMaterial({ map: doorLed.tex });
+  for (const s of [-1, 1]) {
+    const zc = MGM.door + s * (MGM.stripDoorW / 2 + 2.9);
+    b.add(mesh(new THREE.PlaneGeometry(3.4, 6.8), doorLedM, MGM.rx0 - 1.32, 4.6, zc), undefined, undefined, undefined, -Math.PI / 2);
+    mg.box(goldM, MGM.rx0 - 1.2, 4.6, zc, 0.2, 7.2, 3.8);
+  }
+  b.every((_dt, t) => {
+    const dx = viewer.cam.x - MGM.rx0;
+    const dz = viewer.cam.z - MGM.door;
+    if (dx * dx + dz * dz < 120 * 120) doorLed.draw(t);
+  });
+  sign(b, 'MGM GRAND', '#05200f', '#ffe9a0', 11, 2.2, MGM.rx0 - 1.0, 9.6, MGM.door, -Math.PI / 2, 'THE CITY OF ENTERTAINMENT');
+
+  // Emerald-glass X tower, standing on the casino's roof
   const em: FacadeSpec = { wall: '#2f9e6a', mullion: '#5fd29a', glass: '#1d5e40', lit: '#d8ffe8', cols: 10, rows: 22, style: 2, seed: 432 };
   const tx = 97;
   const tz = 400;
   for (let k = 0; k < 4; k++) {
     const a = Math.PI / 4 + (k * Math.PI) / 2;
-    tower(b, { x: tx + Math.cos(a) * 10, z: tz + Math.sin(a) * 10, w: 24, d: 12, h: 38, facade: { ...em, seed: 432 + k }, rotY: -a, metal: 0.55, rough: 0.2, minimal: true, accent: 0x7dffb8, wash: 0x7dffb8, washZone: 18 });
+    tower(b, { x: tx + Math.cos(a) * 10, z: tz + Math.sin(a) * 10, w: 24, d: 12, h: 36, y: MGM.h, facade: { ...em, seed: 432 + k }, rotY: -a, metal: 0.55, rough: 0.2, minimal: true, accent: 0x7dffb8, wash: 0x7dffb8, washZone: 18 });
     if (k === 1 || k === 2) {
       const dx = Math.cos(a);
       const dz = Math.sin(a);
-      sign(b, 'MGM GRAND', '#05200f', '#eafff0', 11, 2.2, tx + dx * 22.35, 33, tz + dz * 22.35, Math.atan2(dx, dz));
+      sign(b, 'MGM GRAND', '#05200f', '#eafff0', 11, 2.2, tx + dx * 22.35, MGM.h + 31, tz + dz * 22.35, Math.atan2(dx, dz));
     }
   }
 
-  // Main entrance canopy facing the Boulevard
-  mg.box(mat(0x0f2a1c, 0.4, 0.6), 41, 5.1, 409.4, 6, 0.5, 7.4);
-  b.add(mesh(new THREE.BoxGeometry(5.6, 0.06, 7.0), basic(0xfff0c8), 41, 4.82, 409.4));
-  b.add(mesh(new THREE.BoxGeometry(0.15, 3.4, 6), basic(0xffe9b0), 43.95, 1.7, 409.4));
-  sign(b, 'MGM GRAND', '#05200f', '#ffe9a0', 9, 1.6, 43.7, 8.8, 415, -Math.PI / 2, 'THE CITY OF ENTERTAINMENT');
-
-  // Bronze lion on its pedestal at the Tropicana corner
-  const lx = 36.5;
-  const lz = 418;
+  // Bronze lion on its pedestal at the Tropicana corner (moved out to the corner so the doors are clear)
+  const lx = 34;
+  const lz = 420.6;
   b.box(lx, 0, lz, 6.2, 3.2, 4.6, mat(0x8a7a62, 0.7), true);
   mg.box(mat(0xa8977a, 0.6), lx, 3.3, lz, 6.6, 0.2, 5.0);
   mg.box(mat(0xa8977a, 0.6), lx, 0.25, lz, 7.0, 0.5, 5.4);
   buildLion(mg, lx, 3.4, lz);
   b.collider(lx - 3.6, lx + 3.6, lz - 2.6, lz + 2.6, 3.2, 7.8, true);
-  b.add(planter(1.6, 1.6, 0xff4d7a), lx - 4.2, 0, lz - 3.2);
-  b.add(planter(1.6, 1.6, 0xffd34d), lx - 4.2, 0, lz + 3.2);
+  b.add(planter(1.6, 1.6, 0xff4d7a), lx - 4.6, 0, lz - 2.4);
+  b.add(planter(1.6, 1.6, 0xffd34d), lx + 4.6, 0, lz - 2.4);
+  for (const s of [-1, 1]) b.add(mesh(new THREE.BoxGeometry(0.5, 0.1, 0.5), glowU, lx + s * 2.2, 0.55, lz - 2.75));
 
-  ledPylon(
-    b,
-    new LedBoard('MGM GRAND', ['DAVID COPPERFIELD', 'KÀ • CIRQUE DU SOLEIL', 'MGM GRAND GARDEN ARENA', 'BETMGM SPORTSBOOK'], ['#1f7a52', '#c9a04a', '#7a1c2a', '#1a3a8a']),
-    23.6,
-    408.4,
-    8,
-    12,
-    7
-  );
+  // The marquee: giant LED-puck MGM letters over a video board, by the lion
+  mgmMarquee(b, 24.6, 408.4);
   mg.flush(b);
   b.building(97, 400, 32, 32, '#2f9e6a', 'MGM Grand');
-  b.building(68, 415, 48, 19, '#1f7a52');
+  b.building((MGM.x0 + MGM.x1) / 2, (MGM.z0 + MGM.z1) / 2, MGM.x1 - MGM.x0, MGM.z1 - MGM.z0, '#1f7a52');
+  b.building((MGM.rx0 + MGM.x0) / 2, (MGM.rz0 + MGM.rz1) / 2, MGM.x0 - MGM.rx0, MGM.rz1 - MGM.rz0, '#1f7a52');
   b.zone('MGM Grand', 19, 122, zN, TROP_N);
-  b.zone('MGM Grand Lion', 32, 41, 414.5, 421.5);
+  b.zone('MGM Grand', 68, 122, MGM.z0 - 2.4, zN);
+  b.zone('MGM Grand Lion', lx - 4, lx + 4, lz - 3, lz + 3);
   b.crowd.performers.push({ kind: 'slapper', x: 16, z: 398, facing: -Math.PI / 2 });
 }
 

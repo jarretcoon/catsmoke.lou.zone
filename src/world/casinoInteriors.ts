@@ -43,7 +43,7 @@ import {
   type TableLook,
 } from './interiorKit';
 
-export type InteriorTheme = 'classic' | 'paris' | 'horseshoe' | 'flamingo' | 'excalibur' | 'slotsafun' | 'circus' | 'mgm';
+export type InteriorTheme = 'classic' | 'paris' | 'horseshoe' | 'flamingo' | 'excalibur' | 'slotsafun' | 'circus' | 'mgm' | 'nyny';
 export type CeilingStyle = 'coffer' | 'tray' | 'sky' | 'drop' | 'vault' | 'deco' | 'horseshoe' | 'tent';
 
 /** Optional interior settings on a CasinoSpec (every field has a sensible default). */
@@ -133,8 +133,10 @@ function themeLook(s: CasinoSpec): Look {
               : th === 'circus'
                 ? { ceiling: 'tent', ceil: 0xffffff, trim: 0xffd23a, cove: 0xff4fa8, wainscot: 0x2a5ad8, upper: 0xff5fa2, columnWrap: 0xff4f98, seat: 0x2a5ad8, slotThemes: [5, 0, 6, 7, 1], slotAccents: [0xff4fa8, 0xffd23a, 0x3ad8ff] }
                 : th === 'mgm'
-                  ? { ceiling: 'tray', ceil: 0x0c1a12, trim: 0xd4a640, cove: 0x7dffb8, wainscot: 0x0f3a24, upper: 0x1f5a3a, columnWrap: 0x1f7a52, seat: 0x1f5a3a, slotThemes: [1, 2, 6, 4, 0], slotAccents: [0x7dffb8, 0xffd27a], dealerVest: 0x0f4a2a }
-                  : {};
+                  ? { ceiling: 'tray', ceil: 0x0a1a12, trim: 0xd4a640, cove: 0x9affd0, wainscot: 0x0a2a1a, upper: 0x174a32, columnWrap: 0x0f4a30, seat: 0x1f5a3a, slotThemes: [1, 2, 6, 4, 0], slotAccents: [0x7dffb8, 0xffd27a], dealerVest: 0x0f4a2a, chandTint: 0xfff0c8 }
+                  : th === 'nyny'
+                    ? { ceiling: 'sky', ceil: 0x10143a, trim: 0xc8a050, cove: 0xffd9a0, wainscot: 0x3a2418, upper: 0x5a2a22, columnWrap: 0x3a2a20, seat: 0x8a1a1a, wood: 0x3a2214, slotThemes: [0, 7, 2, 4, 6, 1], slotAccents: [0xffd23a, 0xff3a3a, 0x3ab8ff], dealerVest: 0x1a2a5a, chandTint: 0xfff0d0 }
+                    : {};
   const look = { ...base, ...over };
   if (io.ceiling) look.ceiling = io.ceiling;
   if (io.trim !== undefined) look.trim = io.trim;
