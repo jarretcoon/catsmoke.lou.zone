@@ -180,13 +180,17 @@ export class CatMotion {
     if (idle) idle.w = idle.target = 1;
   }
 
-  /** Play a one-shot clip; it holds the body (or just the head, on the move) for lockSeconds. */
-  play(act: THREE.AnimationAction | null, lockSeconds: number): void {
+  /**
+   * Play a one-shot clip; it holds the body (or just the head, on the move) for lockSeconds. `from` starts
+   * it part-way in (0..1 of the clip), e.g. the Pounce at the leap when the physics has already launched him.
+   */
+  play(act: THREE.AnimationAction | null, lockSeconds: number, from = 0): void {
     this.lock = lockSeconds;
     this.current = act;
     if (!act) return;
     this.oneShotSetup(act);
     act.reset();
+    act.time = from * act.getClip().duration;
     act.play();
     const up = this.upper.get(act);
     if (up) {

@@ -546,7 +546,8 @@ function triggerPounce(): void {
   catVelocity.z = Math.cos(catYaw) * 10.5;
   catVelocity.y = 4.4;
   isGrounded = false;
-  playOneShot(actions.Pounce ?? actions.Steal, 0.6);
+  // the physics launches him now, so the clip starts at its leap (past the crouch and butt wiggle)
+  motion.play(actions.Pounce ?? actions.Steal, 0.6, actions.Pounce ? 0.34 : 0);
   sfx.playMeow();
 }
 
