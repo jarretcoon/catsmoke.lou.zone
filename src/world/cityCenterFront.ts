@@ -123,7 +123,7 @@ export function veerTowers(b: WorldBuilder, towers: Array<{ x: number; z: number
     const ch = h / 4;
     for (let fy = 0; fy < 4; fy++) {
       for (let fx = 0; fx < 6; fx++) {
-        const yellow = (fx + fy * 2) % 3 === 0 || r() < 0.12;
+        const yellow = r() < 0.36;
         if (lit) {
           if (r() < 0.42) {
             ctx.fillStyle = r() < 0.7 ? 'rgba(255,214,150,0.9)' : 'rgba(210,230,255,0.85)';

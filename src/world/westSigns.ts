@@ -15,7 +15,8 @@ import { ArtCanvas } from './cosmoArt';
  *  - The Cosmopolitan: the 65-ft four-sided LED marquee on a black granite plinth with the wordmark crown,
  *    a long LED canvas across the podium's Strip face (the "PAUSE" digital-art program) and the
  *    wordmark over the casino doors.
- *  - ARIA: the crossbar-less "ARIA" letters along the curved tower's crown, silver by day, white at night.
+ *  - ARIA: the thin "Aria" logotype (a crossbar-less capital A, lowercase ria) along the curved tower's crown,
+ *    silver by day, white at night.
  * LED canvases only redraw while the camera is close enough to read them.
  */
 
@@ -476,15 +477,50 @@ const GLYPHS: Record<string, { w: number; s: Array<[number, number, number, numb
     ],
   },
   I: { w: 0.08, s: [[0.04, 0, 0.04, 1]] },
+  // lowercase for the "Aria" logotype (x-height 0.62 of the capital, as on the real sign: A 26 ft, ria 16 ft)
+  r: {
+    w: 0.34,
+    s: [
+      [0.03, 0, 0.03, 0.62],
+      [0.03, 0.42, 0.1, 0.54],
+      [0.1, 0.54, 0.2, 0.61],
+      [0.2, 0.61, 0.34, 0.6],
+    ],
+  },
+  i: {
+    w: 0.08,
+    s: [
+      [0.04, 0, 0.04, 0.62],
+      [0.04, 0.8, 0.04, 0.88],
+    ],
+  },
+  a: {
+    w: 0.64,
+    s: [
+      [0.580, 0.310, 0.541, 0.465],
+      [0.541, 0.465, 0.435, 0.578],
+      [0.435, 0.578, 0.290, 0.620],
+      [0.290, 0.620, 0.145, 0.578],
+      [0.145, 0.578, 0.039, 0.465],
+      [0.039, 0.465, 0.000, 0.310],
+      [0.000, 0.310, 0.039, 0.155],
+      [0.039, 0.155, 0.145, 0.042],
+      [0.145, 0.042, 0.290, 0.000],
+      [0.290, 0.000, 0.435, 0.042],
+      [0.435, 0.042, 0.541, 0.155],
+      [0.541, 0.155, 0.580, 0.310],
+      [0.6, 0, 0.6, 0.62],
+    ],
+  },
 };
 
-/** "ARIA" in channel letters along the concave face of the curved tower (centre cx, cz; face radius r). */
+/** The thin "Aria" logotype in channel letters along the concave face of the curved tower (centre cx, cz; face radius r). */
 export function buildAriaSign(b: WorldBuilder, cx = -60, cz = 268, r = 53.2, aMid = Math.PI * 1.05, y0 = 47.6, size = 5.6): void {
   const face = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xe9eef4, roughness: 0.28, metalness: 0.55, emissive: 0xffffff, emissiveIntensity: 0.12 }), 0.12, 2.1);
   const back = new THREE.MeshStandardMaterial({ color: 0x8a96a4, roughness: 0.3, metalness: 0.8 });
-  const word = 'ARIA';
-  const t = size * 0.085; // stroke thickness
-  const gap = size * 0.42;
+  const word = 'Aria';
+  const t = size * 0.075; // stroke thickness
+  const gap = size * 0.2;
   let total = 0;
   for (const ch of word) total += GLYPHS[ch].w * size;
   total += gap * (word.length - 1);
