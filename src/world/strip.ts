@@ -254,14 +254,20 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   // --- Flamingo Rd ---
   const crossLen = STRIP.flamingoEast - STRIP.flamingoWest;
   const crossMid = (STRIP.flamingoEast + STRIP.flamingoWest) / 2;
-  const cross = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 }));
+  // The cross streets catch the frontage glow too (the resorts on the corners light them)
+  const crossGlow = { fill: 0.6, pools: 0, sheen: 0.14, lift: 0.03 };
+  const crossMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 });
+  glow.apply(crossMat, crossGlow);
+  const cross = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), crossMat);
   cross.rotation.x = -Math.PI / 2;
   cross.position.set(crossMid, 0.035, 0);
   cross.receiveShadow = true;
   b.add(cross);
   b.feature({ kind: 'road', x: crossMid, z: 0, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40' });
   b.zone('Flamingo Rd & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, -STRIP.flamingoWalk, STRIP.flamingoWalk);
-  const trop = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 }));
+  const tropMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 });
+  glow.apply(tropMat, crossGlow);
+  const trop = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), tropMat);
   trop.rotation.x = -Math.PI / 2;
   trop.position.set(crossMid, 0.035, STRIP.tropicanaZ);
   trop.receiveShadow = true;
@@ -269,13 +275,14 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.feature({ kind: 'road', x: crossMid, z: STRIP.tropicanaZ, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40', label: 'Tropicana Ave' });
   b.zone('Tropicana Ave & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, STRIP.tropicanaZ - STRIP.flamingoWalk, STRIP.tropicanaZ + STRIP.flamingoWalk);
   // Side-street stubs (two lanes each way) at the real cross streets
-  const sideTex = makeCrossStreetTexture(160);
+  const sideMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(160), roughness: 0.82 });
+  glow.apply(sideMat, crossGlow);
   for (const cw of CROSSWALKS) {
     if (!cw.road) continue;
     const spans: Array<[number, number]> = cw.road === 'both' ? [[STRIP.flamingoWest, -half], [half, STRIP.flamingoEast]] : cw.road === 'west' ? [[STRIP.flamingoWest, -half]] : [[half, STRIP.flamingoEast]];
     for (const [a, c] of spans) {
       const w = c - a;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 14), new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.82 }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 14), sideMat);
       m.rotation.x = -Math.PI / 2;
       m.position.set((a + c) / 2, 0.034, cw.z);
       m.receiveShadow = true;
