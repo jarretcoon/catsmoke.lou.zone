@@ -18,7 +18,8 @@ export default defineConfig({
             { name: 'three-addons', test: /node_modules[\\/]three[\\/]examples[\\/]/, priority: 1 },
             // The world's walk-in places (Sphere, casinos, grand interiors) and the districts, split so
             // no chunk trips the 500 KB warning.
-            { name: 'interiors', test: /src[\\/]world[\\/](sphere|grand|interior|casino)/, priority: 1 },
+            { name: 'interiors', test: /src[\\/]world[\\/](sphere|grand|interior|casino|circus|mgm|nyny|via|cosmo|themed)/, priority: 1 },
+            { name: 'signs', test: /src[\\/]world[\\/](signKit|stripSigns|westSigns|luckySign)/, priority: 1 },
             { name: 'districts', test: /src[\\/]world[\\/]/, priority: 0 },
           ],
         },
