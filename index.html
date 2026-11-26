@@ -34,15 +34,15 @@
             <span class="stat-label">Cash</span>
             <span id="cash-value" class="stat-value stat-value--cash">$0</span>
           </div>
-          <div class="stat-pill">
+          <div class="stat-pill" data-icon="🚬">
             <span class="stat-label">Cig Stash</span>
             <span id="stash-value" class="stat-value">2</span>
           </div>
-          <div class="stat-pill">
+          <div class="stat-pill" data-icon="🔥">
             <span id="device-label" class="stat-label">Cig Lit</span>
             <span id="device-value" class="stat-value">100%</span>
           </div>
-          <div class="stat-pill">
+          <div class="stat-pill" data-icon="😎">
             <span class="stat-label">Swag</span>
             <span id="swag-value" class="stat-value stat-value--swag">0</span>
           </div>
@@ -78,6 +78,7 @@
         <button type="button" class="kh" data-key="KeyX"><kbd>X</kbd> <span data-label>Dance</span></button>
         <button type="button" class="kh" data-key="KeyG"><kbd>G</kbd> <span data-label>Ride</span></button>
         <button type="button" class="kh" data-key="KeyF"><kbd>F</kbd> <span data-label>Use</span></button>
+        <button type="button" class="kh" data-open-phone><kbd>P</kbd> Phone</button>
         <button type="button" class="kh" data-open-menu><kbd>Esc</kbd> Menu</button>
         <button type="button" class="kh-close" aria-label="Hide key hints (K)" title="Hide key hints (K)">×</button>
       </div>
@@ -92,6 +93,7 @@
         <span class="kh"><b class="pad pad--sh">LB</b> Beg</span>
         <span class="kh"><b class="pad pad--sh">RB</b> Steal</span>
         <span class="kh"><b class="pad pad--sh">RT</b> Dance</span>
+        <span class="kh"><b class="pad pad--sh">⧉</b> Phone</span>
         <span class="kh"><b class="pad pad--sh">☰</b> Menu</span>
       </div>
     </div>
@@ -127,6 +129,7 @@
           <li><kbd>B</kbd> Beg</li>
           <li><kbd>F</kbd> Gamble &amp; shop</li>
           <li><kbd>Mouse</kbd> Look</li>
+          <li><kbd>P</kbd> Phone</li>
           <li><kbd>Esc</kbd> Menu</li>
           <li>🎮 Controllers work too</li>
         </ul>
@@ -189,10 +192,11 @@
             <dt><kbd>X</kbd> · <kbd>C</kbd> · <kbd>Z</kbd></dt><dd>Dance for tips · pounce · flop</dd>
             <dt><kbd>G</kbd></dt><dd>Ride the Deuce, High Roller, a gondola… or jack a car</dd>
             <dt><kbd>F</kbd></dt><dd>Gamble, shop, eat, VIP lounge, missions</dd>
+            <dt><kbd>P</kbd></dt><dd>Lou’s phone: map, goals, camera, rides, texts</dd>
             <dt><kbd>H</kbd></dt><dd>Honk (while driving)</dd>
             <dt><kbd>T</kbd> · <kbd>J</kbd> · <kbd>M</kbd></dt><dd>Time of day · goals · minimap</dd>
             <dt><kbd>N</kbd> · <kbd>K</kbd> · <kbd>R</kbd></dt><dd>Background sound · key hints · reset spot</dd>
-            <dt>🎮 Controller</dt><dd>Left stick walk · right stick look · A jump · X smoke · Y use · B ride · LB beg · RB steal · LT pounce · RT dance · Start menu</dd>
+            <dt>🎮 Controller</dt><dd>Left stick walk · right stick look · A jump · X smoke · Y use · B ride · LB beg · RB steal · LT pounce · RT dance · View phone · Start menu</dd>
           </dl>
           <p class="controls-tip">
             Tips get bigger as your <strong>Swag</strong> goes up — buy shades, hats and chains at the Forum Shops boutique by Caesars. Win $500 at the tables (or rock 5 Swag) to get past the velvet rope at the Cosmopolitan's VIP lounge. Your progress saves automatically.
@@ -240,6 +244,7 @@
 
       <div class="menu-foot">
         <button type="button" class="action-btn" popovertarget="goals-popover">Goals <kbd>J</kbd></button>
+        <button type="button" class="action-btn" data-open-phone>Phone <kbd>P</kbd></button>
         <button type="button" class="action-btn action-btn--primary" popovertarget="controls-popover" popovertargetaction="hide" data-pad-first>Resume <kbd>Esc</kbd></button>
       </div>
     </section>

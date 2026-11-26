@@ -8,7 +8,7 @@
  *   LB           beg (B)                             RB           steal (Q)
  *   LT           pounce (C)                          RT           dance (X)
  *   D-pad        ← cig/vape  → flop  ↑ time of day  ↓ map size
- *   View/Select  goals (J)                           Menu/Start   pause menu
+ *   View/Select  Lou's phone (P)                     Menu/Start   pause menu
  *   Driving: left stick steers, RT gas, LT brake, A handbrake, B bail.
  *   Menus, shops, casino tables: D-pad / left stick moves, A presses, B backs out.
  *
@@ -25,8 +25,8 @@ export interface PadHooks {
 }
 
 const B = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, VIEW: 8, MENU: 9, L3: 10, R3: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
-const FOOT: Record<number, string> = { [B.A]: 'Space', [B.B]: 'KeyG', [B.X]: 'KeyE', [B.Y]: 'KeyF', [B.LB]: 'KeyB', [B.RB]: 'KeyQ', [B.LT]: 'KeyC', [B.RT]: 'KeyX', [B.LEFT]: 'KeyV', [B.RIGHT]: 'KeyZ', [B.UP]: 'KeyT', [B.DOWN]: 'KeyM', [B.VIEW]: 'KeyJ' };
-const CAR: Record<number, string> = { [B.A]: 'Space', [B.B]: 'KeyG', [B.RT]: 'KeyW', [B.LT]: 'KeyS', [B.X]: 'KeyH', [B.DOWN]: 'KeyM', [B.VIEW]: 'KeyJ' };
+const FOOT: Record<number, string> = { [B.A]: 'Space', [B.B]: 'KeyG', [B.X]: 'KeyE', [B.Y]: 'KeyF', [B.LB]: 'KeyB', [B.RB]: 'KeyQ', [B.LT]: 'KeyC', [B.RT]: 'KeyX', [B.LEFT]: 'KeyV', [B.RIGHT]: 'KeyZ', [B.UP]: 'KeyT', [B.DOWN]: 'KeyM', [B.VIEW]: 'KeyP' };
+const CAR: Record<number, string> = { [B.A]: 'Space', [B.B]: 'KeyG', [B.RT]: 'KeyW', [B.LT]: 'KeyS', [B.X]: 'KeyH', [B.DOWN]: 'KeyM', [B.VIEW]: 'KeyP' };
 
 function key(type: 'keydown' | 'keyup', code: string): void {
   const k = code === 'Space' ? ' ' : code.startsWith('Key') ? code.slice(3).toLowerCase() : code;
@@ -148,7 +148,7 @@ export class PadControls {
         else popover?.hidePopover();
         this.setFocus(null);
       }
-      if (edge(B.VIEW) && popover?.id === 'goals-popover') popover.hidePopover();
+      if (edge(B.VIEW) && (popover?.id === 'goals-popover' || popover?.id === 'lou-phone')) popover.hidePopover();
     } else if (this.hooks.started()) {
       this.play(dt, pressed, edge, lx, ly, rx, ry);
     }

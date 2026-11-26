@@ -113,6 +113,8 @@ export class CatMotion {
   /** The same head-only slots as a list, with the clip each one shadows (iterated per frame without allocating). */
   private readonly upperList: Array<{ full: THREE.AnimationAction; slot: Slot }> = [];
 
+  /** A pose held until released (the phone: Beg frozen with the paws up; photo mode: any clip). */
+  private held: { act: THREE.AnimationAction; at: number | null; loop: THREE.AnimationActionLoopStyles; clamp: boolean; timeScale: number } | null = null;
   private lock = 0;
   private fade = 0.2;
   private phase = 0;
@@ -202,6 +204,38 @@ export class CatMotion {
       up.act.timeScale = act.timeScale;
       up.act.play();
     }
+  }
+
+  /**
+   * Hold a pose on foot until released: `at` (0..1 of the clip) freezes it there, null loops it. The phone holds
+   * Beg at its middle (sat up, paws raised: holding the phone); photo mode holds whatever the player picks.
+   */
+  holdPose(act: THREE.AnimationAction | null, at: number | null = null): void {
+    if (this.held?.act === act && this.held.at === at) return;
+    this.releasePose();
+    if (!act) return;
+    this.held = { act, at, loop: act.loop, clamp: act.clampWhenFinished, timeScale: act.timeScale };
+    act.reset();
+    act.setLoop(THREE.LoopRepeat, Infinity);
+    act.clampWhenFinished = false;
+    if (at !== null) {
+      act.time = at * act.getClip().duration;
+      act.timeScale = 0;
+    } else if (act.timeScale === 0) act.timeScale = 1; // Walk / Run normally run on the gait phase
+    act.play();
+  }
+
+  releasePose(): void {
+    const h = this.held;
+    if (!h) return;
+    this.held = null;
+    h.act.setLoop(h.loop, h.loop === THREE.LoopOnce ? 1 : Infinity);
+    h.act.clampWhenFinished = h.clamp;
+    h.act.timeScale = h.timeScale;
+  }
+
+  get holding(): boolean {
+    return !!this.held;
   }
 
   /** Sitting and washing (catLook bends the head down to the chest): a few seconds now and then while he sits. */
@@ -323,11 +357,14 @@ export class CatMotion {
     // a rest pose survives a one-shot (a puff while sitting stays sitting)
     if (this.lock > 0 && base === 'idle') base = this.idleTime >= this.flopAt ? 'flop' : this.idleTime >= this.sitAt ? 'sit' : 'idle';
 
+    // a held pose (phone, photo mode) owns the body while he's on foot
+    const hold = this.held && mode === 'free' ? this.held.act : null;
+    if (hold) this.idleTime = 0;
     // one-shots: whole body when standing about, head and neck only when he's busy below the neck
-    const cur = this.current;
-    const up = cur ? this.upper.get(cur) : undefined;
+    const cur = hold ?? this.current;
+    const up = !hold && cur ? this.upper.get(cur) : undefined;
     const headOnly = !!up && base !== 'idle' && base !== 'eat' && base !== 'snack' && base !== 'pounce' && base !== 'land';
-    const pose: MotionPose = cur && this.lock > 0 && !headOnly && base !== 'eat' && base !== 'drive' && base !== 'rag' ? 'action' : base;
+    const pose: MotionPose = hold ? 'action' : cur && this.lock > 0 && !headOnly && base !== 'eat' && base !== 'drive' && base !== 'rag' ? 'action' : base;
 
     if (pose !== this.pose) {
       const out = FADE_OUT[this.pose] ?? 0;
@@ -397,8 +434,8 @@ export class CatMotion {
       const f = Math.max(0.6, fWalk + (fRun - fWalk) * r);
       if (still < 0.999) this.phase = (this.phase + dt * f) % 1;
     }
-    if (A.Walk) A.Walk.time = this.phase * A.Walk.getClip().duration;
-    if (A.Run) A.Run.time = this.phase * A.Run.getClip().duration;
+    if (A.Walk && hold !== A.Walk) A.Walk.time = this.phase * A.Walk.getClip().duration;
+    if (A.Run && hold !== A.Run) A.Run.time = this.phase * A.Run.getClip().duration;
 
     // ---- ramp the weights; normalise the whole-body ones so they always sum to one
     const rate = dt / Math.max(0.02, this.fade);
@@ -425,7 +462,7 @@ export class CatMotion {
 
     this.mixer?.update(dt);
     this.bodyPose(dt, mode, pose, vel);
-    return this.lock > 0 && cur ? 'action' : pose;
+    return hold || (this.lock > 0 && cur) ? 'action' : pose;
   }
 
   /** Lean into turns, pitch with the jump arc and acceleration, squash and stretch on take-off and landing. */

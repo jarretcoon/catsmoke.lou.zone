@@ -33,6 +33,7 @@ import { STRIP } from './world/strip';
 import { GraphicsQuality, type Quality } from './quality';
 import { Hud, menuOpen } from './hud';
 import { installMouseCamera } from './mouseCam';
+import { Phone } from './phone';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game-canvas');
@@ -472,7 +473,7 @@ const restaurants = new RestaurantSystem(scene, crowd, world.restaurants, {
   sfxCash: () => sfx.playCash(),
   sfxBad: () => sfx.playBusted(),
 });
-const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen();
+const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen() || phone.busy();
 
 // ---------------------------------------------------------------- chaos: score + wanted level
 const degen = new DegenScore(
@@ -699,6 +700,7 @@ function startGame(fresh: boolean): void {
     S.yaw = world.spawnYaw;
     wardrobe?.apply([]);
     goals.render(S);
+    phone.reset();
   }
   missions.refreshMarkers();
   started = true;
@@ -1498,6 +1500,42 @@ new Hud({
   sfx,
 });
 
+// Lou's smartphone: [P] / the phone button / View on a controller (src/phone.ts).
+const phone = new Phone({
+  started: () => started,
+  state: () => S,
+  zone: () => world.getZoneName(catHolder.position.x, catHolder.position.z),
+  daylight: () => world.getDaylightLabel(),
+  cat: () => ({ x: catHolder.position.x, z: catHolder.position.z, yaw: catYaw }),
+  features: world.mapFeatures,
+  markers: () => {
+    const out: MapMarker[] = [...world.staticMarkers, ...missions.markers2D()];
+    for (const bus of world.deuceBuses) out.push({ x: bus.mesh.position.x, z: bus.mesh.position.z, color: '#ffcc33', shape: 'square', size: 2.6 });
+    return out;
+  },
+  stars: () => wanted.stars,
+  blocked: () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen(),
+  onFoot: () => !riding && !driving.active && !rag.active && restaurants.cat.state !== 'eating',
+  pose: (clip, at) => motion.holdPose(clip ? actions[clip] : null, at),
+  model: () => catModel,
+  toast: showToast,
+  sound: (k) => sfx.playPhone(k),
+  getTime: () => world.getTimePreset(),
+  setTime: (p) => {
+    world.setTimePreset(p);
+    updateMoodButton();
+  },
+  scene,
+  photo: {
+    canvas,
+    camera,
+    cat: catHolder,
+    catYaw: () => catYaw,
+    // one frame drawn now, so the photo can read the canvas in the same task
+    render: () => (composer ? composer.render(0) : renderer.render(scene, camera)),
+  },
+});
+
 // Dragging a window edge fires dozens of resizes a second: resize the buffers once per frame at most.
 let resizeQueued = false;
 window.addEventListener('resize', () => {
@@ -1955,6 +1993,8 @@ function step(now: number, render = true): void {
       if (idleAutoPuffTimer <= 0) triggerSmokeOrVape();
     }
   }
+  const phoneState = phone.update(dt); // the phone in his paws, its map, texts and rides
+  if (phoneState) stateEl.textContent = phoneState;
   if (crowd.anyChasing() || wanted.stars > 0) stateEl.textContent = wanted.stars > 0 ? `WANTED ${'★'.repeat(wanted.stars)}` : 'ON THE RUN!';
   catLook?.update(dt, { night: world.getNight(), idle: pose === 'idle' || pose === 'sit' || pose === 'seat', roam: pose === 'walk' || pose === 'run', groom: motion.grooming, camera: camera.position, tourists: crowd.tourists, focus: riding?.view?.()?.focus });
 
@@ -2044,6 +2084,7 @@ function step(now: number, render = true): void {
   camera.position.lerpVectors(camTarget, camWant, camClip);
   camera.lookAt(rideView?.look ?? camLook.copy(camTarget));
   rideLens(camera, rideView?.fov, dt);
+  phone.camera(dt); // photo mode takes the camera over
 
   if (render) {
     stripLook(world.atmosphere, look);
