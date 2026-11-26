@@ -3,7 +3,7 @@
 //
 // POST /api/stats takes one anonymous report from src/stats.ts and writes it to the Analytics Engine dataset
 // "catsmoke_stats" (created on the first write; PR previews use "catsmoke_stats_preview"). Without the STATS
-// binding (Analytics Engine not switched on yet, see wrangler.jsonc) reports are accepted and dropped.
+// binding (e.g. a local `wrangler dev` with no Analytics Engine) reports are accepted and dropped.
 // Every field is checked against what the game sends and clamped; anything unexpected is dropped. Nothing
 // about the visitor is stored: no IP, no user agent, no IDs or cookies. Cloudflare's country code is the only
 // thing added here.

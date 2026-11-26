@@ -46,8 +46,7 @@ bun run preview  # serve dist/ on http://localhost:5181
 The game sends a few anonymous numbers so we can see what to fix and what people play
 (`src/stats.ts` → `POST /api/stats` → `worker/index.ts` → Cloudflare Workers Analytics Engine,
 dataset `catsmoke_stats`, kept for three months; PR previews write to `catsmoke_stats_preview`).
-Analytics Engine has to be switched on once for the Cloudflare account before the binding goes into
-`wrangler.jsonc` (the lines are there, commented out); until then the Worker accepts reports and drops them.
+The bindings are in `wrangler.jsonc`; without one (e.g. a local `wrangler dev`) the Worker accepts reports and drops them.
 
 **What's sent**, as one small report when the tab is hidden or closed, and at most every 5 minutes
 while playing: the kind of device (desktop, phone or tablet), the graphics setting, how long the game
