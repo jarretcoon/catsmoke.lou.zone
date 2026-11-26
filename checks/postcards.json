@@ -20,6 +20,6 @@
     { "id": "forum-front-night", "label": "Forum Shops front on the Strip (night)", "time": "night", "tp": [-14, 0.3, -150], "cam": [1.5708, 0.16, 15], "maxCalls": 900 },
     { "id": "palazzo-night", "label": "The Palazzo front (night)", "time": "night", "tp": [13, 0.3, -350], "cam": [-1.5708, 0.16, 11], "maxCalls": 560 },
     { "id": "doges-night", "label": "The Venetian: Doge's Palace + campanile (night)", "time": "night", "tp": [6, 0.3, -268], "cam": [-1.5708, 0.1, 14], "maxCalls": 740 },
-    { "id": "paris-night", "label": "Paris Las Vegas street front (night)", "time": "night", "tp": [2, 0.3, 88], "cam": [-1.5708, 0.12, 16], "maxCalls": 1100 }
+    { "id": "paris-night", "label": "Paris Las Vegas street front (night)", "time": "night", "tp": [14, 0.3, 72], "cam": [-1.9, 0.14, 11], "maxCalls": 800 }
   ]
 }
