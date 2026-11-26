@@ -1,5 +1,5 @@
 {
-  "_about": "Fixed views the PR check snapshots and measures (scripts/check.mjs). tp = where Lou stands; cam = [yaw, pitch, dist] (yaw 0 = camera south of Lou looking north, 1.5708 = east of Lou looking west); ride = sit in the first ride whose id starts with this instead of tp; sphereT = pin the Sphere show to that second. maxCalls = draw-call budget for the view (measured + ~20%, crowds vary a little run to run): raise it in the same PR when new content needs it, and say why.",
+  "_about": "Fixed views the PR check snapshots and measures (scripts/check.mjs). tp = where Lou stands; cam = [yaw, pitch, dist] (yaw 0 = camera south of Lou looking north, 1.5708 = east of Lou looking west); ride = sit in the first ride whose id starts with this instead of tp; sphereT = pin the Sphere show to that second; airT = pin the airport traffic clock to that second of its cycle. maxCalls = draw-call budget for the view (measured + ~20%, crowds vary a little run to run): raise it in the same PR when new content needs it, and say why.",
   "maxChunkKB": 500,
   "maxLoadSeconds": 240,
   "blownOutWarnPct": 2,
@@ -34,8 +34,15 @@
     { "id": "south-end-day", "label": "Looking north from Russell Rd (day)", "time": "day", "tp": [3, 0.3, 818], "cam": [0, 0.12, 8], "maxCalls": 1520 },
     { "id": "pinball-church-day", "label": "Pinball Hall of Fame sign + Little Church of the West (day)", "time": "day", "tp": [8, 0.3, 840], "cam": [-0.45, 0.05, 10], "maxCalls": 1580 },
     { "id": "east-row-day", "label": "East side shops: Shell, strip mall, motels (day)", "time": "day", "tp": [10, 0.3, 700], "cam": [-1.25, 0.16, 14], "maxCalls": 490 },
-    { "id": "diamond-inn-night", "label": "Diamond Inn pink elephant (night)", "time": "night", "tp": [16, 0.3, 772], "cam": [-1.0, 0.14, 10], "maxCalls": 520 },
-    { "id": "welcome-sign-back-day", "label": "Leaving town: the back of the Welcome sign (day)", "time": "day", "tp": [-2.6, 0.3, 897], "cam": [3.0, 0.04, 5.5], "maxCalls": 480 },
-    { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 }
+    { "id": "diamond-inn-night", "label": "Diamond Inn pink elephant (night)", "time": "night", "tp": [16, 0.3, 772], "cam": [-1, 0.14, 10], "maxCalls": 520 },
+    { "id": "welcome-sign-back-day", "label": "Leaving town: the back of the Welcome sign (day)", "time": "day", "tp": [-2.6, 0.3, 897], "cam": [3, 0.04, 5.5], "maxCalls": 480 },
+    { "id": "airport-night", "label": "Harry Reid airport beside the Welcome sign (night)", "time": "night", "tp": [10, 0.3, 905], "cam": [-0.9, 0.35, 45], "airT": 20, "maxCalls": 930 },
+    { "id": "airport-takeoff-night", "label": "A departure lifting off 1L, from Russell Rd (night)", "time": "night", "tp": [190, 0.3, 810], "cam": [3.1416, 0.04, 8], "airT": 62.7, "maxCalls": 260 },
+    { "id": "airport-terminal-day", "label": "Terminal 1 curb: taxis, rideshare, arrivals (day)", "time": "day", "tp": [132, 0.3, 828], "cam": [2.5, 0.12, 12], "airT": 130, "maxCalls": 475 },
+    { "id": "airport-lobby-day", "label": "Terminal 1 lobby: slots and the gates (inside, day)", "time": "day", "tp": [122, 0.3, 846], "cam": [2.356, 0.14, 8], "airT": 130, "maxCalls": 470 },
+    { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 },
+    { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-0.95, 0.1, 8.5], "maxCalls": 1700 },
+    { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 880 },
+    { "id": "waymo-ride-night", "label": "Lou in the back of a Waymo (night)", "time": "night", "ride": "rideshare-demo-ride", "maxCalls": 1250 }
   ]
 }
