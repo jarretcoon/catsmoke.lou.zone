@@ -15,7 +15,8 @@ import type { TimePreset } from './vegasWorld';
  * Lou's smartphone. [P] on a keyboard, the phone button on touch, View / Select on a controller.
  *
  * It slides up over the game and the world keeps running; Lou sits up and holds it in his paws (phoneProp.ts)
- * and stays put until it's away. Apps: Map, Goals (+ missions), Camera (photo mode, phoneCamera.ts), Rides
+ * and stays put until it's away, so while it's out nobody chasing him can grab him (they wait at arm's length:
+ * `hold` in npcs.ts). Apps: Map, Goals (+ missions), Camera (photo mode, phoneCamera.ts), Rides
  * (Waymo / Uber through the `catsmoke:hail` / `catsmoke:ride-status` events, so the rideshare code and this one
  * never import each other), Messages, Settings (the pause menu's settings).
  *

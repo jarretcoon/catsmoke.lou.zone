@@ -569,12 +569,19 @@ export function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig
 }
 
 const tmpV = new THREE.Vector3();
+/** How close a chaser comes while Lou's on his phone (catching is 0.95 m): near enough to feel the heat. */
+const HOLD_DIST = 2.6;
 
 export class StripCrowdSystem {
   public readonly tourists: TouristNPC[] = [];
   public readonly performers: PerformerNPC[] = [];
   public readonly guards: GuardNPC[] = [];
   public readonly pursuers: PursuerNPC[] = [];
+  /**
+   * Lou has his phone out (main.ts sets this): he can't run with it in his paws, so whoever's after him can't
+   * grab him. They still come, but stop at arm's length ({@link HOLD_DIST}) and wait for him to put it away.
+   */
+  public hold = false;
   private pursuerSeq = 0;
   private readonly scene: THREE.Scene;
 
@@ -736,6 +743,10 @@ export class StripCrowdSystem {
       tmpV.copy(target).sub(p.mesh.position);
       tmpV.y = 0;
       const d = tmpV.length();
+      if (this.hold && chasing && d < HOLD_DIST) {
+        this.standOff(p, tmpV);
+        continue;
+      }
       if (canCatch && chasing && d < 0.95) caught = p;
       if (d < 0.6) continue;
       tmpV.normalize();
@@ -756,6 +767,16 @@ export class StripCrowdSystem {
       }
     }
     return caught;
+  }
+
+  /** A chaser waiting at arm's length while Lou's on his phone: stands square to him, arms out, feet planted. */
+  private standOff(npc: Rig & { mesh: THREE.Group }, toCat: THREE.Vector3): void {
+    npc.mesh.rotation.y = Math.atan2(toCat.x, toCat.z);
+    npc.mesh.position.y = 0;
+    npc.leftLeg.rotation.x = 0;
+    npc.rightLeg.rotation.x = 0;
+    npc.leftArm.rotation.x = -0.5;
+    npc.rightArm.rotation.x = -0.9;
   }
 
   /** Everyone on foot the cat can bowl over. */
@@ -1028,6 +1049,11 @@ export class StripCrowdSystem {
         speed = 5.9; // faster than a prowl (5.2), slower than a sprint (9)
         target = catPos;
         const d = g.mesh.position.distanceTo(catPos);
+        if (this.hold && d < HOLD_DIST) {
+          g.lostTimer = 0;
+          this.standOff(g, tmpV.copy(catPos).sub(g.mesh.position));
+          continue;
+        }
         if (d < 0.95) {
           g.mode = 'return';
           events.onCaught(g);

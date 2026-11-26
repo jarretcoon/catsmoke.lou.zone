@@ -1885,6 +1885,9 @@ function step(now: number, render = true): void {
 
   world.update(dt, elapsed, catHolder.position, camera);
   envLighting.update(world.atmosphere);
+  // Phone out (or the Camera's photo mode): Lou's paws are busy and he can't run, so nobody may grab him.
+  // The world keeps going (a hailed ride still drives up); chasers stop at arm's length and wait (npcs.ts).
+  crowd.hold = started && phone.busy();
   crowd.update(dt, elapsed, catHolder.position, { onCaught, onEscaped });
   // People inside the big interiors (Bellagio, Venetian, Forum Shops, Luxor) aren't drawn from the street.
   for (const t of crowd.tourists) if (t.mesh.visible && hiddenIndoors(t.mesh.position.x, t.mesh.position.z)) t.mesh.visible = false;
