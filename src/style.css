@@ -2097,3 +2097,79 @@ kbd {
   font-style: normal;
   font-family: system-ui, sans-serif;
 }
+
+/* ---------- Phone screens held upright: a slim HUD ----------
+   The stats fold into one row of icons, where Lou is and the next goal share one small card, and the minimap and
+   Degen Points move into Lou's phone (src/phone.ts). Desktop is unchanged. */
+@media (max-width: 720px) {
+  .hud--touch .hud-top {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "stats"
+      "brand"
+      "mission"
+      "map"
+      "wanted";
+    gap: 0.35rem;
+  }
+  .hud--touch .hud-stats {
+    justify-self: start;
+    max-width: 100%;
+    border-radius: 999px;
+  }
+  .hud--touch .stat-pill {
+    flex: 0 1 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.28rem;
+    padding: 0.32rem 0.6rem;
+  }
+  .hud--touch .stat-pill::before {
+    content: attr(data-icon);
+    font-size: 0.78rem;
+    line-height: 1;
+  }
+  .hud--touch .stat-label {
+    display: none;
+  }
+  .hud--touch .stat-value {
+    font-size: 0.9rem;
+    line-height: 1.1;
+  }
+  .hud--touch .hud-brand {
+    max-width: 100%;
+    padding: 0.3rem 0.65rem 0.34rem;
+    border-radius: 12px;
+  }
+  .hud--touch .zone-label {
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hud--touch .goal-tracker {
+    margin-top: 0.1rem;
+    font-size: 0.68rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hud--touch .goal-tracker .pp-icon {
+    font-size: 0.9em;
+  }
+  .hud--touch .minimap,
+  .hud--touch .hud-left .degen-hud {
+    display: none;
+  }
+  .hud--touch .hud-map-row:not(:has(.heat-meter:not([hidden]))) {
+    display: none;
+  }
+  .hud--touch .hud-left .mission-hud {
+    font-size: 0.74rem;
+    padding: 0.32rem 0.7rem;
+  }
+  .hud--touch .hud-left .mission-hud b {
+    font-size: 0.64rem;
+  }
+}
