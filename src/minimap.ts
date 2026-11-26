@@ -87,7 +87,8 @@ export class Minimap {
   }
 
   draw(catX: number, catZ: number, heading: number, markers: MapMarker[]): void {
-    if (this.mode === 'off' || !this.staticLayer) return;
+    // (hidden by CSS on phone screens, where the map lives in Lou's phone: nothing to draw)
+    if (this.mode === 'off' || !this.staticLayer || !this.canvas.offsetWidth) return;
     const ctx = this.ctx;
     const W = this.canvas.width;
     const H = this.canvas.height;
