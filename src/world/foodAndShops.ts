@@ -48,7 +48,7 @@ function buildBlvd(b: WorldBuilder): void {
   for (let z = z0 + 3; z < z1; z += 4.5) b.add(mesh(new THREE.BoxGeometry(0.3, roofY, 0.25), band, x0 - 0.1, roofY / 2, z));
   // Storefronts with lit windows along the remaining frontage
   const lit = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, emissive: 0xffd9a0, emissiveIntensity: 0.15, roughness: 0.1 });
-  b.nightGlow(lit, 0.12, 1.1);
+  b.nightGlow(lit, 0.12, 0.85); // under the bloom threshold: lit glass, not a halo
   const names: Array<[string, string]> = [
     ['BLVD', '#ffffff'],
     ['BURGER • TACOS • SUSHI', '#ffd24d'],

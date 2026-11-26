@@ -4,7 +4,7 @@ import { bakeGroup } from '../meshBake';
 import type { WorldBuilder } from './builder';
 import { LedBoard, makeBoulevardMaps, makeCrossStreetTexture, makeGlowTexture, makeGravelTexture, makePaverTexture, makeRoadPaintTexture, rng } from './textures';
 import { viewer } from './builder';
-import { boxTruck, lampGlow, signs } from './backOfHouse';
+import { boxTruck, signs } from './backOfHouse';
 import { posterGeometry, POSTER_COUNT } from './streetTextures';
 import { bridgeFascia, deuceStopSign, streetBlade } from './stripSigns';
 import { placed } from './signKit';
@@ -391,6 +391,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   // --- Deuce stop shelters ---
   const shelterGlass = new THREE.MeshStandardMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.35, roughness: 0.1 });
   const shelterFrame = mat(0x2d2f36, 0.4, 0.6);
+  // The ad box behind the posters: lit, but far below the lamp heads (lampGlow) so it never blooms up close
+  const adLight = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xfff1d6, emissive: 0xffe4c0, emissiveIntensity: 0.1, roughness: 0.4 }), 0.08, 0.85);
   let adIdx = 0;
   for (const stop of deuceStops) {
     const x = stop.side * (half + 3.2);
@@ -401,7 +403,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     // Lit ad panel at the downstream end of the shelter (posters both faces)
     const adZ = stop.z + 2.45;
     b.add(mesh(new THREE.BoxGeometry(1.5, 2.2, 0.16), shelterFrame), x, 1.25, adZ);
-    b.add(mesh(new THREE.BoxGeometry(1.32, 2.0, 0.17), lampGlow(b), x, 1.25, adZ));
+    b.add(mesh(new THREE.BoxGeometry(1.32, 2.0, 0.17), adLight, x, 1.25, adZ));
     const pi = (adIdx++ * 3) % POSTER_COUNT;
     for (const f of [-1, 1]) {
       const pm = mesh(posterGeometry((pi + (f > 0 ? 0 : 1)) % POSTER_COUNT, 1.25, 1.8), signs(b), x, 1.25, adZ + f * 0.09);
