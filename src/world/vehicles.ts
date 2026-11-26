@@ -405,7 +405,7 @@ const SPECS: Record<BodyKind, Spec> = {
   sport: { L: 4.45, W: 1.92, clear: 0.24, nose: 0.6, belt: 0.84, deck: 0.86, roof: 1.2, ws0: 0.55, ws1: -0.3, rw1: -0.72, rw0: -1.72, wr: 0.34, wf: 1.42, wb: -1.36, tumble: 0.1, posts: [-0.62], taper: 0.16 },
   van: { L: 5.6, W: 2.05, clear: 0.42, nose: 1.08, belt: 1.2, deck: 1.2, roof: 2.0, ws0: 1.75, ws1: 1.25, rw1: 0.6, rw0: 0.6, wr: 0.4, wf: 1.95, wb: -1.85, tumble: 0.06, posts: [], taper: 0.06 },
   // Waymo's Jaguar I-PACE: short nose, raked screen, coupé roof falling to a cut-off tail, big 22" wheels
-  ipace: { L: 4.68, W: 1.9, clear: 0.32, nose: 0.86, belt: 1.02, deck: 1.06, roof: 1.56, ws0: 1.08, ws1: 0.12, rw1: -1.3, rw0: -1.86, wr: 0.37, wf: 1.5, wb: -1.49, tumble: 0.08, posts: [-0.3], taper: 0.14 },
+  ipace: { L: 4.68, W: 1.9, clear: 0.32, nose: 0.88, belt: 1.03, deck: 1.12, roof: 1.58, ws0: 1.12, ws1: 0.1, rw1: -1.42, rw0: -2.06, wr: 0.37, wf: 1.5, wb: -1.49, tumble: 0.08, posts: [-0.3], taper: 0.14 },
   // Waymo Ojai (the Zeekr-built minivan on the Strip since 2026): tall glass box, stubby nose, upright tail
   ojai: { L: 4.75, W: 1.95, clear: 0.3, nose: 0.98, belt: 1.02, deck: 1.06, roof: 1.98, ws0: 1.62, ws1: 0.98, rw1: -2.2, rw0: -2.3, wr: 0.36, wf: 1.62, wb: -1.55, tumble: 0.05, posts: [0.32, -1.32], taper: 0.05 },
 };
@@ -641,9 +641,13 @@ const rwAt = (s: Spec, y: number) => lerp(s.rw0, s.rw1, (y - s.belt) / (s.roof -
 function openCabin(p: Parts, s: Spec, paint: THREE.Material, trim: THREE.Material): void {
   const zf = wsAt(s, s.roof);
   const zr = rwAt(s, s.roof);
-  p.add(paint, new RoundedBoxGeometry(cabinHalf(s, s.roof) * 2 + 0.03, 0.07, zf - zr + 0.06, 1, 0.03), 0, s.roof - 0.035, (zf + zr) / 2);
-  const yTop = s.roof - 0.05;
+  p.add(paint, new RoundedBoxGeometry(cabinHalf(s, s.roof) * 2 + 0.03, 0.11, zf - zr + 0.08, 2, 0.04), 0, s.roof - 0.05, (zf + zr) / 2);
+  const yTop = s.roof - 0.07;
+  const blk = std(0x101114, 0.4, 0.1);
   for (const side of [-1, 1]) {
+    // window surrounds: black header rail under the roof edge and a bright belt strip along the sill
+    strut(p, blk, V(side * (cabinHalf(s, yTop) + 0.004), yTop - 0.02, wsAt(s, yTop) - 0.1), V(side * (cabinHalf(s, yTop) + 0.004), yTop - 0.02, rwAt(s, yTop) + 0.1), 0.03, 0.05);
+    strut(p, BRIGHT(), V(side * (cabinHalf(s, s.belt) + 0.012), s.belt + 0.02, wsAt(s, s.belt) - 0.08), V(side * (cabinHalf(s, s.belt) + 0.012), s.belt + 0.02, rwAt(s, s.belt) + 0.08), 0.02, 0.025);
     strut(p, paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, wsAt(s, s.belt) - 0.03), V(side * (cabinHalf(s, yTop) - 0.02), yTop, wsAt(s, yTop) - 0.03), 0.07, 0.11);
     for (const z of s.posts) strut(p, trim, V(side * (cabinHalf(s, s.belt) - 0.01), s.belt, z), V(side * (cabinHalf(s, yTop) - 0.01), yTop, z), 0.06, 0.1);
     strut(p, paint, V(side * (cabinHalf(s, s.belt) - 0.02), s.belt, rwAt(s, s.belt) + 0.05), V(side * (cabinHalf(s, yTop) - 0.02), yTop, rwAt(s, yTop) + 0.05), 0.07, 0.18);

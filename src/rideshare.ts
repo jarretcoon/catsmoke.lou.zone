@@ -633,6 +633,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     j.cur.i = 0;
     j.release = true;
     j.car.hazard.visible = false;
+    if (j.car.led) j.car.led.visible = false;
   }
 
   /** Back into the Strip's traffic loop, on the exact lane line it queues on. */
@@ -960,6 +961,37 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
       status: () => job?.car.rideable.status?.() ?? '',
       view: () => job?.car.rideable.view?.() ?? null,
     } satisfies Rideable);
+    // a Waymo waiting at the Bellagio pickup on Flamingo Rd, flashers on (it leaves again after half a minute)
+    const pickAt = new THREE.Vector3(-66, 0.3, 12.6);
+    world.rideables.push({
+      id: 'rideshare-demo-pickup',
+      kind: 'rideshare',
+      label: 'demo',
+      boardRadius: 1.5,
+      boardPoint: (out) => out.copy(pickAt),
+      seat: (out) => out.copy(pickAt),
+      yaw: () => 0,
+      exitPoint: (out) => out.copy(pickAt),
+      canBoard: () => {
+        const sp = RIDESHARE_SPOTS.find((s) => s.id === 'bellagio')!;
+        const c = cars.find((k) => k.service === 'waymo' && k.model === 'ojai' && !k.tc.hijacked && !k.tc.parked);
+        if (c && !leaving.some((l) => l.car === c)) {
+          const st = spotStop(sp, 'waymo');
+          const [x, z] = lanePt('cross', st.zc, st.dir, st.s, st.curbOff);
+          const p = new Path().start(x - 1, z).line(x, z).finish(2, 2);
+          c.tc.hijacked = true;
+          c.tc.laneX = NaN;
+          c.tc.mesh.position.set(x, 0, z);
+          c.tc.mesh.rotation.set(0, Math.PI / 2, 0);
+          const j: Job = { car: c, service: 'waymo', pickup: st, phase: 'waiting', path: p, d: p.len, cur: { i: 0 }, speed: 0, waitT: 0, rider: false, dest: null, destList: [], destI: 0, fare: 0, statusT: 0, lineT: 0, lineI: 0, stillT: 0, release: false, destManual: false, ghostT: 0 };
+          leave(j, 30);
+          if (c.led) c.led.visible = true;
+        }
+        return { ok: false, reason: '[dev] a Waymo waits at the pickup' };
+      },
+      boardPrompt: '[dev] postcard: a Waymo at the pickup',
+      ridingPrompt: '',
+    } satisfies Rideable);
     // a Waymo in traffic: [G] here sends the I-PACE down the southbound lane past the fountains
     const stageAt = new THREE.Vector3(-13.2, 0.3, 80);
     world.rideables.push({
@@ -977,7 +1009,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
           c.tc.axis = 'z';
           c.tc.dir = 1;
           c.tc.laneX = -DRIVE;
-          c.tc.mesh.position.set(-DRIVE, 0, stageAt.z - 46);
+          c.tc.mesh.position.set(-DRIVE, 0, stageAt.z - 27);
           c.tc.mesh.rotation.set(0, 0, 0);
           c.tc.speed = c.tc.cruise;
           for (const o of world.trafficVehicles) if (o !== c.tc && o.axis === 'z' && o.laneX === -DRIVE && Math.abs(o.mesh.position.z - stageAt.z) < 60) o.mesh.position.z -= 120;
