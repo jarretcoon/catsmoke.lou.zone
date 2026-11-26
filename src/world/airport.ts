@@ -786,6 +786,28 @@ function buildTerminal1(b: WorldBuilder, mg: Merger): void {
   // Roof slab with an overhang, rooftop units
   mg.box(white, xm, h + 0.35, (z0 + z1) / 2, x1 - x0 + 3, 0.7, z1 - z0 + 3, 0, true);
   mg.box(concrete, xm, h + 0.05, (z0 + z1) / 2, x1 - x0, 0.2, z1 - z0);
+  // A shallow barrel-vault roof over the hall (a crescent extruded the length of the building)
+  {
+    const R = 32;
+    const th = 0.436;
+    const arc = new THREE.Shape();
+    const n = 16;
+    for (let i = 0; i <= n; i++) {
+      const t = -th + (2 * th * i) / n;
+      const px = R * Math.sin(t);
+      const py = R * Math.cos(t) - R * Math.cos(th);
+      if (i === 0) arc.moveTo(px, py);
+      else arc.lineTo(px, py);
+    }
+    for (let i = n; i >= 0; i--) {
+      const t = -th + (2 * th * i) / n;
+      arc.lineTo((R - 0.5) * Math.sin(t), (R - 0.5) * Math.cos(t) - R * Math.cos(th));
+    }
+    const vault = new THREE.ExtrudeGeometry(arc, { depth: x1 - x0 + 6, bevelEnabled: false, curveSegments: 1 });
+    vault.rotateY(Math.PI / 2);
+    mg.at(mat(0xe4e8ec, 0.35, 0.45), vault, x0 - 3, h + 0.7, (z0 + z1) / 2, 0, true);
+    mg.box(mat(0x9fb4c4, 0.15, 0.6), xm, h + 0.7 + 2.85, (z0 + z1) / 2, x1 - x0 + 2, 0.2, 2.2); // ridge skylight
+  }
   b.collider(x0, x1, z0, z1, h, h + 0.7);
   for (const [rx, rz] of [
     [86, 852],
