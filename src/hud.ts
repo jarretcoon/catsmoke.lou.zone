@@ -129,6 +129,7 @@ const PAD_GLYPHS: Record<string, [string, string]> = {
   X: ['RT', 'sh'],
   C: ['LT', 'sh'],
   H: ['X', 'x'],
+  P: ['⧉', 'sh'],
   V: ['◀', 'sh'],
   Z: ['▶', 'sh'],
   T: ['▲', 'sh'],
@@ -383,6 +384,9 @@ export class Hud {
   private refreshContext(): void {
     if (!this.hooks.started()) return;
     const c = this.hooks.context();
+    // The slim phone-screen stat row shows icons instead of labels: an ember for a cig, a cloud for the vape.
+    const dev = document.getElementById('device-label')?.parentElement;
+    if (dev) dev.dataset.icon = c.vape ? '💨' : '🔥';
     const same = c.prompt === this.ctx.prompt && c.riding === this.ctx.riding && c.driving === this.ctx.driving && c.eating === this.ctx.eating && c.vape === this.ctx.vape;
     this.ctx = c;
     if (same && this.ctxAction) return;

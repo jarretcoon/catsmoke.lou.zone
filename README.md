@@ -16,8 +16,12 @@ the High Roller and a gondola. Play for tips, and stay ahead of casino security.
 - Pounce: `C`. Flop: `Z`. Honk while driving: `H`. Vape tricks: `1`–`4`.
 - Camera: drag with the mouse to look around, the wheel zooms.
 - Menu (pauses the game; controls, graphics, sound, full screen): `Esc`. Key hints on/off: `K`.
+- Lou's phone: `P` (View / Select on a controller, the phone button on touch). Map, goals and missions,
+  a camera (photo mode: poses, time of day, looks, a selfie, Save photo downloads a JPEG), rides (Waymo or
+  Uber), texts, settings. The world keeps going while it's out; Lou stays put with it in his paws.
 - On a phone: the stick walks, drag anywhere to look, pinch to zoom; the big button does whatever fits
-  where Lou is (ride, gamble, shop, beg, smoke…) and the menu button has the rest.
+  where Lou is (ride, gamble, shop, beg, smoke…) and the menu button has the rest. The minimap and the
+  Degen Points live in the phone there, so the top of the screen stays clear.
 - Graphics start on Auto: the game times its own frames and picks High, Medium or Low. Pick one in the
   menu to keep it.
 
