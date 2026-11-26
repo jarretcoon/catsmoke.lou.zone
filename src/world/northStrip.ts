@@ -767,7 +767,7 @@ function buildSlotsAFun(b: WorldBuilder): void {
   b.add(letterFace(b, 7.0, 1.9, bulbLetters("SLOTS A' FUN", '#fff6ec', '#d0101c', '#d8a838', 0.12)), fx + 0.92, 8.0, cz, HALF_PI);
   const race = new THREE.Group();
   const span = (maxZ - minZ) / 2;
-  for (const y of [6.75, 9.25]) race.add(bulbPath([[-span, y], [span, y]], false, 0.32, 0.17, 0));
+  for (const y of [9.25]) race.add(bulbPath([[-span, y], [span, y]], false, 0.32, 0.17, 0));
   const arch: Array<[number, number]> = [];
   for (let i = 0; i <= 20; i++) {
     const a = (i / 20) * Math.PI;
