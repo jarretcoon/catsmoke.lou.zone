@@ -2163,6 +2163,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'check') {
       }
     },
     keys,
+    /** Dev-only: the touch stick (x, y in -1..1, y < 0 = forward), for in-between speeds. */
+    stick,
     tp: (x: number, y: number, z: number) => {
       catHolder.position.set(x, y, z);
       camTarget.set(x, y + 0.75, z);

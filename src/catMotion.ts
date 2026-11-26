@@ -4,12 +4,16 @@ import * as THREE from 'three';
  * Lou's body in motion. One weighted blend over the GLB's 14 clips instead of hard switches, so every
  * change of pose cross-fades (no pops), plus the procedural motion a baked clip can't know about.
  *
- * - Locomotion: Idle / Walk / Run blended by ground speed on one shared gait phase. Each gait's cadence
- *   comes from its stride (blender/build_tabby_cat.py: Walk sweeps a planted paw 0.11 m over 62% of a 1.0 s
- *   cycle, Run 0.21 m over 38% of 0.5 s, times the 1.35 model scale), so the paws keep pace with the ground.
- *   Past 5 strides a second the cadence eases off (a blur of legs reads worse than a little slip).
- * - Turning: the heading follows a critically damped spring (eases in and out instead of snapping), and Lou
- *   banks into the turn with the centripetal pull and pitches with acceleration.
+ * - Locomotion: Idle / Walk / Trot / Run blended by ground speed on one shared gait phase. Walk is the
+ *   lateral-sequence walk (phones' half-pushed stick, starting and stopping), Trot the diagonal trot the walk
+ *   key holds (5.2 m/s, about 3.9 strides a second), Run the rotary gallop of a sprint (9 m/s, about 4 a
+ *   second). Each clip moves a planted paw a fixed distance per cycle (GAIT_* D in
+ *   blender/build_tabby_cat.py, times the 1.35 model scale), so the cadence that keeps the paws planted is
+ *   speed / distance; it's held inside each gait's natural range (a slow-motion trot or a blur of legs reads
+ *   worse than a little slip at the edges of a band).
+ * - Turning: the heading follows a critically damped spring (eases in and out instead of snapping), Lou
+ *   banks into the turn with the centripetal pull and pitches with acceleration, and his back curves into
+ *   the turn with the head leading it (bones, on top of the clip).
  * - Jumps: a stretch at take-off, the Jump pose in the air with the body pitched along the arc, a squash on
  *   landing; after a real drop, or landing up on something, the last beat of the Pounce clip (hind paws
  *   coming down into a little crouch) plays as the landing.
@@ -22,7 +26,7 @@ import * as THREE from 'three';
  * Nothing here allocates per frame.
  */
 
-export const CLIP_NAMES = ['Idle', 'Walk', 'Run', 'Jump', 'Puff', 'VapeRip', 'Beg', 'Steal', 'Pounce', 'Sit', 'Eat', 'Drive', 'Flop', 'Dance'] as const;
+export const CLIP_NAMES = ['Idle', 'Walk', 'Run', 'Jump', 'Puff', 'VapeRip', 'Beg', 'Steal', 'Pounce', 'Sit', 'Eat', 'Drive', 'Flop', 'Dance', 'Trot'] as const;
 export type ClipName = (typeof CLIP_NAMES)[number];
 
 /** What Lou is doing this frame, as far as his body is concerned (set by the game each frame). */
@@ -30,12 +34,20 @@ export type MotionMode = 'free' | 'eat' | 'drive' | 'rag' | 'ride' | 'seat';
 /** The pose the blend settled on (the HUD names it). 'action' = a one-shot (puff, beg, steal...) is playing. */
 export type MotionPose = 'action' | 'eat' | 'drive' | 'rag' | 'ride' | 'seat' | 'air' | 'land' | 'walk' | 'run' | 'idle' | 'snack' | 'pounce' | 'sit' | 'flop';
 
-// Ground covered per gait cycle with the paws planted, in metres at model scale 1 (see the header).
-const WALK_PER_CYCLE = (0.11 / 0.62) * 1.0;
-const RUN_PER_CYCLE = (0.21 / (0.38 * 0.5)) * 0.5;
-/** Strides per second where the run cadence starts to ease off, and how much it still follows past it. */
-const RUN_KNEE = 5.0;
+// Ground a planted paw covers per gait cycle, in metres at model scale 1 (GAIT_WALK / GAIT_TROT / GAIT_RUN D
+// in blender/build_tabby_cat.py; change them together).
+const WALK_PER_CYCLE = 0.3;
+const TROT_PER_CYCLE = 0.98;
+const RUN_PER_CYCLE = 1.65;
+/** Each gait's cadence range in strides per second: below it the paws slide back a little, above it forward. */
+const WALK_HZ: readonly [number, number] = [0.8, 3.2];
+const TROT_HZ: readonly [number, number] = [1.7, 5.2];
+const RUN_HZ: readonly [number, number] = [2.4, 5.0];
+/** Past RUN_HZ's top the gallop still speeds up, by this share of what matching would need (burger buffs). */
 const RUN_KNEE_SLOPE = 0.5;
+/** Ground speeds (m/s) where the gaits hand over: walk to trot, trot to gallop. */
+const WALK_TROT: readonly [number, number] = [1.2, 2.0];
+const TROT_RUN: readonly [number, number] = [6.0, 7.2];
 /** Head-and-neck bones the smoking clips may drive on their own. */
 const UPPER = new Set(['Neck', 'Head', 'Jaw', 'Lid_L', 'Lid_R', 'Ear_L', 'Ear_R']);
 /** Clips that can play on the head alone. */
@@ -66,6 +78,8 @@ const smooth = (a: number, b: number, x: number): number => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
+const tmpQ = new THREE.Quaternion();
+const clamp = (x: number, [lo, hi]: readonly [number, number]): number => Math.min(hi, Math.max(lo, x));
 const wrapAngle = (a: number): number => {
   a %= Math.PI * 2;
   if (a > Math.PI) a -= Math.PI * 2;
@@ -85,6 +99,7 @@ export class CatMotion {
     Idle: null,
     Walk: null,
     Run: null,
+    Trot: null,
     Jump: null,
     Puff: null,
     VapeRip: null,
@@ -143,6 +158,9 @@ export class CatMotion {
   private bank = 0;
   private squash = 0;
   private squashVel = 0;
+  // the back and neck curve into turns: each bone turns about its own copy of the model's up axis
+  private readonly bend: Array<{ bone: THREE.Object3D; axis: THREE.Vector3; k: number }> = [];
+  private bendAmt = 0;
 
   constructor() {
     this.planIdle();
@@ -180,10 +198,19 @@ export class CatMotion {
       }
     }
     // the gait clips run on our own phase, not the mixer's clock
-    for (const a of [this.actions.Walk, this.actions.Run]) if (a) a.timeScale = 0;
+    for (const a of [this.actions.Walk, this.actions.Trot, this.actions.Run]) if (a) a.timeScale = 0;
     for (const a of [this.actions.Pounce]) if (a) this.oneShotSetup(a);
     const idle = this.actions.Idle && this.slotOf.get(this.actions.Idle);
     if (idle) idle.w = idle.target = 1;
+    // bones still in their rest pose here: find each one's local axis for the model's up
+    model.updateWorldMatrix(true, true);
+    const modelQ = model.getWorldQuaternion(new THREE.Quaternion());
+    for (const [name, k] of [['Spine', 0.55], ['Neck', 0.45]] as const) {
+      const bone = model.getObjectByName(name);
+      if (!bone) continue;
+      const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(modelQ).applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert());
+      this.bend.push({ bone, axis: axis.normalize(), k });
+    }
   }
 
   /**
@@ -421,21 +448,28 @@ export class CatMotion {
         break;
     }
     if (moving) {
-      // Idle -> Walk -> Run by speed, all on one gait phase
+      // Idle -> Walk -> Trot -> Run by speed, all on one gait phase (every clip's left hind lands at 0)
       const v = this.speed;
-      const still = 1 - smooth(0.08, 0.4, v);
-      const r = smooth(0.7, 1.7, v);
+      const still = 1 - smooth(0.06, 0.3, v);
+      const t = smooth(WALK_TROT[0], WALK_TROT[1], v);
+      const r = smooth(TROT_RUN[0], TROT_RUN[1], v);
+      // an old GLB without the Trot clip gallops instead
+      const trot = A.Trot ? t * (1 - r) : 0;
+      const run = A.Trot ? t * r : t;
+      const walk = 1 - t;
       this.want(A.Idle, still);
-      this.want(A.Walk, (1 - still) * (1 - r), A.Run);
-      this.want(A.Run, (1 - still) * r, A.Walk);
-      const fWalk = Math.min(v / (WALK_PER_CYCLE * this.baseScale), 2.8);
-      const runMatched = v / (RUN_PER_CYCLE * this.baseScale);
-      const fRun = runMatched < RUN_KNEE ? runMatched : RUN_KNEE + (runMatched - RUN_KNEE) * RUN_KNEE_SLOPE;
-      const f = Math.max(0.6, fWalk + (fRun - fWalk) * r);
-      if (still < 0.999) this.phase = (this.phase + dt * f) % 1;
+      this.want(A.Walk, (1 - still) * walk, A.Run);
+      if (trot > 0) this.want(A.Trot, (1 - still) * trot);
+      this.want(A.Run, (1 - still) * run, A.Walk);
+      const s = this.baseScale;
+      const fWalk = clamp(v / (WALK_PER_CYCLE * s), WALK_HZ);
+      const fTrot = clamp(v / (TROT_PER_CYCLE * s), TROT_HZ);
+      const runMatched = v / (RUN_PER_CYCLE * s);
+      const fRun = runMatched > RUN_HZ[1] ? RUN_HZ[1] + (runMatched - RUN_HZ[1]) * RUN_KNEE_SLOPE : Math.max(RUN_HZ[0], runMatched);
+      const f = walk * fWalk + trot * fTrot + run * fRun;
+      if (still < 0.999) this.phase = (this.phase + dt * Math.max(0.6, f)) % 1;
     }
-    if (A.Walk && hold !== A.Walk) A.Walk.time = this.phase * A.Walk.getClip().duration;
-    if (A.Run && hold !== A.Run) A.Run.time = this.phase * A.Run.getClip().duration;
+    for (const a of [A.Walk, A.Trot, A.Run]) if (a && hold !== a) a.time = this.phase * a.getClip().duration;
 
     // ---- ramp the weights; normalise the whole-body ones so they always sum to one
     const rate = dt / Math.max(0.02, this.fade);
@@ -461,8 +495,21 @@ export class CatMotion {
     }
 
     this.mixer?.update(dt);
+    this.bendIntoTurn(dt, mode, pose);
     this.bodyPose(dt, mode, pose, vel);
     return hold || (this.lock > 0 && cur) ? 'action' : pose;
+  }
+
+  /**
+   * Curve the back into a turn, the head leading: the mixer has just written every bone, so this rides on top
+   * of whatever clip is playing. Up to ~17 degrees through the back and neck at a hard turn.
+   */
+  private bendIntoTurn(dt: number, mode: MotionMode, pose: MotionPose): void {
+    const on = mode === 'free' && (pose === 'walk' || pose === 'run' || pose === 'air' || pose === 'idle') ? 1 : 0;
+    const want = on * Math.max(-0.3, Math.min(0.3, this.yawRate * 0.045 * smooth(0.2, 2.5, this.speed)));
+    this.bendAmt += (want - this.bendAmt) * Math.min(1, dt * 10);
+    if (Math.abs(this.bendAmt) < 1e-4 || !this.mixer) return; // only on top of a fresh mixer pose (it would pile up)
+    for (const b of this.bend) b.bone.quaternion.multiply(tmpQ.setFromAxisAngle(b.axis, this.bendAmt * b.k));
   }
 
   /** Lean into turns, pitch with the jump arc and acceleration, squash and stretch on take-off and landing. */
