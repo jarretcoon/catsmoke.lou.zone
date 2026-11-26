@@ -31,5 +31,41 @@ export interface Rideable {
    * (pitch may be negative to look up from below), and an optional world point to look at instead of the cat.
    * Mouse-drag still overrides it while the button is held.
    */
-  view?(): { yaw: number; pitch: number; dist: number; look?: THREE.Vector3 } | null;
+  view?(): RideView | null;
+}
+
+export interface RideView {
+  yaw: number;
+  pitch: number;
+  dist: number;
+  /** World point to look at instead of the cat. */
+  look?: THREE.Vector3;
+  /** Skip the camera's wall test: the shot is placed by hand (a seat among other seats, say). */
+  free?: boolean;
+  /** Vertical field of view for this shot, in degrees (eased in, and back out after). */
+  fov?: number;
+}
+
+let baseFov = 0;
+let inLens = false;
+/**
+ * Eases the camera's field of view to a ride view's lens and back to the usual one afterwards. Outside a
+ * ride view it leaves the camera alone, so a field-of-view setting elsewhere keeps working.
+ */
+export function rideLens(camera: THREE.PerspectiveCamera, fov: number | undefined, dt: number): void {
+  if (fov === undefined && !inLens) {
+    baseFov = camera.fov;
+    return;
+  }
+  if (fov !== undefined && !inLens) {
+    baseFov = camera.fov;
+    inLens = true;
+  }
+  const want = fov ?? baseFov;
+  const d = want - camera.fov;
+  if (Math.abs(d) < 0.05) {
+    camera.fov = want;
+    if (fov === undefined) inLens = false;
+  } else camera.fov += d * Math.min(1, dt * 3);
+  camera.updateProjectionMatrix();
 }
