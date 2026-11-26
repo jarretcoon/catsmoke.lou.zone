@@ -12,6 +12,7 @@ import { phMarquee, phName, phRibbon } from './phFront';
 import { arcDeTriomphe, eiffelTower, parisBalloon } from './parisIcons';
 import { flamingoFront, flamingoTowerSigns } from './flamingoFront';
 import { carnavalTent, harrahsArch } from './harrahsFront';
+import { casinoRoyaleDressing, horseshoeLedTower, linqHexBox, linqPylon, soleiaLoungers, starburst, vanderpumpFront, venetianColumns } from './eastExtras';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 import { casinoRoyaleFront, dogesPalaceFront, palazzoFront, parisFront } from './stripFronts';
 
@@ -307,6 +308,10 @@ function buildHorseshoe(b: WorldBuilder): void {
   tower(b, { x: 108, z: 32, w: 12, d: 30, h: 26, facade: beige });
   tower(b, { x: 124, z: 44, w: 12, d: 30, h: 26, facade: { ...beige, seed: 83 } });
   horseshoeSigns(b); // gold horseshoe crest + slab lettering on red cabinets (stripSigns.ts)
+  // the three-sided LED tower on the Flamingo Rd corner (live since 2023) and the Swarovski Starburst on
+  // its perch over the Bazaar (eastExtras.ts)
+  horseshoeLedTower(b, 27.2, 19.4);
+  starburst(b, 38, 33.75, 8.5);
   b.building(74, 37, 40, 38, '#5a2a22', 'Horseshoe');
   b.building(116, 36, 28, 40, '#d6c6a8');
   b.zone('Horseshoe Las Vegas', 19, 140, 17, 56);
@@ -318,17 +323,20 @@ function buildVanderpump(b: WorldBuilder): void {
   const skin = { wall: '#24262b', mullion: '#c9a95c', glass: '#30343c', lit: '#ffd9a0', cols: 6, rows: 11, style: 0 as const, seed: 91 };
   tower(b, { x: 38, z: -26, w: 24, d: 16, h: 13, facade: skin, roof: 0x1a1a1e });
   b.add(neonSign('THE VANDERPUMP', '#0d0d10', '#f2c6d9', 12, 1.6, 'HOTEL • LAS VEGAS'), 25.8, 10, -26, -Math.PI / 2);
-  // Drai's rooftop: pool, cabanas, string lights, DJ booth
+  // the corner LED screens, the crest, black awnings with gold trim (eastExtras.ts)
+  vanderpumpFront(b, 26, 50, -34, -18, 13);
+  // Soleia Beach on the roof (Drai's closed in November 2025): pool, red loungers and cabanas, string lights, DJ booth
   const roofY = 13.8;
   b.floor(38, -26, 14, 8, new THREE.MeshStandardMaterial({ color: 0x2bb6d9, roughness: 0.05, emissive: 0x0b4a66, emissiveIntensity: 0.7 }), roofY + 0.06);
-  b.waterZones.push({ name: "Drai's Rooftop Pool", minX: 31, maxX: 45, minZ: -30, maxZ: -22, y: roofY });
+  b.waterZones.push({ name: 'Soleia Rooftop Pool', minX: 31, maxX: 45, minZ: -30, maxZ: -22, y: roofY });
+  soleiaLoungers(b, 31.8, 44.2, -31.4, -20.6, roofY);
   b.add(mesh(new THREE.BoxGeometry(3, 1.3, 1.6), mat(0x111111, 0.4, 0.4), 48, roofY + 0.65, -26));
   const bulb = basic(0xffd27a);
   for (let x = 27; x <= 49; x += 2) b.add(mesh(new THREE.SphereGeometry(0.1, 5, 4), bulb, x, roofY + 3.2 + Math.sin((x - 27) / 22 * Math.PI) * -0.6, -26));
   b.box(38, roofY, -18.3, 24, 1.1, 0.12, new THREE.MeshStandardMaterial({ color: 0xbff0ff, transparent: true, opacity: 0.3 }), true, false);
   stairs(b, 78, -32, '-x', 2.6, roofY, 28, mat(0x3a3a46, 0.6));
-  b.pickup(48, roofY + 1.6, -24, 4, "Drai's DJ Booth Stash", false);
-  b.zone("Drai's Rooftop (The Vanderpump)", 26, 50, -34, -18);
+  b.pickup(48, roofY + 1.6, -24, 4, 'Soleia DJ Booth Stash', false);
+  b.zone('Soleia Beach Rooftop (The Vanderpump)', 26, 50, -34, -18);
   b.zone('The Vanderpump Hotel', 19, 52, -35, -17);
   b.building(38, -26, 24, 16, '#24262b', 'Vanderpump');
   b.crowd.performers.push({ kind: 'slapper', x: 15.5, z: -30, facing: -Math.PI / 2 });
@@ -468,18 +476,41 @@ function buildLinq(b: WorldBuilder): void {
     b.add(bench(), x + 5, 0, zc + 3.4);
   }
 
-  // Fly LINQ zipline overhead: launch tower near the wheel, riders land near the Strip
+  // Fly LINQ zipline overhead (real): the launch tower, an open white steel frame topped by a glass box,
+  // stands at the Strip end; riders fly east down the promenade to the landing tower at the wheel
   const steel = mat(0x5b6068, 0.35, 0.7);
-  b.add(mesh(new THREE.BoxGeometry(4, 32, 4), steel, 140, 16, zc, true));
-  b.collider(138, 142, zc - 2, zc + 2, 0, 32, true);
-  b.add(mesh(new THREE.BoxGeometry(3, 10, 3), steel, 24, 5, zc));
-  b.collider(22.5, 25.5, zc - 1.5, zc + 1.5, 0, 10, true);
+  const white = mat(0xeef0f2, 0.4, 0.4);
+  const LX = 25.5;
+  const LH = 13.4;
+  for (const [dx, dz] of [
+    [-1.9, -1.9],
+    [1.9, -1.9],
+    [-1.9, 1.9],
+    [1.9, 1.9],
+  ]) {
+    b.add(mesh(new THREE.BoxGeometry(0.35, LH, 0.35), white, LX + dx, LH / 2, zc + dz, true));
+    b.collider(LX + dx - 0.2, LX + dx + 0.2, zc + dz - 0.2, zc + dz + 0.2, 0, LH, true);
+  }
+  for (let y = 3.2; y < LH; y += 3.2) {
+    for (const s of [-1, 1]) {
+      b.add(mesh(new THREE.BoxGeometry(3.9, 0.2, 0.2), white, LX, y, zc + s * 1.9));
+      b.add(mesh(new THREE.BoxGeometry(0.2, 0.2, 3.9), white, LX + s * 1.9, y, zc));
+      const br = mesh(new THREE.BoxGeometry(0.12, 4.4, 0.12), white, LX, y - 1.6, zc + s * 1.9);
+      br.rotation.z = 0.86 * s;
+      b.add(br);
+    }
+  }
+  b.add(mesh(new THREE.BoxGeometry(4.6, 0.3, 4.6), white, LX, LH, zc));
+  b.add(mesh(new THREE.BoxGeometry(4.2, 2.6, 4.2), new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.45, roughness: 0.05 }), LX, LH + 1.45, zc));
+  b.add(mesh(new THREE.BoxGeometry(4.6, 0.3, 4.6), white, LX, LH + 2.9, zc));
+  b.add(mesh(new THREE.BoxGeometry(3, 6.5, 3), steel, 140, 3.25, zc, true));
+  b.collider(138.5, 141.5, zc - 1.5, zc + 1.5, 0, 6.5, true);
   const riders: Array<{ g: THREE.Group; lane: number; t: number }> = [];
   for (let lane = 0; lane < 4; lane++) {
     const zz = zc - 1.5 + lane;
     const cable = mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 4), mat(0x222222, 0.5), 0, 0, 0);
-    const a = new THREE.Vector3(140, 31, zz);
-    const c = new THREE.Vector3(24, 9.5, zz);
+    const a = new THREE.Vector3(LX + 1.8, LH + 0.6, zz);
+    const c = new THREE.Vector3(139, 6.2, zz);
     cable.position.copy(a).add(c).multiplyScalar(0.5);
     cable.scale.y = a.distanceTo(c);
     cable.lookAt(c);
@@ -495,10 +526,13 @@ function buildLinq(b: WorldBuilder): void {
       r.t = (r.t + dt * 0.09) % 1.3;
       const k = Math.min(1, r.t);
       r.g.visible = r.t < 1;
-      r.g.position.set(140 + (24 - 140) * k, 31 + (9.5 - 31) * k, zc - 1.5 + r.lane);
+      r.g.position.set(LX + 1.8 + (139 - LX - 1.8) * k, LH + 0.6 + (6.2 - LH - 0.6) * k, zc - 1.5 + r.lane);
     }
   });
-  b.add(neonSign('FLY LINQ', '#0b0b12', '#7dffb0', 6, 1.2, 'ZIPLINE', 0.1), 140, 26, zc + 2.1);
+  for (const s of [-1, 1]) b.add(neonSign('FLY LINQ', '#eaf6ff', '#1a6ad8', 3.9, 0.9, 'ZIPLINE', 0.06), LX, LH + 1.45, zc + s * 2.15, s > 0 ? 0 : Math.PI);
+  b.add(neonSign('FLY LINQ', '#eaf6ff', '#1a6ad8', 3.9, 0.9, 'ZIPLINE', 0.06), LX - 2.15, LH + 1.45, zc, -Math.PI / 2);
+  // the slim cyan LINQ pylon at the promenade mouth (eastExtras.ts)
+  linqPylon(b, 21.6, -96.4);
 
   // The High Roller: 167 m tall, 28 cabins, at the end of the promenade
   const wx = 162;
@@ -609,6 +643,8 @@ function buildLinq(b: WorldBuilder): void {
   const linqSkin = { wall: '#e8ebef', mullion: '#ffffff', glass: '#4a6a8a', lit: '#e8f4ff', cols: 10, rows: 20, style: 1 as const, seed: 111 };
   tower(b, { x: 39, z: -128, w: 34, d: 20, h: 28, facade: linqSkin, crownGlow: 0.5, washStrength: 0.3, washZone: 5 }); // soft crown so the LINQ letters read
   linqSigns(b); // LINQ crown letters + the promenade gateway sign (stripSigns.ts)
+  // the hexagon-tiled corner box at the north end, THE LINQ in thin white letters, purple fins (eastExtras.ts)
+  linqHexBox(b, 20.4, 27.4, -141.4, -132.4, 10);
   b.building(39, -128, 34, 20, '#e8ebef', 'LINQ');
   b.zone('The LINQ Hotel', 19, 60, -140, -110);
 }
@@ -651,9 +687,9 @@ function buildHarrahs(b: WorldBuilder): void {
   b.box(31, 0, -206, 22, 10, 34, mat(0xe2d6bf, 0.65), true);
   // Storefronts, gold canopy over the casino doors, the hotel floor's windows, cornice (stripFronts.ts)
   casinoRoyaleFront(b, 20, -223, -189, 10, -200);
-  b.add(neonSign('CASINO ROYALE', '#0b0b12', '#ff3b3b', 8, 1.3), 19.55, 7.6, -198, -Math.PI / 2);
-  b.add(neonSign('PHARMACY', '#ffffff', '#d81e2a', 6, 1.1, 'OPEN 24 HOURS'), 19.6, 5.2, -214, -Math.PI / 2);
-  b.add(neonSign('SLIDERS 24/7', '#f4f4f4', '#1d3f8f', 5, 1.0, 'BURGERS • FRIES • SHAKES'), 19.6, 5.2, -192.5, -Math.PI / 2);
+  // the real order, south to north: McDonald's under the golden arches, the casino under its gold dome and
+  // magenta sign, the pharmacy with Denny's upstairs and the fork pylon (eastExtras.ts)
+  casinoRoyaleDressing(b, 20, -223, -189, 10, -200);
   b.zone('Casino Royale', 19, 42, -224, -188);
   b.crowd.tourists.push({ pts: [[16, -142], [16, -224]], prop: 'bag' }, { pts: [[14, -222], [14, -146]], prop: 'camera' });
 }
@@ -684,6 +720,8 @@ function buildVenetian(b: WorldBuilder): void {
   }
   b.add(mesh(new THREE.BoxGeometry(cx1 - cx0, 0.5, 4.2), mat(0xc96a4a, 0.7), (cx0 + cx1) / 2, 5.8, rz));
   b.zone('Rialto Bridge', cx0 - 4, cx1 + 4, rz - 3, rz + 3);
+  // the Piazzetta's two columns, the winged lion and St Theodore, at the canal's Strip edge (eastExtras.ts)
+  venetianColumns(b, 21.8, -254, -261);
 
   // Campanile (96 m real)
   // Campanile, after St Mark's: red-brick shaft with pilaster strips arched at the top, white stone
