@@ -1,3 +1,9 @@
 node_modules/
 dist/
 *.blend1
+
+# Cloudflare / local secrets (never commit)
+.wrangler/
+.env
+.env.*
+.dev.vars
