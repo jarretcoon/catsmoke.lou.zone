@@ -26,6 +26,7 @@
     { "id": "mgm-tower-night", "label": "MGM Grand tower from Tropicana Ave (night)", "time": "night", "tp": [-12, 0.3, 455], "cam": [-0.8, 0.1, 6], "maxCalls": 1500 },
     { "id": "circus-day", "label": "Circus Circus porte-cochère from the median (day)", "time": "day", "tp": [0.5, 0.3, -766], "cam": [1.5708, 0.14, 7], "maxCalls": 670 },
     { "id": "slots-block-night", "label": "McDonald’s + Slots-A-Fun (night)", "time": "night", "tp": [-14, 0.3, -703], "cam": [1.15, 0.12, 15], "maxCalls": 830 },
+    { "id": "welcome-close-night", "label": "First steps under the Welcome sign (night)", "time": "night", "tp": [1.5, 0.3, 907.8], "cam": [0, 0.12, 4.2], "maxCalls": 1340 },
     { "id": "airport-night", "label": "Harry Reid airport beside the Welcome sign (night)", "time": "night", "tp": [10, 0.3, 905], "cam": [-0.9, 0.35, 45], "airT": 20, "maxCalls": 950 },
     { "id": "airport-takeoff-night", "label": "A departure lifting off 1L, from Russell Rd (night)", "time": "night", "tp": [190, 0.3, 810], "cam": [3.1416, 0.04, 8], "airT": 21, "maxCalls": 400 },
     { "id": "airport-terminal-day", "label": "Terminal 1 curb: taxis, rideshare, arrivals (day)", "time": "day", "tp": [132, 0.3, 828], "cam": [2.5, 0.12, 12], "maxCalls": 500 },

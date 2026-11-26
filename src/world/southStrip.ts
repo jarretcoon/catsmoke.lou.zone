@@ -2832,8 +2832,9 @@ function buildWelcomeSign(b: WorldBuilder): void {
       else m.color.copy(i === k ? off : on);
     });
   });
-  // Ground floods aimed up at the face (low and close, so the photo line is not blown out under bloom)
-  b.light(0xfff2d8, 9, 12, 0, 0.4, zSign + 2.2, 0);
+  // Ground flood aimed up at the face, like the real sign's. A spot, not a point light: a point light this low
+  // lit the pavement and the photo line ~25x brighter than the sign and washed out the first steps of a new game.
+  b.spot(0xfff2d8, 8, 14, new THREE.Vector3(0, 0.25, zSign + 3.4), new THREE.Vector3(0, cy + 0.3, zSign), 0.42, 0.55, 0);
   mg.flush(b);
 
   b.zone('Welcome to Fabulous Las Vegas Sign', -ISLAND - 0.6, ISLAND + 0.6, zIsl0, zLot0 - 1.2);
