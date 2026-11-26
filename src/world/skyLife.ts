@@ -7,31 +7,39 @@ import { buildSkylineExtras } from './skylineExtras';
  * (the part of the cone facing the camera), fading with height, additive and fog-free so it
  * reads as lit haze rather than a solid tube.
  */
-export function beamMaterial(color: number, falloff = 1.4): THREE.ShaderMaterial {
+/**
+ * Soft additive light shaft for an open cylinder. `nearFade` (metres, 0 = off): the shaft fades out as the camera
+ * comes within that distance of its axis, so standing in a beam doesn't wash the whole screen with its inside walls.
+ */
+export function beamMaterial(color: number, falloff = 1.4, nearFade = 0): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
-    uniforms: { color: { value: new THREE.Color(color) }, opacity: { value: 0 }, falloff: { value: falloff } },
+    uniforms: { color: { value: new THREE.Color(color) }, opacity: { value: 0 }, falloff: { value: falloff }, nearFade: { value: nearFade } },
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     fog: false,
     vertexShader: /* glsl */ `
-      varying vec3 vN; varying vec3 vV; varying float vH;
+      uniform float nearFade;
+      varying vec3 vN; varying vec3 vV; varying float vH; varying float vNear;
       void main() {
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         vN = normalize(normalMatrix * normal);
         vV = -mv.xyz;
         vH = uv.y;
+        vec3 axis = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float d = length(cameraPosition.xz - axis.xz);
+        vNear = nearFade > 0.0 ? smoothstep(nearFade * 0.35, nearFade, d) : 1.0;
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 color; uniform float opacity; uniform float falloff;
-      varying vec3 vN; varying vec3 vV; varying float vH;
+      varying vec3 vN; varying vec3 vV; varying float vH; varying float vNear;
       void main() {
         float facing = abs(dot(normalize(vN), normalize(vV)));
         float core = pow(facing, 2.2);
         float along = pow(clamp(1.0 - vH, 0.0, 1.0), falloff) * smoothstep(0.0, 0.015, vH); // clamp: pow() of a hair-negative base is NaN, and bloom spreads NaN to the whole frame
-        float a = core * along * opacity;
+        float a = core * along * opacity * vNear;
         gl_FragColor = vec4(color * a, a);
       }`,
   });

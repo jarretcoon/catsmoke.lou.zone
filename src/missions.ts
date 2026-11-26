@@ -237,7 +237,9 @@ export class MissionManager {
   private makeBeacon(color: number): THREE.Group {
     const g = new THREE.Group();
     // Soft light shaft (bright core, fading upward) rather than a solid tube.
-    const beamMat = beamMaterial(color, 1.1);
+    // Fades out once the camera is within ~6 m of the shaft: a new game starts right at the first marker, and from
+    // inside the cylinder its walls covered the whole screen in a yellow haze.
+    const beamMat = beamMaterial(color, 1.1, 6);
     beamMat.uniforms.opacity.value = 0.42;
     g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.05, 40, 16, 1, true), beamMat));
     g.children[0].position.y = 20;
