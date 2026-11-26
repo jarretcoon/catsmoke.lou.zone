@@ -8,6 +8,8 @@ import { boxTruck, signs } from './backOfHouse';
 import { posterGeometry, POSTER_COUNT } from './streetTextures';
 import { bridgeFascia, deuceStopSign, streetBlade } from './stripSigns';
 import { placed } from './signKit';
+import { StreetGlow } from './streetGlow';
+import { buildSpanBridges } from './stripBridges';
 import {
   ashUrn,
   basic,
@@ -55,14 +57,15 @@ export const STRIP = {
 };
 
 /** Real signalised mid-block crossings of the Strip (real meters north of Flamingo / -3.2). */
-export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both' }> = [
+/** `bridged`: the Boulevard has no at-grade crossing here; people use the pedestrian bridges (signals stay for the cross street). */
+export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both'; bridged?: boolean }> = [
   { z: -797, name: 'Circus Circus Dr', offset: 6, road: 'west' },
   { z: -735.3, name: 'Circus Circus main entrance', offset: 3, road: 'west' },
   { z: -669.8, name: 'Resorts World Ave', offset: 12 },
   { z: -615.3, name: 'Convention Center Dr', offset: 2, road: 'east' },
   { z: -573.1, name: 'Genting Blvd', offset: 8 },
   { z: -475.3, name: 'Fashion Show Dr', offset: 4 },
-  { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both' },
+  { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both', bridged: true },
   { z: 206, name: 'Harmon Ave', offset: 3 },
   { z: 529.6, name: 'Reno Ave', offset: 7 },
   { z: 621.1, name: 'Mandalay Bay Rd / Hacienda', offset: 13 },
@@ -170,12 +173,19 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
 
   // --- Las Vegas Blvd ---
   const roadMaps = makeBoulevardMaps(len, half, [4.8, 8.2, 11.6], STRIP.medianHalf);
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, len), new THREE.MeshStandardMaterial({ map: roadMaps.map, roughnessMap: roadMaps.roughnessMap, roughness: 1 }));
+  const roadMat = new THREE.MeshStandardMaterial({ map: roadMaps.map, roughnessMap: roadMaps.roughnessMap, roughness: 1 });
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, len), roadMat);
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0.03, midZ);
   road.receiveShadow = true;
   b.add(road);
   b.feature({ kind: 'road', x: 0, z: midZ, w: half * 2, d: len, color: '#3b3a40' });
+  // Night light on the street surfaces themselves: frontage spill, lamp pools, reflected neon (streetGlow.ts)
+  const glow = new StreetGlow(STRIP.north - 60, STRIP.south + 60, half + 1.0);
+  glow.apply(roadMat, { fill: 0.68, pools: 0.7, sheen: 0.22, lift: 0.035 });
+  glow.apply(paver, { fill: 0.07, pools: 0.1, sheen: 0.03 });
+  glow.apply(band, { fill: 0.12, pools: 0.2, sheen: 0.05, lift: 0.01 });
+  b.every((_dt, _t, night) => glow.update(night));
 
   // Curb: concrete face with a pale weathered top edge (the gutter pan is painted into the road)
   const curbMat = mat(0xb4ada1, 0.8);
@@ -276,6 +286,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
 
   // Lit, worn thermoplastic paint (an unlit white MeshBasic blew out to glare under night bloom)
   const white = new THREE.MeshStandardMaterial({ map: makeRoadPaintTexture(), color: 0xd8d6cf, roughness: 0.62, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  glow.apply(white, { fill: 0.06, pools: 0.07, sheen: 0.2 }); // the paint catches the same night light as the asphalt
   for (const s of [-1, 1]) {
     const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.5), white, s * ((half + STRIP.medianHalf) / 2), 0.055, -s * (STRIP.flamingoHalf + 1.2));
     bar.rotation.x = -Math.PI / 2;
@@ -315,15 +326,15 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   // --- Mid-block signalised crosswalks ---
   const stripeGeo = new THREE.PlaneGeometry(0.6, 4.0);
   for (const cw of CROSSWALKS) {
-    // Continental bars, symmetric about the centreline, clear of the gutter pans
-    const nBars = Math.floor((half - 0.9) / 1.2);
+    // Continental bars, symmetric about the centreline, clear of the gutter pans (none where a bridge replaced them)
+    const nBars = cw.bridged ? -1 : Math.floor((half - 0.9) / 1.2);
     for (let i = -nBars; i <= nBars; i++) {
       const stripe = mesh(stripeGeo, white, i * 1.2, 0.055, cw.z);
       stripe.rotation.x = -Math.PI / 2;
       b.add(stripe);
     }
     const lamps = signalLamps();
-    const ped = pedCountdown(b, cw.z, cw.offset, clock);
+    const ped = cw.bridged ? null : pedCountdown(b, cw.z, cw.offset, clock);
     for (const s of [-1, 1]) {
       const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.45), white, s * ((half + STRIP.medianHalf) / 2), 0.055, cw.z - s * 4.2);
       bar.rotation.x = -Math.PI / 2;
@@ -336,6 +347,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       b.add(sig.group, sx, 0, sz, s < 0 ? 0 : Math.PI);
       b.collider(sx - 0.25, sx + 0.25, sz - 0.25, sz + 0.25, 0, 7, true);
       signals.push({ sig, read: () => crosswalkPhase(clock(), cw.offset) });
+      if (!ped) continue;
       // Pedestrian head: walking person + countdown while cars are stopped, flashing hand as time runs out
       b.add(mesh(new THREE.BoxGeometry(0.12, 0.38, 0.66), mat(0x1b1d22, 0.6), sx, 3.1, cw.z + s * 1.6));
       const face = mesh(new THREE.PlaneGeometry(0.58, 0.29), ped, sx - s * 0.07, 3.1, cw.z + s * 1.6);
@@ -343,7 +355,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       b.add(face);
       b.add(mesh(new THREE.BoxGeometry(0.14, 0.03, 0.66), mat(0x1b1d22, 0.6), sx - s * 0.12, 3.3, cw.z + s * 1.6));
     }
-    b.zone(`${cw.name} Crosswalk`, -half, half, cw.z - 3, cw.z + 3);
+    b.zone(cw.bridged ? `${cw.name} & Las Vegas Blvd` : `${cw.name} Crosswalk`, -half, half, cw.z - 3, cw.z + 3);
   }
   b.every(() => {
     for (const s of signals) {
@@ -355,11 +367,17 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   // --- Four-corner pedestrian skybridge ring ---
   buildSkybridges(b, 0, ['CAESARS PALACE  •  THE VANDERPUMP', 'BELLAGIO  •  HORSESHOE', 'FLAMINGO RD  •  BELLAGIO ↔ CAESARS', 'FLAMINGO RD  •  HORSESHOE ↔ VANDERPUMP'], 'FLAMINGO RD', 'Flamingo Skybridge');
   buildSkybridges(b, STRIP.tropicanaZ, ['NEW YORK-NEW YORK  •  MGM GRAND', 'EXCALIBUR  •  BALLPARK SITE', 'TROPICANA AVE  •  NYNY ↔ EXCALIBUR', 'TROPICANA AVE  •  MGM ↔ BALLPARK'], 'TROPICANA AVE', 'Tropicana Skybridge');
+  // Single spans at Harmon Ave and both sides of Spring Mountain Rd / Sands Ave (stripBridges.ts)
+  buildSpanBridges(b);
 
   // --- Street furniture along both sidewalks ---
   const glowMat = new THREE.MeshBasicMaterial({ map: makeGlowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   let poleIdx = 0;
   const nearCrossing = (z: number, r: number) => Math.abs(z) < 30 || Math.abs(z - STRIP.tropicanaZ) < 30 || (z > 885 && z < 955) || CROSSWALKS.some((c) => Math.abs(c.z - z) < r + (c.road ? 6 : 0));
+  const poleZs: number[] = [];
+  for (let z = STRIP.north + 10; z < STRIP.south - 5; z += 24) if (!nearCrossing(z, 7)) poleZs.push(z);
+  glow.setPoles(STRIP.north + 10, 24, poleZs);
+  glow.finish();
   for (const s of [-1, 1]) {
     for (let z = STRIP.north + 10; z < STRIP.south - 5; z += 24) {
       if (nearCrossing(z, 7)) continue;
@@ -385,7 +403,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     }
   }
   b.every((_dt, _t, night) => {
-    glowMat.opacity = night * 0.55;
+    glowMat.opacity = night * 0.32; // the surfaces' own shader pools (streetGlow.ts) carry most of the light now
     glowMat.visible = night > 0.03; // no additive overdraw by day
   });
   b.nightGlow(streetLampGlass, 0.2, 2.6);
