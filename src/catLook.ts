@@ -139,9 +139,9 @@ function furAt(p: THREE.Vector3, n: THREE.Vector3, ear: boolean, comb: THREE.Vec
     let hl = 0.0075; // crown / back of the head
     // face front: short
     hl = lerp(hl, 0.0036, sstep(-0.28, -0.32, p.y));
-    // cheeks: chunky tomcat jowls
-    const cheek = sstep(0.075, 0.095, ax) * sstep(0.565, 0.535, p.z) * sstep(-0.355, -0.325, p.y);
-    hl = lerp(hl, 0.0125, cheek);
+    // cheeks: a soft ruff, not tomcat jowls (Lou's face is a neat wedge)
+    const cheek = sstep(0.07, 0.09, ax) * sstep(0.565, 0.535, p.z) * sstep(-0.355, -0.325, p.y);
+    hl = lerp(hl, 0.0092, cheek);
     hl = Math.min(hl, lerp(hl, 0.003, sstep(0.03, 0.018, p.distanceTo(CHIN))));
     len = lerp(len, hl, head);
     // combed back from the nose, out over the cheeks
@@ -207,7 +207,7 @@ float furTuft(vec3 q, float hh, out float r1) {
   float h = hh / (0.4 + 0.6 * r1);
   vec3 jit = (vec3(r2, r3, fract(r1 * 13.7)) - 0.5) * 0.55;
   float rad = 0.5 * (1.0 - h);
-  return h < 1.0 ? 1.0 - smoothstep(rad * 0.5, rad, length(f - jit)) : 0.0;
+  return h < 1.0 ? 1.0 - smoothstep(rad * 0.3, rad, length(f - jit)) : 0.0;
 }
 // two lattices, rotated against each other and against the model axes, so no grid shows
 const mat3 FUR_ROT_A = mat3(0.80, 0.36, -0.48, -0.48, 0.86, -0.16, 0.36, 0.36, 0.86);
@@ -218,7 +218,7 @@ const FUR_FRAG_CUT = /* glsl */ `
 float furCov;
 float furTint;
 {
-  // tufts on the bind-pose surface (so they ride along with the skin), ~2.4 mm apart
+  // tufts on the bind-pose surface (so they ride along with the skin), ~1.9 mm apart
   vec3 q = vFurRest * uFurDensity;
   float ra, rb;
   float sa = furTuft(FUR_ROT_A * q, vFurH, ra);
@@ -229,7 +229,7 @@ float furTint;
   float aa = smoothstep(0.3, 0.8, length(fwidth(q)));
   furCov = mix(strand, expected, aa) * smoothstep(0.0007, 0.002, vFurLen);
   if (furCov < 0.035) discard;
-  furTint = mix(0.91 + 0.16 * (sa > sb ? ra : rb), 1.0, aa);
+  furTint = mix(0.95 + 0.08 * (sa > sb ? ra : rb), 1.0, aa);
 }
 `;
 const FUR_FRAG_COLOUR = /* glsl */ `
@@ -324,7 +324,7 @@ export class CatLook {
   private readonly furUniforms = {
     uFurShells: { value: 16 },
     uFurGravity: { value: new THREE.Vector3(0, -1, 0) },
-    uFurDensity: { value: 1 / 0.0024 },
+    uFurDensity: { value: 1 / 0.0019 },
   };
   private readonly eyeUniforms = { uPupil: { value: 0 } };
 
@@ -410,8 +410,10 @@ export class CatLook {
         mat.envMapIntensity = 0.75;
         break;
       case 'CatEye':
-        // a wet cornea over the iris: mirror-sharp coat, stronger reflections than anything else on him
-        mat.roughness = 0.4;
+        // a wet cornea over the iris: mirror-sharp coat, stronger reflections than anything else on him. The iris
+        // under it is matte, so a street light makes a pin-point catchlight, not a white glare over the whole eye.
+        mat.roughness = 0.6;
+        if (mat.isMeshPhysicalMaterial) mat.specularIntensity = 0.2;
         mat.clearcoat = 1;
         mat.clearcoatRoughness = 0.03;
         mat.envMapIntensity = 1.6;
@@ -570,8 +572,9 @@ export class CatLook {
       return b ? new BoneLayer(b, this.modelInv) : null;
     };
     // Lids: the upper lid closes by rotating about the eye's sideways axis (eyes splay out 15 degrees).
-    // Lou's left eye (+X) sits lower, so it has less far to travel (Blender: 36 vs 42 degrees).
-    for (const [name, s, close] of [['Lid_L', 1, 36], ['Lid_R', -1, 42]] as const) {
+    // Lou's right eye (-X) is the squintier one, so it has less far to travel (Blender: LID_UP_ELEV - LID_LO_ELEV + 4,
+    // 38 + 42 + 4 = 84 vs 31 + 42 + 4 = 77 degrees).
+    for (const [name, s, close] of [['Lid_L', 1, 84], ['Lid_R', -1, 77]] as const) {
       const l = layer(name);
       if (!l) continue;
       const a = THREE.MathUtils.degToRad(15) * s;
