@@ -257,8 +257,10 @@ function lightMaterial(): THREE.ShaderMaterial {
         float on = anim.x > 0.0 ? step(fract(uTime * anim.x + anim.y), 0.12) : 1.0;
         vA = on * mix(anim.z, 1.0, uNight);
         vColor = tint;
-        gl_PointSize = clamp(size * uScale / max(-mv.z, 0.5), 1.6, 30.0);
+        float minPx = size >= 4.0 ? 5.0 : (size >= 2.0 ? 2.4 : 1.6); // landing lights and beacons still read as stars far off
+        gl_PointSize = clamp(size * uScale / max(-mv.z, 0.5), minPx, 30.0);
         gl_Position = projectionMatrix * mv;
+        gl_Position.z = min(gl_Position.z, gl_Position.w * 0.99999); // past the far plane (jets out over Henderson) pin to it: still drawn, still behind the mountains
         if (vA < 0.01) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -1283,8 +1285,8 @@ function flyingJet(scene: THREE.Scene, liv: Livery, scale: number, withTug = fal
   g.add(gear);
   // Lights: two landing lights, red/green nav, white tail, strobes, red beacons top and bottom
   const ls = new LightSet();
-  ls.add(v3(1.6, 1.7, 2.6), C_WHITE, 4.5, 2.2, 0, 0, 0.6);
-  ls.add(v3(-1.6, 1.7, 2.6), C_WHITE, 4.5, 2.2, 0, 0, 0.6);
+  ls.add(v3(1.6, 1.7, 2.6), C_WHITE, 4.5, 3.0, 0, 0, 0.6);
+  ls.add(v3(-1.6, 1.7, 2.6), C_WHITE, 4.5, 3.0, 0, 0, 0.6);
   ls.add(v3(10.7, 2.5, -5.2), C_RED, 0.9, 1.8, 0, 0, 0.15);
   ls.add(v3(-10.7, 2.5, -5.2), C_GREEN, 0.9, 1.8, 0, 0, 0.15);
   ls.add(v3(0, FUS_Y + 0.3, -14.4), C_WHITE, 0.8, 1.4, 0, 0, 0.1);
@@ -1311,7 +1313,7 @@ function flyingJet(scene: THREE.Scene, liv: Livery, scale: number, withTug = fal
   return { g, gear, landing: pts.geometry.getAttribute('tint') as THREE.BufferAttribute, thrust: 0, tug };
 }
 function setLanding(j: FlyingJet, on: boolean): void {
-  const v = on ? 2.2 : 0;
+  const v = on ? 3.0 : 0;
   if (j.landing.getX(0) === v) return;
   for (const i of [0, 1]) j.landing.setXYZ(i, v, v, v * 0.94);
   j.landing.needsUpdate = true;
@@ -1429,20 +1431,53 @@ function buildTraffic(b: WorldBuilder): void {
    * Arrival: 3° approach from the east, flare, touchdown, reversers, roll out, turn off north at exitX.
    * Then `after` takes over (u = seconds since the turn-off), or the jet taxis north and fades.
    */
+  /**
+   * The approach to 26L/26R: a descending leg in from the south (over Henderson, high enough to clear the
+   * McCullough ridge as seen from the Strip) banking onto a 500 m final, then the 3° slope.
+   */
+  const approaches = new Map<Runway, { td: THREE.Vector3; curve: THREE.CatmullRomCurve3; len: number; ta: number }>();
+  const FINAL = 500;
+  const APP_V = 62;
+  const approachOf = (r: Runway) => {
+    let a = approaches.get(r);
+    if (!a) {
+      const td = r.b.clone().addScaledVector(west, 70);
+      const o = (x: number, y: number, z: number) => td.clone().add(v3(x, y, z));
+      const curve = new THREE.CatmullRomCurve3([o(600, 480, 2900), o(850, 330, 1900), o(950, 180, 950), o(820, 82, 230), o(FINAL, 0.075 * FINAL, 0)], false, 'centripetal');
+      const len = curve.getLength();
+      a = { td, curve, len, ta: (len + FINAL) / APP_V };
+      approaches.set(r, a);
+    }
+    return a;
+  };
+  const T1v = new THREE.Vector3();
+  const T2v = new THREE.Vector3();
   const arrival = (j: FlyingJet, r: Runway, exitX: number, tau: number, after?: (u: number) => boolean): boolean => {
     if (tau < 0) return false;
-    const td = r.b.clone().addScaledVector(west, 70);
-    const d0 = 2300;
-    const v0 = 62;
-    const ta = d0 / v0;
+    const A = approachOf(r);
+    const td = A.td;
+    const v0 = APP_V;
+    const ta = A.ta;
     j.gear.visible = true;
     setLanding(j, true);
     if (tau < ta) {
-      const d = d0 - v0 * tau;
+      const dist = v0 * tau;
+      j.thrust = 0.32;
+      if (dist < A.len) {
+        const k = dist / A.len;
+        A.curve.getPointAt(k, P);
+        A.curve.getTangentAt(k, T1v);
+        A.curve.getTangentAt(Math.min(1, k + 0.01), T2v);
+        const y1 = Math.atan2(T1v.x, T1v.z);
+        const y2 = Math.atan2(T2v.x, T2v.z);
+        const turn = Math.atan2(Math.sin(y2 - y1), Math.cos(y2 - y1));
+        pose(j, P, D.set(T1v.x, 0, T1v.z).normalize(), 0.03, THREE.MathUtils.clamp(-turn * 6, -0.45, 0.45));
+        return true;
+      }
+      const d = FINAL - (dist - A.len);
       P.copy(td).addScaledVector(west, -d);
       P.y = d < 70 ? 0.075 * 70 * (d / 70) ** 2 : 0.075 * d;
       pose(j, P, west, d < 70 ? 0.09 : 0.04);
-      j.thrust = 0.32;
       return true;
     }
     const u = tau - ta;
@@ -1501,7 +1536,7 @@ function buildTraffic(b: WorldBuilder): void {
   };
   // Cycle second the 26R arrival stops at gate 3 (the departure pushes back from it at second 0)
   const parkedAt = (() => {
-    const ta = 2300 / 62;
+    const ta = approachOf(R8L).ta;
     const sEnd = R8L.b.x - 70 - (420 + 22);
     const dec = (62 * 62 - 81) / (2 * sEnd);
     return ARRIVE_AT + ta + (62 - 9) / dec + (22 * Math.PI) / 2 / 9 + taxiIn.len / IN_V + gateIn.len / GATE_V;
@@ -1515,7 +1550,7 @@ function buildTraffic(b: WorldBuilder): void {
     setGateParked(tc >= parkedAt);
     for (let i = 0; i < jets.length; i++) {
       const j = jets[i];
-      j.g.visible = vis[i] && j.g.position.distanceTo(cam) < 2600;
+      j.g.visible = vis[i] && j.g.position.distanceTo(cam) < 3200;
       if (!j.g.visible) j.thrust = 0;
     }
     sound.update(jets, cam, viewer.cat);
