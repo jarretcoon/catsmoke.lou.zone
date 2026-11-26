@@ -5,7 +5,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { EnvLighting, applyGrade, capSpecularHighlights, makeBloomPass, makeGradePass, stripLook } from './look';
 import { getBrightness, mountBrightnessSlider } from './brightness';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import type { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import type { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { AbcItem, AbcShopController } from './abcShop';
@@ -31,7 +31,9 @@ import { INDOOR_ZONE } from './world/builder';
 import { hiddenIndoors } from './world/grandInteriors';
 import { Ambience } from './ambience';
 import { STRIP } from './world/strip';
-import { GraphicsQuality, type Quality } from './quality';
+import { GraphicsQuality, startingQuality, type Quality } from './quality';
+import { Anisotropy, DepthAOPass, ShadowFit, TIERS, makeOutputPass, resizeOutputPass, softShadowFilter } from './graphicsTiers';
+import { setTextureDetail } from './world/textures';
 import { Hud, menuOpen } from './hud';
 import { installMouseCamera } from './mouseCam';
 import { Phone } from './phone';
@@ -81,6 +83,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
 capSpecularHighlights();
+softShadowFilter();
+// Ultra draws the generated textures (roads, pavers, facades, signs) at twice the resolution; decided at load.
+setTextureDetail(startingQuality() === 'ultra' ? 2 : 1);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.25, 1600);
@@ -106,13 +111,20 @@ let composer: EffectComposer | null = null;
 let dynCullScale = 1;
 let bloom: UnrealBloomPass | null = null;
 let grade: ShaderPass | null = null;
+let output: OutputPass | null = null;
+let ao: DepthAOPass | null = null;
+/** The composer's render scale over the canvas (Ultra supersamples; graphicsTiers.ts). */
+let composerSuper = 1;
+const shadowFit = new ShadowFit(world.sun);
+const anisotropy = new Anisotropy(renderer, scene);
 const look = { exposure: 1.12, bloomStrength: 0.6, bloomThreshold: 0.9 };
 // The slider goes before its anchor: anchor it on the menu's first setting row so it's the top row of Settings.
 mountBrightnessSlider(document.querySelector('#controls-popover .controls-footer > .setting-row'));
 
 function applyQuality(): void {
-  renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : quality === 'medium' ? Math.min(window.devicePixelRatio, 1.25) : 1);
-  const shadows = quality !== 'low';
+  const tier = TIERS[quality];
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, tier.maxPixelRatio));
+  const shadows = tier.shadows;
   if (renderer.shadowMap.enabled !== shadows) {
     renderer.shadowMap.enabled = shadows;
     scene.traverse((o) => {
@@ -121,40 +133,53 @@ function applyQuality(): void {
     });
   }
   world.sun.castShadow = shadows;
-  const size = quality === 'high' ? 2048 : 1024;
+  const size = tier.shadowSize;
   if (world.sun.shadow.mapSize.x !== size) {
     world.sun.shadow.mapSize.set(size, size);
     world.sun.shadow.map?.dispose();
     world.sun.shadow.map = null;
   }
+  world.sun.shadow.radius = tier.shadowRadius;
+  shadowFit.setTier(tier);
   // Post-processing renders off-screen, where the canvas's own antialiasing doesn't apply:
   // give the composer a multisampled target so edges stay smooth with bloom on.
-  const samples = quality === 'high' ? 4 : quality === 'medium' ? 2 : 0;
-  if (composer && composer.renderTarget1.samples !== samples) {
+  const samples = tier.msaa;
+  if (composer && (composer.renderTarget1.samples !== samples || composerSuper !== tier.superSample || !!ao !== tier.ao > 0)) {
     composer.dispose();
     composer = null;
   }
-  if (quality === 'low') {
+  if (samples === 0) {
     composer?.dispose();
     composer = null;
     bloom = null;
     grade = null;
+    output = null;
+    ao = null;
   } else if (!composer) {
-    const pr = renderer.getPixelRatio();
-    const rt = new THREE.WebGLRenderTarget(window.innerWidth * pr, window.innerHeight * pr, { type: THREE.HalfFloatType, samples });
+    const pr = renderer.getPixelRatio() * tier.superSample;
+    const w = window.innerWidth * pr;
+    const h = window.innerHeight * pr;
+    // Ultra's AO reads the scene's own depth: the composer's targets (it clones this one) carry a depth texture.
+    const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples, ...(tier.ao > 0 ? { depthTexture: new THREE.DepthTexture(w, h) } : {}) });
     composer = new EffectComposer(renderer, rt);
+    composerSuper = tier.superSample;
     composer.addPass(new RenderPass(scene, camera));
+    ao = tier.ao > 0 ? new DepthAOPass(scene, camera, w, h, tier.ao) : null;
+    if (ao) composer.addPass(ao);
     bloom = makeBloomPass(window.innerWidth, window.innerHeight);
     composer.addPass(bloom);
     grade = makeGradePass();
     composer.addPass(grade);
-    composer.addPass(new OutputPass());
+    output = makeOutputPass(tier.superSample);
+    composer.addPass(output);
   }
-  world.setDrawDistance(quality === 'low' ? 0.6 : quality === 'medium' ? 0.85 : 1);
-  dynCullScale = quality === 'low' ? 0.7 : 1;
+  world.setDrawDistance(tier.drawDistance);
+  dynCullScale = tier.dynCull;
   setFurQuality(quality);
-  composer?.setPixelRatio(renderer.getPixelRatio());
+  anisotropy.set(tier.anisotropy);
+  composer?.setPixelRatio(renderer.getPixelRatio() * composerSuper);
   composer?.setSize(window.innerWidth, window.innerHeight);
+  resizeOutputPass(output, window.innerWidth, window.innerHeight);
 }
 /**
  * Shadows on/off changes every lit material's shader, and building them all at once froze the game for seconds
@@ -1563,6 +1588,7 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer?.setSize(window.innerWidth, window.innerHeight);
+    resizeOutputPass(output, window.innerWidth, window.innerHeight);
   });
 });
 window.addEventListener('pagehide', save);
@@ -2110,6 +2136,8 @@ function step(now: number, render = true): void {
       bloom.strength = look.bloomStrength;
       bloom.threshold = look.bloomThreshold;
       if (grade) applyGrade(grade, world.atmosphere);
+      shadowFit.update(TIERS[quality], camera);
+      anisotropy.tick(dt);
       composer.render(dt);
     } else {
       renderer.render(scene, camera);
@@ -2169,6 +2197,8 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'check') {
       catHolder.position.set(x, y, z);
       camTarget.set(x, y + 0.75, z);
     },
+    /** Dev-only: re-apply the graphics level (after tweaking `__tiers`). */
+    applyQuality,
     /** Dev-only: render one frame (with bloom when on) and return the canvas as a JPEG data URL. Works in a background tab. */
     snap: (q = 0.86): string => {
       step(lastTime + 1000 / 60, true);
