@@ -57,8 +57,6 @@ const RING_S = TROP_Z + 30.2;
 const RUSSELL_Z = zFromS(-3182); // 806.7
 const RUSSELL_N = RUSSELL_Z - 12.2;
 const RUSSELL_S = RUSSELL_Z + 12.2;
-/** Ground-level half-width of the Welcome sign median island (inner-lane cars run from |x| ≈ 2.17). */
-const ISLAND = 2.1;
 
 /** Strip-side LED marquee: the board faces ±z (Boulevard traffic), spanning `w` along x. */
 function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: number, h: number, poleH: number, frame = 0x18181c): void {
@@ -2667,6 +2665,9 @@ function buildBaliHai(b: WorldBuilder): void {
     [z0 + 9, 870],
     [876, 958],
   ]) b.box(-20.4, 0, (a + c) / 2, 0.9, 1.0, c - a, hedge, false, false);
+  // Roadside billboards along the course frontage (the south Strip is lined with them)
+  billboard(b, mg, -31, 866, 'HELICOPTER TOURS', 'GRAND CANYON • THE STRIP AT NIGHT', '#0a2a4a', '#ffd23a');
+  billboard(b, mg, -31, 918, 'WORLD’S LARGEST GIFT SHOP', 'NORTH STRIP • OPEN 8 AM – MIDNIGHT', '#f2f2ee', '#c8202e');
   // Golf cart
   const cart = new THREE.Group();
   cart.add(mesh(new THREE.BoxGeometry(1.2, 0.5, 2.2), mat(0xf4f4f0, 0.5), 0, 0.6, 0, true));
