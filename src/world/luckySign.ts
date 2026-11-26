@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { viewer, type WorldBuilder } from './builder';
 
 /*
@@ -12,9 +13,10 @@ import { viewer, type WorldBuilder } from './builder';
  * the buffet block, the little restaurant panels, FULL SERVICE RV PARK); yellow/orange flame scallops
  * and Lucky's giant red-and-yellow shoes at the base, all up on steel pylons.
  *
- * Built as layered 2.5D cabinets: every piece is an extruded silhouette whose front face samples one
- * painted canvas (the art) and one glow canvas (the night emissive), so the whole sign is two draw
- * calls, plus one instanced mesh for ~300 chasing bulbs and a pulsing neon overlay on the lollipop.
+ * Built as layered 2.5D cabinets: every piece is an extruded silhouette whose two faces (south and
+ * north, like the real double-faced pylon) sample one two-face painted atlas (the art) and one glow
+ * atlas (the night emissive), so the whole sign is two draw calls, plus one instanced mesh for ~600
+ * chasing bulbs and a pulsing neon overlay on both sides of the lollipop.
  * Art coordinates are in "photo px" (372 × 537, y down); s converts to metres.
  */
 
@@ -171,8 +173,32 @@ function swirl(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number,
   }
 }
 
+/**
+ * The sign is double-faced (one face for each direction of traffic). The back face samples the same
+ * silhouette, so its pictures are a mirror of the front; only the lettering must be flipped back so it
+ * reads left to right from behind. While MIRROR is set, text is drawn mirrored about its own centre.
+ */
+let MIRROR = false;
+function mirrored(ctx: CanvasRenderingContext2D, cx: number, draw: () => void): void {
+  if (!MIRROR) {
+    draw();
+    return;
+  }
+  ctx.save();
+  ctx.translate(cx, 0);
+  ctx.scale(-1, 1);
+  ctx.translate(-cx, 0);
+  draw();
+  ctx.restore();
+}
+
 function slabText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, maxW: number, fill: string, outline: string, glowCore?: string): void {
   ctx.save();
+  if (MIRROR) {
+    ctx.translate(x, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-x, 0);
+  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `900 ${size}px ${SLAB}`;
@@ -190,14 +216,36 @@ function slabText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   ctx.restore();
 }
 
-/** Paint the sign. glow = the night emissive version (dim fields, lit faces, white-hot letter cores). */
+/**
+ * Paint the sign into a two-face atlas: the south face on the left half, the north face (lettering
+ * flipped back, see MIRROR) on the right. glow = the night emissive version (dim fields, lit faces,
+ * white-hot letter cores).
+ */
 function paint(glow: boolean): THREE.CanvasTexture {
   const c = document.createElement('canvas');
-  c.width = 1024;
+  c.width = 2048;
   c.height = CAN_H;
   const ctx = c.getContext('2d')!;
   ctx.fillStyle = glow ? '#000000' : '#c8306a';
-  ctx.fillRect(0, 0, 1024, CAN_H);
+  ctx.fillRect(0, 0, 2048, CAN_H);
+  for (const back of [false, true]) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(back ? 1024 : 0, 0, 1024, CAN_H);
+    ctx.clip();
+    ctx.translate(back ? 1024 : 0, 0);
+    MIRROR = back;
+    paintFace(ctx, glow);
+    MIRROR = false;
+    ctx.restore();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+function paintFace(ctx: CanvasRenderingContext2D, glow: boolean): void {
   ctx.scale(K, K);
   const G = (day: string, night: string) => (glow ? night : day);
   const outline = (w = 1.6, col = '#2a0a14') => {
@@ -325,7 +373,7 @@ function paint(glow: boolean): THREE.CanvasTexture {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `${weight} ${size}px ${font}`;
-      ctx.fillText(t, cx, y, W);
+      mirrored(ctx, cx, () => ctx.fillText(t, cx, y, W));
     };
     txt('FREE CIRCUS ACTS', 293, 20, G('#d0102a', '#8a0410'));
     txt('11 AM TO MIDNIGHT', 311, 11, G('#141414', '#0a0a0a'), 'Arial, sans-serif', 'bold');
@@ -346,7 +394,8 @@ function paint(glow: boolean): THREE.CanvasTexture {
       ctx.textAlign = align;
       ctx.textBaseline = 'middle';
       ctx.font = `900 ${size}px Arial Black, Arial, sans-serif`;
-      ctx.fillText(t, x, y);
+      const mid = align === 'center' ? x : x + ctx.measureText(t).width / 2;
+      mirrored(ctx, mid, () => ctx.fillText(t, x, y));
     };
     const Y = G('#ffd23a', '#fff07a');
     const O = G('#ff8a1a', '#ffa040');
@@ -377,9 +426,10 @@ function paint(glow: boolean): THREE.CanvasTexture {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `900 6.4px Arial Black, Arial, sans-serif`;
-      ctx.fillText(a, cx2 + (w - 2) / 2, 405, w - 5);
+      const mid = cx2 + (w - 2) / 2;
+      mirrored(ctx, mid, () => ctx.fillText(a, mid, 405, w - 5));
       ctx.font = `italic bold 5.4px Georgia, serif`;
-      ctx.fillText(b2, cx2 + (w - 2) / 2, 416, w - 5);
+      mirrored(ctx, mid, () => ctx.fillText(b2, mid, 416, w - 5));
       cx2 += w;
     }
     ctx.fillStyle = G('#d0102a', '#6a0410');
@@ -387,7 +437,7 @@ function paint(glow: boolean): THREE.CanvasTexture {
     ctx.fillStyle = G('#ffffff', '#f0f0f0');
     ctx.font = `900 8px Arial Black, Arial, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('FULL SERVICE RV PARK', cx, 432, W);
+    mirrored(ctx, cx, () => ctx.fillText('FULL SERVICE RV PARK', cx, 432, W));
   }
 
   // ---- hair (orange curly puffs)
@@ -543,11 +593,6 @@ function paint(glow: boolean): THREE.CanvasTexture {
   ctx.moveTo(GLOVE_R.cx - 10, GLOVE_R.cy + 12);
   ctx.lineTo(GLOVE_R.cx + 6, GLOVE_R.cy + 16);
   ctx.stroke();
-
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  return t;
 }
 const b0x = (h: Pt[]) => h[0][0];
 const b1x = (h: Pt[]) => h[1][0];
@@ -575,7 +620,12 @@ function toGeo(b: Buf, withUv: boolean): THREE.BufferGeometry {
   return g;
 }
 
-export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
+/**
+ * Lucky stands perpendicular to the Boulevard like the real pylon, so traffic from both directions
+ * reads a face: yaw 0 = the main face looks south (toward the player walking up the Strip), the
+ * second face north.
+ */
+export function buildLuckySign(b: WorldBuilder, lx: number, lz: number, yaw = 0): void {
   const s = 0.045; // metres per photo px
   const base = 4.6; // the cabinets ride on steel pylons
   const X = (px: number) => (px - 170) * s;
@@ -584,8 +634,9 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
   const rest = newBuf();
   const vA = new THREE.Vector3();
   const nA = new THREE.Vector3();
-  /** Extrude a photo-px silhouette from local z0 to z1 (local +z faces the Strip). */
-  const ext = (pts: Pt[], z0: number, z1: number) => {
+  /** Extrude a photo-px silhouette from local -z1 to z1 (local +z = the main face, -z = the second face). */
+  const ext = (pts: Pt[], _z0: number, z1: number) => {
+    const z0 = -z1;
     const shape = new THREE.Shape(pts.map(([px, py]) => new THREE.Vector2(X(px), Yw(py))));
     const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false, curveSegments: 4 });
     g.translate(0, 0, z0);
@@ -594,17 +645,21 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
     const nn = ng.attributes.normal as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i += 3) {
       let isFront = true;
-      for (let k = 0; k < 3; k++) if (nn.getZ(i + k) < 0.9) isFront = false;
-      const dst = isFront ? front : rest;
+      let isBack = true;
+      for (let k = 0; k < 3; k++) {
+        if (nn.getZ(i + k) < 0.9) isFront = false;
+        if (nn.getZ(i + k) > -0.9) isBack = false;
+      }
+      const dst = isFront || isBack ? front : rest;
       for (let k = 0; k < 3; k++) {
         vA.fromBufferAttribute(p, i + k);
         nA.fromBufferAttribute(nn, i + k);
         dst.pos.push(vA.x, vA.y, vA.z);
         dst.nrm.push(nA.x, nA.y, nA.z);
-        if (isFront) {
+        if (isFront || isBack) {
           const px = vA.x / s + 170;
           const py = 510 - (vA.y - base) / s;
-          dst.uv.push(px / IMG_W, 1 - py / IMG_H);
+          dst.uv.push((isBack ? 0.5 : 0) + (px / IMG_W) * 0.5, 1 - py / IMG_H);
         } else dst.uv.push(0, 0);
       }
     }
@@ -631,7 +686,7 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
   ext(circle(LOLLI.cx, LOLLI.cy, LOLLI.r, 48), -0.14, 0.3);
   ext(circle(GLOVE_R.cx, GLOVE_R.cy, GLOVE_R.r, 24), -0.3, 0.6);
 
-  const rot = new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(lx, 0, lz);
+  const rot = new THREE.Matrix4().makeRotationY(yaw).setPosition(lx, 0, lz);
   const art = paint(false);
   const glowTex = paint(true);
   const faceM = b.nightGlow(new THREE.MeshStandardMaterial({ map: art, emissiveMap: glowTex, emissive: 0xffffff, emissiveIntensity: 0.15, roughness: 0.55, metalness: 0.05 }), 0.15, 1.0);
@@ -649,9 +704,11 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
 
   // the 3D nose ball
   const noseM = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xe0101e, roughness: 0.25, metalness: 0.1, emissive: 0xff2030, emissiveIntensity: 0.05 }), 0.05, 0.65);
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(11 * s, 18, 12), noseM);
-  nose.position.set(X(FACE.cx), Yw(FACE.cy + 4), 0.86).applyMatrix4(rot);
-  b.add(nose);
+  for (const side of [1, -1]) {
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(11 * s, 18, 12), noseM);
+    nose.position.set(X(FACE.cx), Yw(FACE.cy + 4), 0.86 * side).applyMatrix4(rot);
+    b.add(nose);
+  }
 
   // Lucky's giant shoes: round 3D clown shoes (yellow uppers, red bulb toes curling up, red soles)
   const shoeY = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xffc81e, roughness: 0.4, emissive: 0xffa020, emissiveIntensity: 0.04 }), 0.04, 0.32);
@@ -663,9 +720,15 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
     if (tilt) g.rotateZ(tilt);
     const me = new THREE.Mesh(g, m);
     me.position.set(X(px), Yw(py), z).applyMatrix4(rot);
-    me.rotation.y = Math.PI / 2;
+    me.rotation.y = yaw;
     me.castShadow = true;
     b.add(me);
+    // the face-side trims get a twin on the second face
+    if (z > 0.5) {
+      const twin = me.clone();
+      twin.position.set(X(px), Yw(py), -z).applyMatrix4(rot);
+      b.add(twin);
+    }
   };
   const leg = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xe8285a, roughness: 0.5, emissive: 0xff3a7a, emissiveIntensity: 0.04 }), 0.04, 0.22);
   for (const d of [-1, 1]) {
@@ -689,7 +752,7 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
   for (const px of [148, 196]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.8, Yw(440) + 0.4, 0.9), steel);
     post.position.set(X(px), (Yw(440) + 0.4) / 2, -0.1).applyMatrix4(rot);
-    post.rotation.y = Math.PI / 2;
+    post.rotation.y = yaw;
     post.castShadow = true;
     b.add(post);
     const w = new THREE.Vector3(X(px), 0, -0.1).applyMatrix4(rot);
@@ -698,8 +761,11 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
   const planter = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.0, 5.6), new THREE.MeshStandardMaterial({ color: 0xe8a0b8, roughness: 0.85 }));
   const pw = new THREE.Vector3(X(172), 0.5, -0.1).applyMatrix4(rot);
   planter.position.copy(pw);
+  planter.rotation.y = yaw + Math.PI / 2;
   b.add(planter);
-  b.collider(pw.x - 1.3, pw.x + 1.3, pw.z - 2.8, pw.z + 2.8, 0, 1.0);
+  const phx = Math.abs(2.8 * Math.cos(yaw)) + Math.abs(1.3 * Math.sin(yaw));
+  const phz = Math.abs(2.8 * Math.sin(yaw)) + Math.abs(1.3 * Math.cos(yaw));
+  b.collider(pw.x - phx, pw.x + phx, pw.z - phz, pw.z + phz, 0, 1.0);
 
   // ---- bulbs: name frame, reader frame, flame outlines (one instanced mesh, chased per step)
   type Bulb = { p: THREE.Vector3; ring: number };
@@ -715,7 +781,7 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
       while (d < len) {
         const x = ax + ((bx - ax) * d) / len;
         const y = ay + ((by - ay) * d) / len;
-        if (!skip?.(x, y)) bulbs.push({ p: new THREE.Vector3(X(x), Yw(y), z).applyMatrix4(rot), ring });
+        if (!skip?.(x, y)) for (const zz of [z, -z]) bulbs.push({ p: new THREE.Vector3(X(x), Yw(y), zz).applyMatrix4(rot), ring });
         d += spacing;
       }
       carry = d - len;
@@ -759,9 +825,15 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
     return t;
   })();
   const neonM = new THREE.MeshBasicMaterial({ map: neonTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0, color: 0xc0c0c0 });
-  const neon = new THREE.Mesh(new THREE.CircleGeometry(LOLLI.r * s, 40), neonM);
-  neon.position.set(X(LOLLI.cx), Yw(LOLLI.cy), 0.32).applyMatrix4(rot);
-  neon.rotation.y = Math.PI / 2;
+  // one disc on each face, merged, spun about the sign's normal
+  const discF = new THREE.CircleGeometry(LOLLI.r * s, 40).translate(0, 0, 0.32);
+  const discB = new THREE.CircleGeometry(LOLLI.r * s, 40).rotateY(Math.PI).translate(0, 0, -0.32);
+  const discs = mergeGeometries([discF, discB], false)!;
+  discF.dispose();
+  discB.dispose();
+  const neon = new THREE.Mesh(discs, neonM);
+  neon.position.set(X(LOLLI.cx), Yw(LOLLI.cy), 0).applyMatrix4(rot);
+  neon.rotation.y = yaw;
   b.scene.add(neon);
 
   // ---- one updater: chase steps, twinkle, lollipop pulse, distance cull
@@ -774,7 +846,7 @@ export function buildLuckySign(b: WorldBuilder, lx: number, lz: number): void {
     neon.visible = !far && night > 0.05;
     if (far) return;
     neonM.opacity = night * (0.42 + 0.22 * Math.sin(t * 2.4));
-    neon.rotation.x = -t * 0.35;
+    neon.rotation.z = -t * 0.35;
     const step = Math.floor(t * 7);
     const nq = Math.round(night * 20) / 20;
     if (step === lastStep && nq === lastNight) return;

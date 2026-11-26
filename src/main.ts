@@ -3,14 +3,16 @@ import { loadingDone, loadLou, warmLou, warmWorld } from './loading';
 import { startStats } from './stats';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import type { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { EnvLighting, makeGradePass } from './look';
+import { EnvLighting, applyGrade, capSpecularHighlights, makeBloomPass, makeGradePass, stripLook } from './look';
+import { getBrightness, mountBrightnessSlider } from './brightness';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import type { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { AbcItem, AbcShopController } from './abcShop';
 import { SoundFX } from './audio';
 import { CasinoController } from './casino';
 import { CatLook, setFurQuality } from './catLook';
+import { CatMotion } from './catMotion';
 import { DegenScore, PropPhysics, WantedSystem } from './chaos';
 import { IntroComic } from './intro';
 import { MissionCtx, MissionEvent, MissionManager } from './missions';
@@ -20,7 +22,7 @@ import { BoutiqueController, CatWardrobe, cosmeticById, swagFor } from './cosmet
 import { GoalTracker } from './goals';
 import { MapMarker, Minimap } from './minimap';
 import { GuardNPC, StripCrowdSystem } from './npcs';
-import type { Rideable } from './rides';
+import { rideLens, type Rideable } from './rides';
 import { SmokeSystem, VapeTrick } from './smoke';
 import { CosmeticId, defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
@@ -73,6 +75,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
+capSpecularHighlights();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.25, 1600);
@@ -107,10 +110,12 @@ let composer: EffectComposer | null = null;
 let dynCullScale = 1;
 let bloom: UnrealBloomPass | null = null;
 let grade: ShaderPass | null = null;
+const look = { exposure: 1.12, bloomStrength: 0.6, bloomThreshold: 0.9 };
 const btnQuality = document.createElement('button');
 btnQuality.type = 'button';
 btnQuality.className = 'action-btn';
 document.querySelector('#controls-popover .controls-footer')?.prepend(btnQuality);
+mountBrightnessSlider(document.querySelector('#controls-popover .controls-footer'));
 
 function applyQuality(): void {
   renderer.setPixelRatio(quality === 'high' ? Math.min(window.devicePixelRatio, 2) : quality === 'medium' ? Math.min(window.devicePixelRatio, 1.25) : 1);
@@ -146,7 +151,7 @@ function applyQuality(): void {
     const rt = new THREE.WebGLRenderTarget(window.innerWidth * pr, window.innerHeight * pr, { type: THREE.HalfFloatType, samples });
     composer = new EffectComposer(renderer, rt);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.5, 0.86);
+    bloom = makeBloomPass(window.innerWidth, window.innerHeight);
     composer.addPass(bloom);
     grade = makeGradePass();
     composer.addPass(grade);
@@ -177,12 +182,9 @@ const catVelocity = new THREE.Vector3();
 let catYaw = S.yaw;
 let isGrounded = false;
 let coyoteTimer = 0;
-let actionLockTimer = 0;
 let puffTimer = 0;
 let idleAutoPuffTimer = 5.5;
 let dynCullTimer = 0;
-/** Seconds Lou has stood still; after a while he sits down like the loaf he is. */
-let idleTime = 0;
 let buzzTimer = 0;
 let performerTipCooldown = 0;
 let toastTimeout: number | undefined;
@@ -534,7 +536,6 @@ function startRagdoll(launch?: THREE.Vector3): void {
   if (launch) catVelocity.copy(launch);
   rag.spin.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 14);
   isGrounded = false;
-  if (actions.Flop) fadeToAction(actions.Flop, 0.1);
 }
 function endRagdoll(): void {
   if (!rag.active) return;
@@ -549,7 +550,8 @@ function triggerPounce(): void {
   catVelocity.z = Math.cos(catYaw) * 10.5;
   catVelocity.y = 4.4;
   isGrounded = false;
-  playOneShot(actions.Pounce ?? actions.Steal, 0.6);
+  // the physics launches him now, so the clip starts at its leap (past the crouch and butt wiggle)
+  motion.play(actions.Pounce ?? actions.Steal, 0.6, actions.Pounce ? 0.34 : 0);
   sfx.playMeow();
 }
 
@@ -588,24 +590,9 @@ function pounceHits(): void {
 }
 
 // ---------------------------------------------------------------- cat model
-let mixer: THREE.AnimationMixer | null = null;
-const actions: Record<string, THREE.AnimationAction | null> = {
-  Idle: null,
-  Walk: null,
-  Run: null,
-  Jump: null,
-  Puff: null,
-  VapeRip: null,
-  Beg: null,
-  Steal: null,
-  Pounce: null,
-  Sit: null,
-  Eat: null,
-  Drive: null,
-  Flop: null,
-  Dance: null,
-};
-let activeAction: THREE.AnimationAction | null = null;
+// Lou's clips, blends, gait, lean, jumps and idle life live in catMotion.ts.
+const motion = new CatMotion();
+const actions = motion.actions;
 let cigTipObj: THREE.Object3D | null = null;
 let vapeTipObj: THREE.Object3D | null = null;
 let cigEmberMat: THREE.MeshStandardMaterial | null = null;
@@ -613,20 +600,8 @@ let cigEmberMat: THREE.MeshStandardMaterial | null = null;
 const emberLight = new THREE.PointLight(0xff8a3c, 0.4, 1.5, 2.0);
 scene.add(emberLight);
 
-function fadeToAction(next: THREE.AnimationAction | null, duration = 0.18): void {
-  if (!next || activeAction === next) return;
-  next.reset().fadeIn(duration).play();
-  activeAction?.fadeOut(duration);
-  activeAction = next;
-}
-
 function playOneShot(act: THREE.AnimationAction | null, lockSeconds: number): void {
-  actionLockTimer = lockSeconds;
-  if (!act) return;
-  act.reset();
-  act.setLoop(THREE.LoopOnce, 1);
-  act.clampWhenFinished = false;
-  fadeToAction(act, 0.12);
+  motion.play(act, lockSeconds);
 }
 
 function getTipWorld(preferVape: boolean, out = new THREE.Vector3()): THREE.Vector3 {
@@ -663,14 +638,7 @@ loadLou().then(
     catHolder.add(restaurants.burger);
     wardrobe = new CatWardrobe(model);
     wardrobe.apply(S.cosmetics.equipped);
-    if (gltf.animations.length) {
-      mixer = new THREE.AnimationMixer(model);
-      for (const name of Object.keys(actions)) {
-        const clip = gltf.animations.find((c) => c.name === name);
-        if (clip) actions[name] = mixer.clipAction(clip);
-      }
-      fadeToAction(actions.Idle, 0.1);
-    }
+    motion.attach(model, gltf.animations);
     updateHUD();
     // Lou's shaders compile in the background too, and the Strip's must be done: no stall on the first frames.
     await warmLou(renderer, model, camera, drawTarget(), scene);
@@ -870,7 +838,7 @@ function finishCig(): void {
 let danceCooldown = 0;
 function triggerDance(): void {
   if (riding || driving.active || rag.active || restaurants.cat.state === 'eating') return;
-  idleTime = 0;
+  motion.resetIdle();
   playOneShot(actions.Dance ?? actions.Beg, 3);
   if (actions.Dance) {
     actions.Dance.setLoop(THREE.LoopRepeat, 3);
@@ -1534,10 +1502,7 @@ function resolveCatPhysics(dt: number, moveDir: THREE.Vector3, sprinting: boolea
   } else if (moveDir.lengthSq() > 0.001) {
     catVelocity.x = THREE.MathUtils.lerp(catVelocity.x, moveDir.x * maxSpeed, Math.min(1, accel * dt));
     catVelocity.z = THREE.MathUtils.lerp(catVelocity.z, moveDir.z * maxSpeed, Math.min(1, accel * dt));
-    let diff = Math.atan2(moveDir.x, moveDir.z) - catYaw;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    catYaw += diff * Math.min(1, 12 * dt);
+    catYaw = motion.steer(catYaw, Math.atan2(moveDir.x, moveDir.z), dt);
   } else {
     const drag = isGrounded ? 12 : 2;
     catVelocity.x = THREE.MathUtils.lerp(catVelocity.x, 0, Math.min(1, drag * dt));
@@ -1937,50 +1902,30 @@ function step(now: number, render = true): void {
   });
   ambience.update(dt, INDOOR_ZONE.test(zoneNow) ? 1 : 0, world.getNight());
 
-  // Animation state
-  if (actionLockTimer > 0) actionLockTimer = Math.max(0, actionLockTimer - dt);
+  // Animation state (the blends, gait, lean, jumps and idle life are in catMotion.ts)
   if (danceCooldown > 0) danceCooldown -= dt;
   if (puffTimer > 0) puffTimer = Math.max(0, puffTimer - dt);
   const horizSpeed = riding ? 0 : Math.hypot(catVelocity.x, catVelocity.z);
-  if (restaurants.cat.state === 'eating') {
-    fadeToAction(actions.Eat ?? actions.Sit ?? actions.Idle, 0.2);
-    stateEl.textContent = 'Eating';
-  } else if (driving.active) {
-    fadeToAction(actions.Drive ?? actions.Sit ?? actions.Idle, 0.2);
-    stateEl.textContent = `Driving ${Math.round(Math.abs(driving.speed) * 2.237)} mph`;
-  } else if (rag.active) {
-    stateEl.textContent = 'Ragdolling';
-  } else if (actionLockTimer > 0) {
-    stateEl.textContent = activeAction === actions.Pounce || pounceTimer > 0 ? 'POUNCE!' : activeAction === actions.Beg ? 'Hustling' : activeAction === actions.Steal ? 'Swiping!' : activeAction === actions.Dance && actions.Dance ? 'Dancing' : S.deviceMode === 'vape' ? 'Ripping Vape' : 'Taking a Drag';
-  } else if (riding) {
-    fadeToAction(actions.Idle, 0.22);
-    stateEl.textContent = `Riding ${riding.label}`;
-  } else if (!isGrounded && actions.Jump && catHolder.position.y > 0.6) {
-    fadeToAction(actions.Jump, 0.12);
-    stateEl.textContent = 'Leaping';
-  } else if (horizSpeed > 0.35) {
-    idleTime = 0;
-    if (horizSpeed > 6.5 && actions.Run) {
-      actions.Run.timeScale = THREE.MathUtils.clamp(horizSpeed / 8, 0.8, 1.5);
-      fadeToAction(actions.Run, 0.15);
-    } else if (actions.Walk) {
-      actions.Walk.timeScale = THREE.MathUtils.clamp(horizSpeed / 3.6, 0.75, 2.2);
-      fadeToAction(actions.Walk, 0.15);
-    }
-    stateEl.textContent = !isGrounded ? 'Leaping' : horizSpeed > 6.5 ? 'Sprinting' : 'Prowling';
-  } else {
-    idleTime += dt;
-    const loaf = idleTime > 9 && isGrounded && actions.Sit;
-    fadeToAction(loaf ? actions.Sit : actions.Idle, loaf ? 0.6 : 0.22);
-    stateEl.textContent = !isGrounded ? 'Leaping' : loaf ? 'Loafing' : S.deviceMode === 'vape' ? 'Vaping' : S.isLit ? 'Smoking' : 'Craving';
+  const motionMode = restaurants.cat.state === 'eating' ? 'eat' : driving.active ? 'drive' : rag.active ? 'rag' : riding ? (riding.kind === 'seat' ? 'seat' : 'ride') : 'free';
+  const pose = motion.update(dt, motionMode, isGrounded, catVelocity, catYaw, catHolder.position.y);
+  if (motionMode === 'eat') stateEl.textContent = 'Eating';
+  else if (motionMode === 'drive') stateEl.textContent = `Driving ${Math.round(Math.abs(driving.speed) * 2.237)} mph`;
+  else if (motionMode === 'rag') stateEl.textContent = 'Ragdolling';
+  else if (pose === 'action') {
+    const cur = motion.current;
+    stateEl.textContent = cur === actions.Pounce || pounceTimer > 0 ? 'POUNCE!' : cur === actions.Beg ? 'Hustling' : cur === actions.Steal ? 'Swiping!' : cur === actions.Dance && actions.Dance ? 'Dancing' : S.deviceMode === 'vape' ? 'Ripping Vape' : 'Taking a Drag';
+  } else if (riding) stateEl.textContent = `Riding ${riding.label}`;
+  else if (pose === 'air' || pose === 'land') stateEl.textContent = 'Leaping';
+  else if (pose === 'walk' || pose === 'run') stateEl.textContent = horizSpeed > 6.5 ? 'Sprinting' : 'Prowling';
+  else {
+    stateEl.textContent = pose === 'sit' ? 'Loafing' : pose === 'flop' ? 'Napping' : S.deviceMode === 'vape' ? 'Vaping' : S.isLit ? 'Smoking' : 'Craving';
     if (started && ((S.deviceMode === 'cig' && S.isLit) || (S.deviceMode === 'vape' && S.vapeJuice > 0))) {
       idleAutoPuffTimer -= dt;
       if (idleAutoPuffTimer <= 0) triggerSmokeOrVape();
     }
   }
   if (crowd.anyChasing() || wanted.stars > 0) stateEl.textContent = wanted.stars > 0 ? `WANTED ${'★'.repeat(wanted.stars)}` : 'ON THE RUN!';
-  mixer?.update(dt);
-  catLook?.update(dt, { night: world.getNight(), idle: activeAction === actions.Idle || activeAction === actions.Sit, camera: camera.position, tourists: crowd.tourists });
+  catLook?.update(dt, { night: world.getNight(), idle: pose === 'idle' || pose === 'sit' || pose === 'seat', roam: pose === 'walk' || pose === 'run', groom: motion.grooming, camera: camera.position, tourists: crowd.tourists, focus: riding?.view?.()?.focus });
 
   // Ember + smoke
   const useVape = S.deviceMode === 'vape';
@@ -2060,18 +2005,22 @@ function step(now: number, render = true): void {
   const horiz = Math.cos(camPitch) * dist;
   camWant.set(camTarget.x + Math.sin(camYaw) * horiz, Math.max(0.4, camTarget.y + Math.sin(camPitch) * dist), camTarget.z + Math.cos(camYaw) * horiz);
   // Keep the camera on the cat's side of walls and under ceilings; ease back out once clear.
-  const hit = boomHit(camTarget.x, camTarget.y, camTarget.z, camWant.x, camWant.y, camWant.z);
+  const hit = rideView?.free ? 1 : boomHit(camTarget.x, camTarget.y, camTarget.z, camWant.x, camWant.y, camWant.z);
   // Never closer than ~1.1 m: with a wall right behind Lou it's better to see through the wall's back
   // face (it's culled) than to put the camera inside the cat.
   const fit = hit < 1 ? Math.max(Math.min(1, 1.1 / Math.max(dist, 0.5)), hit - 0.3 / Math.max(dist, 0.5)) : 1;
   camClip = fit < camClip ? fit : THREE.MathUtils.lerp(camClip, fit, Math.min(1, dt * 3));
   camera.position.lerpVectors(camTarget, camWant, camClip);
   camera.lookAt(rideView?.look ?? camLook.copy(camTarget));
+  rideLens(camera, rideView?.fov, dt);
 
   if (render) {
+    stripLook(world.atmosphere, look);
+    renderer.toneMappingExposure = look.exposure * getBrightness();
     if (composer && bloom) {
-      bloom.strength = 0.16 + world.getNight() * 0.75;
-      if (grade) grade.uniforms.night.value = world.getNight();
+      bloom.strength = look.bloomStrength;
+      bloom.threshold = look.bloomThreshold;
+      if (grade) applyGrade(grade, world.atmosphere);
       composer.render(dt);
     } else {
       renderer.render(scene, camera);
