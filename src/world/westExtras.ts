@@ -238,3 +238,39 @@ function canvasTexLocal(w: number, h: number, draw: (ctx: CanvasRenderingContext
   t.anisotropy = 4;
   return t;
 }
+
+/**
+ * The Cosmopolitan's balcony light lines pulse from the bottom of the towers to the top like comets
+ * (the real towers carry ~21,000 ft of blue light-line fixtures). Finds the balcony-lip glow material
+ * (emissive `color`) in the tower groups and runs a travelling bright head with a fading tail up it.
+ */
+export function cosmoComets(b: WorldBuilder, towers: THREE.Object3D[], color: number): void {
+  let m: THREE.MeshStandardMaterial | null = null;
+  for (const t of towers) {
+    t.traverse((o) => {
+      const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+      if (mm && (mm as THREE.MeshStandardMaterial).isMeshStandardMaterial && mm.emissive && mm.emissive.getHex() === color) m = mm;
+    });
+  }
+  const mat0 = m as THREE.MeshStandardMaterial | null;
+  if (!mat0 || mat0.userData.comets) return;
+  mat0.userData.comets = true;
+  const uT = { value: 0 };
+  mat0.onBeforeCompile = (sh) => {
+    sh.uniforms.uCometT = uT;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vCometW;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvCometW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vCometW;\nuniform float uCometT;')
+      .replace(
+        '#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\n{ float cp = fract(vCometW.y * 0.03 - uCometT * 0.32 + (vCometW.x + vCometW.z) * 0.013);\n  totalEmissiveRadiance *= 0.3 + 0.95 * exp(-(1.0 - cp) * 7.0); }'
+      );
+  };
+  mat0.customProgramCacheKey = () => 'cosmo-comets';
+  mat0.needsUpdate = true;
+  b.every((_dt, t, night) => {
+    if (night > 0.05) uT.value = t;
+  });
+}

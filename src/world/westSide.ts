@@ -15,7 +15,7 @@ import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from '
 import { caesarsMarquee, caesarsStatuary, caesarsTempleFront, caesarsTowerCrown, forumEntrance } from './caesarsFront';
 import { uplights } from './stripFronts';
 import { buildTiSign, tiCove, tiShipLights, tiTowerLetters } from './tiFront';
-import { bellagioLakeFront, bellagioLakeVillage, cosmoBeacon } from './westExtras';
+import { bellagioLakeFront, bellagioLakeVillage, cosmoBeacon, cosmoComets } from './westExtras';
 import { ariaMarquee, crystalsTenants, veerTowers } from './cityCenterFront';
 import { buildGuitarHotel, hardRockBanner } from './guitarHotel';
 import { crystalsFront, forumPlanting, forumWall } from './stripFronts';
@@ -81,8 +81,9 @@ function buildCityCenter(b: WorldBuilder): void {
 function buildCosmopolitan(b: WorldBuilder): void {
   const blueGlass = { wall: '#3a4a5c', mullion: '#55677c', glass: '#1d2938', lit: '#d7f0ff', cols: 9, rows: 20, style: 2 as const, seed: 11 };
   // the balcony edges carry blue-violet light lines (they pulse up the towers like comets on the real one)
-  tower(b, { x: -82, z: 170, w: 18, d: 14, h: 56, facade: blueGlass, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0x6a5cff }, wash: 0x9a8cff });
-  tower(b, { x: -82, z: 196, w: 18, d: 14, h: 56, facade: { ...blueGlass, seed: 13 }, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0x6a5cff }, wash: 0x9a8cff });
+  const cosmoA = tower(b, { x: -82, z: 170, w: 18, d: 14, h: 56, facade: blueGlass, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0x6a5cff }, wash: 0x9a8cff });
+  const cosmoB = tower(b, { x: -82, z: 196, w: 18, d: 14, h: 56, facade: { ...blueGlass, seed: 13 }, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0x6a5cff }, wash: 0x9a8cff });
+  cosmoComets(b, [cosmoA, cosmoB], 0x6a5cff);
   b.building(-82, 183, 18, 40, '#3a4a5c', 'Cosmopolitan');
 
   // Podium: casino floor with the 3-level Chandelier bar and the VIP lounge
