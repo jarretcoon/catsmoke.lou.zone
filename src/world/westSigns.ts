@@ -2,18 +2,20 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { viewer, type WorldBuilder } from './builder';
 import { LedBoard } from './textures';
-import { mat } from './props';
+import { letterFace } from './signKit';
 import { ArtCanvas } from './cosmoArt';
 
 /**
  * Strip signs on the west side, rebuilt from the real ones:
- *  - Bellagio: the Italianate travertine pylon at the lake's south-east corner — stone piers with gilded
- *    capitals, a big LED board over two smaller panels, a frieze with "BELLAGIO" in gold channel letters
- *    (halo-lit at night), stacked cornices with warm cove light, a pediment and gilt finials.
+ *  - Bellagio: the cream sandstone Italianate tower over the entrance of Bellagio Drive — a round arch
+ *    with wrought-iron scrollwork and a clock that the drive passes through, a square LED screen in a
+ *    bronze frame, BELLAGIO in bronze serif capitals with the swash B on a salmon band (halo-lit at
+ *    night), a cornice and a small cupola.
  *  - The Cosmopolitan: the 65-ft four-sided LED marquee on a black granite plinth with the wordmark crown,
  *    a long LED canvas across the podium's Strip face (the "PAUSE" digital-art program) and the
  *    wordmark over the casino doors.
- *  - ARIA: the crossbar-less "ARIA" letters along the curved tower's crown, silver by day, white at night.
+ *  - ARIA: the thin "Aria" logotype (a crossbar-less capital A, lowercase ria) along the curved tower's crown,
+ *    silver by day, white at night.
  * LED canvases only redraw while the camera is close enough to read them.
  */
 
@@ -65,223 +67,245 @@ const near = (x: number, z: number, r: number) => {
 // Bellagio
 // ================================================================================================
 
-function bellagioFrieze(): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
+/** "BELLAGIO" in bronze serif capitals with the swash B, on the salmon band (day map / halo glow map). */
+function bellagioBand(): { map: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
   const W = 1024;
-  const H = 176;
+  const H = 160;
   const [c, ctx] = canvas(W, H);
   const [g, gx] = canvas(W, H);
-  ctx.fillStyle = '#e8dbc0';
+  const band = ctx.createLinearGradient(0, 0, 0, H);
+  band.addColorStop(0, '#e3a487');
+  band.addColorStop(0.5, '#d9967a');
+  band.addColorStop(1, '#c98468');
+  ctx.fillStyle = band;
   ctx.fillRect(0, 0, W, H);
-  // travertine pores and banding
-  for (let i = 0; i < 900; i++) {
-    ctx.fillStyle = `rgba(150,124,84,${0.05 + Math.random() * 0.12})`;
-    ctx.fillRect(Math.random() * W, Math.random() * H, 1 + Math.random() * 6, 1 + Math.random() * 1.5);
+  for (let i = 0; i < 700; i++) {
+    ctx.fillStyle = `rgba(120,60,40,${0.03 + Math.random() * 0.07})`;
+    ctx.fillRect(Math.random() * W, Math.random() * H, 1 + Math.random() * 5, 1 + Math.random() * 1.5);
   }
-  ctx.fillStyle = 'rgba(120,96,60,0.25)';
-  ctx.fillRect(0, 10, W, 3);
-  ctx.fillRect(0, H - 13, W, 3);
+  ctx.fillStyle = 'rgba(90,50,30,0.35)';
+  ctx.fillRect(0, 6, W, 3);
+  ctx.fillRect(0, H - 9, W, 3);
   gx.fillStyle = '#000';
   gx.fillRect(0, 0, W, H);
   const draw = (k: CanvasRenderingContext2D, glow: boolean) => {
     k.textAlign = 'center';
     k.textBaseline = 'middle';
-    k.font = 'bold 118px "Times New Roman", Georgia, serif';
-    (k as unknown as { letterSpacing: string }).letterSpacing = '22px';
+    (k as unknown as { letterSpacing: string }).letterSpacing = '18px';
+    // the swash B: a taller, italic initial
+    k.font = 'italic 600 132px "Bodoni MT", "Didot", "Times New Roman", Georgia, serif';
+    const bw = k.measureText('B').width;
+    k.font = '500 104px "Bodoni MT", "Didot", "Times New Roman", Georgia, serif';
+    const rest = k.measureText('ELLAGIO').width;
+    const x0 = W / 2 - (bw + rest) / 2;
+    const paint = (fill: string | CanvasGradient, dx: number, dy: number) => {
+      k.fillStyle = fill;
+      k.font = 'italic 600 132px "Bodoni MT", "Didot", "Times New Roman", Georgia, serif';
+      k.textAlign = 'left';
+      k.fillText('B', x0 + dx, H / 2 + 4 + dy);
+      k.font = '500 104px "Bodoni MT", "Didot", "Times New Roman", Georgia, serif';
+      k.fillText('ELLAGIO', x0 + bw + dx, H / 2 + 8 + dy);
+    };
     if (glow) {
-      k.shadowColor = '#ffd27a';
-      k.shadowBlur = 26;
-      k.fillStyle = '#fff0c8';
-      k.fillText('BELLAGIO', W / 2 + 11, H / 2 + 6, W * 0.92);
+      k.shadowColor = '#ffcf8a';
+      k.shadowBlur = 22;
+      paint('#ffe7b8', 0, 0);
       k.shadowBlur = 0;
-      k.fillStyle = '#ffe9b0';
-      k.fillText('BELLAGIO', W / 2 + 11, H / 2 + 6, W * 0.92);
+      paint('#fff0d0', 0, 0);
       return;
     }
-    k.fillStyle = 'rgba(60,40,10,0.55)';
-    k.fillText('BELLAGIO', W / 2 + 15, H / 2 + 10, W * 0.92);
-    const gr = k.createLinearGradient(0, 30, 0, H - 30);
-    gr.addColorStop(0, '#fff1a8');
-    gr.addColorStop(0.45, '#e2b54a');
-    gr.addColorStop(1, '#9a6a1e');
-    k.fillStyle = gr;
-    k.fillText('BELLAGIO', W / 2 + 11, H / 2 + 6, W * 0.92);
+    paint('rgba(60,30,10,0.55)', 4, 4);
+    const gr = k.createLinearGradient(0, 24, 0, H - 24);
+    gr.addColorStop(0, '#d9a66a');
+    gr.addColorStop(0.5, '#8a5a2a');
+    gr.addColorStop(1, '#5a3614');
+    paint(gr, 0, 0);
   };
   draw(ctx, false);
   draw(gx, true);
   return { map: tex(c), glow: tex(g) };
 }
 
-function posterO(): THREE.CanvasTexture {
-  const [c, ctx] = canvas(256, 200);
-  const g = ctx.createLinearGradient(0, 0, 0, 200);
-  g.addColorStop(0, '#04122e');
-  g.addColorStop(1, '#0a4a7a');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 200);
-  for (let i = 0; i < 40; i++) {
-    ctx.strokeStyle = `rgba(140,220,255,${0.08 + Math.random() * 0.18})`;
+/** Black wrought-iron scrollwork filling an arch head (w across, r tall), with the clock in the middle. */
+function paintIronArch(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  ctx.clearRect(0, 0, w, h);
+  const cx = w / 2;
+  const R = Math.min(w / 2, h) * 0.98;
+  ctx.strokeStyle = '#141210';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(3, w * 0.012);
+  // the arch rim and radial bars
+  ctx.beginPath();
+  ctx.arc(cx, h, R, Math.PI, 0);
+  ctx.stroke();
+  for (let i = 1; i < 12; i++) {
+    const a = Math.PI + (i / 12) * Math.PI;
     ctx.beginPath();
-    const y = 120 + Math.random() * 80;
-    ctx.moveTo(0, y);
-    ctx.bezierCurveTo(80, y - 10, 170, y + 12, 256, y - 4);
+    ctx.moveTo(cx + Math.cos(a) * R * 0.32, h + Math.sin(a) * R * 0.32);
+    ctx.lineTo(cx + Math.cos(a) * R, h + Math.sin(a) * R);
     ctx.stroke();
   }
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 12;
-  ctx.shadowColor = '#7fd8ff';
-  ctx.shadowBlur = 18;
+  // C-scrolls between the bars
+  ctx.lineWidth = Math.max(2, w * 0.008);
+  for (let i = 0; i < 12; i++) {
+    const a = Math.PI + ((i + 0.5) / 12) * Math.PI;
+    for (const rr of [0.55, 0.8]) {
+      const px = cx + Math.cos(a) * R * rr;
+      const py = h + Math.sin(a) * R * rr;
+      ctx.beginPath();
+      ctx.arc(px, py, R * 0.075, a, a + Math.PI * 1.5);
+      ctx.stroke();
+    }
+  }
+  // inner ring with the clock
+  ctx.lineWidth = Math.max(3, w * 0.012);
   ctx.beginPath();
-  ctx.ellipse(128, 82, 44, 52, 0, 0, Math.PI * 2);
+  ctx.arc(cx, h, R * 0.32, Math.PI, 0);
   ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 19px Georgia, serif';
-  ctx.fillText('CIRQUE DU SOLEIL', 128, 162);
-  ctx.font = '13px system-ui, sans-serif';
-  ctx.fillStyle = '#bfe8ff';
-  ctx.fillText('NIGHTLY • BELLAGIO THEATRE', 128, 184);
-  return tex(c);
-}
-
-function posterConservatory(): THREE.CanvasTexture {
-  const [c, ctx] = canvas(256, 200);
-  const g = ctx.createLinearGradient(0, 0, 0, 200);
-  g.addColorStop(0, '#0f3a24');
-  g.addColorStop(1, '#1c5a36');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 256, 200);
-  // tree
-  ctx.fillStyle = '#2f8a4a';
-  for (let i = 0; i < 4; i++) {
-    ctx.beginPath();
-    ctx.moveTo(128, 18 + i * 26);
-    ctx.lineTo(128 - 26 - i * 12, 62 + i * 26);
-    ctx.lineTo(128 + 26 + i * 12, 62 + i * 26);
-    ctx.fill();
-  }
-  const orn = ['#ff3b3b', '#ffd24d', '#ffffff', '#3bb0ff'];
-  for (let i = 0; i < 26; i++) {
-    ctx.fillStyle = orn[i % 4];
-    ctx.beginPath();
-    ctx.arc(128 + (Math.random() - 0.5) * (30 + i * 3), 40 + i * 4, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.fillStyle = '#ffe066';
+  const cr = R * 0.2;
+  const cy = h - cr - R * 0.06;
+  ctx.fillStyle = '#f4ecd8';
   ctx.beginPath();
-  ctx.arc(128, 16, 7, 0, Math.PI * 2);
+  ctx.arc(cx, cy, cr, 0, Math.PI * 2);
   ctx.fill();
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 17px Georgia, serif';
-  ctx.fillText('CONSERVATORY', 128, 168);
-  ctx.font = 'italic 14px Georgia, serif';
-  ctx.fillStyle = '#ffe7a8';
-  ctx.fillText('Postcards From Christmas', 128, 188);
-  return tex(c);
+  ctx.lineWidth = Math.max(3, w * 0.01);
+  ctx.strokeStyle = '#2a2018';
+  ctx.stroke();
+  ctx.lineWidth = Math.max(2, w * 0.005);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * cr * 0.78, cy + Math.sin(a) * cr * 0.78);
+    ctx.lineTo(cx + Math.cos(a) * cr * 0.92, cy + Math.sin(a) * cr * 0.92);
+    ctx.stroke();
+  }
+  ctx.lineWidth = Math.max(3, w * 0.009);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + cr * 0.45, cy - cr * 0.3);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx - cr * 0.1, cy - cr * 0.72);
+  ctx.stroke();
 }
 
-/** The Bellagio's Strip pylon at the lake's south-east corner, facing the Boulevard (+x). */
-export function buildBellagioSign(b: WorldBuilder, sx = -23.4, sz = 93.6): void {
-  const stone = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xe6d8bb, roughness: 0.72, emissive: 0xffd9a8, emissiveIntensity: 0 }), 0, 0.2);
-  const darkStone = new THREE.MeshStandardMaterial({ color: 0xcdbb98, roughness: 0.8 });
-  const gilt = new THREE.MeshStandardMaterial({ color: 0xd9ae4a, roughness: 0.28, metalness: 0.9, emissive: 0x6a4a10, emissiveIntensity: 0.15 });
-  const cove = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x3a2a14, emissive: 0xffd08a, emissiveIntensity: 0.4, roughness: 0.6 }), 0.35, 2.6);
-  const ys = 2.45; // top of the plinth
-  const W = 9.6; // along z
-  const fx = sx + 0.86; // front face of the screen wall
+/**
+ * The Bellagio's Strip sign: a cream sandstone Italianate tower standing over the entrance of
+ * Bellagio Drive at (gx, zc). The drive passes through a round arch filled with black wrought-iron
+ * scrollwork and a clock; above it a square LED screen in a bronze frame, BELLAGIO in bronze serif
+ * capitals with the swash B on a salmon band, a cornice and a small cupola finial. Faces the
+ * Boulevard (+x) with the screen and the name on the back too.
+ */
+export function buildBellagioGateway(b: WorldBuilder, gx = -22.8, zc = 105.5): void {
+  const stone = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xe3cfae, roughness: 0.75, emissive: 0xffd9a8, emissiveIntensity: 0 }), 0, 0.16);
+  const trim = new THREE.MeshStandardMaterial({ color: 0xcdb894, roughness: 0.8 });
+  const bronze = new THREE.MeshStandardMaterial({ color: 0x6a4a26, roughness: 0.38, metalness: 0.85 });
+  const cove = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x3a2a14, emissive: 0xffd08a, emissiveIntensity: 0.3, roughness: 0.6 }), 0.3, 2.4);
+  const D = 3.0; // thickness along x
+  const W = 13.2; // across the drive (z)
+  const archR = 4.6;
+  const spring = 5.4;
+  const wallTop = 11.8;
 
-  // ---- plinth with a moulded cap and a flower bed on top
+  // ---- the gateway wall with its arch (a shape in the z–y plane, extruded along x)
+  const sh = new THREE.Shape();
+  sh.moveTo(-W / 2, 0);
+  sh.lineTo(-archR, 0);
+  sh.lineTo(-archR, spring);
+  sh.absarc(0, spring, archR, Math.PI, 0, true);
+  sh.lineTo(archR, 0);
+  sh.lineTo(W / 2, 0);
+  sh.lineTo(W / 2, wallTop);
+  sh.lineTo(-W / 2, wallTop);
+  sh.closePath();
+  const wall = new THREE.ExtrudeGeometry(sh, { depth: D, bevelEnabled: false, curveSegments: 20 });
+  wall.translate(0, 0, -D / 2);
+  wall.rotateY(-Math.PI / 2); // shape x → world z (mirrored is fine: it's symmetric), extrusion → x
   const st = new Pieces();
-  st.box(sx, 1.1, sz, 3.2, 2.2, W + 0.2);
-  st.box(sx + 0.35, ys + 5.2, sz, 1.0, 10.4, W - 2.6); // screen wall
-  // piers
+  st.geo(wall, gx, 0, zc);
+  // the screen storey above, a little narrower
+  const upH = 9.6;
+  st.box(gx, wallTop + upH / 2, zc, D - 0.3, upH, W - 1.6);
+  // pilasters at the corners of both storeys, rusticated piers
   for (const s of [-1, 1]) {
-    const pz = sz + s * (W / 2 - 0.75);
-    st.box(sx + 0.35, ys + 0.35, pz, 1.7, 0.7, 1.7);
-    st.box(sx + 0.35, ys + 6.4, pz, 1.35, 12.8, 1.35);
-    for (let y = ys + 1.6; y < ys + 12.2; y += 1.3) st.box(sx + 0.36, y, pz, 1.42, 0.06, 1.42); // rustication
+    st.box(gx, wallTop / 2, zc + s * (W / 2 - 0.55), D + 0.35, wallTop, 1.1);
+    st.box(gx, wallTop + upH / 2, zc + s * (W / 2 - 1.25), D + 0.05, upH, 0.9);
   }
-  st.box(sx + 0.35, ys + 12.55, sz, 1.3, 0.3, W - 0.2); // architrave
-  st.box(sx + 0.35, ys + 14.05, sz, 1.0, 2.7, W - 1.2); // frieze block
-  st.box(sx + 0.35, ys + 16.35, sz, 0.9, 1.0, W - 3.6); // attic
   b.add(st.mesh(stone, true));
-  const ds = new Pieces();
-  ds.box(sx, ys - 0.05, sz, 3.5, 0.3, W + 0.6);
-  ds.box(sx + 0.35, ys + 12.85, sz, 2.0, 0.34, W + 0.5); // lower cornice
-  ds.box(sx + 0.35, ys + 15.6, sz, 2.3, 0.5, W + 1.0); // upper cornice
-  for (let z = sz - W / 2; z <= sz + W / 2 + 0.01; z += 0.6) ds.box(sx + 1.25, ys + 15.25, z, 0.3, 0.2, 0.22); // modillions
-  // pediment (a triangular prism)
-  const ped = new THREE.CylinderGeometry(1, 1, 1, 3, 1);
-  ped.rotateX(Math.PI / 2);
-  ped.rotateZ(Math.PI / 2);
-  ped.scale(1.0, 1.25, W * 0.52);
-  ds.geo(ped, sx + 0.35, ys + 17.35, sz);
-  b.add(ds.mesh(darkStone, true));
-
-  // ---- gilt: capitals, screen frames, finials, crest
-  const gl = new Pieces();
-  for (const s of [-1, 1]) {
-    const pz = sz + s * (W / 2 - 0.75);
-    gl.box(sx + 0.35, ys + 12.1, pz, 1.55, 0.35, 1.55);
-    gl.geo(new THREE.CylinderGeometry(0.22, 0.38, 0.6, 12), sx + 0.35, ys + 16.5, pz);
-    gl.geo(new THREE.SphereGeometry(0.34, 14, 10), sx + 0.35, ys + 17.1, pz);
+  const tr = new Pieces();
+  for (const s of [-1, 1]) for (let y = 1.2; y < wallTop - 0.5; y += 1.25) tr.box(gx, y, zc + s * (W / 2 - 0.55), D + 0.42, 0.08, 1.16); // rustication
+  for (const s of [-1, 1]) tr.box(gx, 0.35, zc + s * (W / 2 + archR) / 2, D + 0.6, 0.7, W / 2 - archR + 0.4); // plinth course under the piers
+  tr.box(gx, wallTop + 0.2, zc, D + 0.8, 0.45, W + 0.6); // string course
+  tr.box(gx, wallTop + upH + 0.3, zc, D + 0.9, 0.6, W - 0.6); // cornice
+  tr.box(gx, wallTop + upH + 0.75, zc, D + 0.5, 0.3, W - 1.2);
+  for (let z = -W / 2 + 1.0; z <= W / 2 - 1.0 + 0.01; z += 0.55) tr.box(gx + (D + 0.8) / 2 - 0.1, wallTop + upH - 0.08, zc + z, 0.25, 0.2, 0.2); // modillions
+  // keystone and the arch's moulded rim (voussoirs)
+  tr.box(gx, spring + archR + 0.3, zc, D + 0.3, 1.1, 0.9);
+  for (let i = 1; i < 10; i++) {
+    const a = (i / 10) * Math.PI;
+    tr.box(gx, spring + Math.sin(a) * (archR + 0.2), zc + Math.cos(a) * (archR + 0.2), D + 0.2, 0.5, 0.25, 0);
   }
-  gl.geo(new THREE.SphereGeometry(0.42, 14, 10), sx + 0.35, ys + 18.6, sz);
-  gl.geo(new THREE.ConeGeometry(0.14, 0.7, 8), sx + 0.35, ys + 19.2, sz);
-  const frame = (y: number, z: number, w: number, h: number) => {
-    gl.box(fx + 0.03, y + h / 2 + 0.06, z, 0.1, 0.12, w + 0.24);
-    gl.box(fx + 0.03, y - h / 2 - 0.06, z, 0.1, 0.12, w + 0.24);
-    gl.box(fx + 0.03, y, z - w / 2 - 0.06, 0.1, h, 0.12);
-    gl.box(fx + 0.03, y, z + w / 2 + 0.06, 0.1, h, 0.12);
-  };
-  frame(ys + 8.3, sz, 6.2, 3.7);
-  frame(ys + 3.6, sz - 1.6, 2.9, 2.25);
-  frame(ys + 3.6, sz + 1.6, 2.9, 2.25);
-  b.add(gl.mesh(gilt));
+  // cupola: drum, dome and lantern finial
+  const top = wallTop + upH + 0.9;
+  tr.geo(new THREE.CylinderGeometry(1.5, 1.7, 1.6, 20), gx, top + 0.8, zc);
+  b.add(tr.mesh(trim, true));
+  const dome = new Pieces();
+  dome.geo(new THREE.SphereGeometry(1.55, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), gx, top + 1.6, zc);
+  dome.geo(new THREE.CylinderGeometry(0.12, 0.2, 1.4, 8), gx, top + 3.7, zc);
+  dome.geo(new THREE.SphereGeometry(0.28, 10, 8), gx, top + 4.5, zc);
+  b.add(dome.mesh(bronze, true));
 
-  // ---- cove light under each cornice and along the plinth cap
+  // ---- wrought iron and the clock in the arch head (both faces)
+  const iron = letterFace(b, archR * 2, archR, paintIronArch, D);
+  b.add(iron, gx, spring + archR / 2, zc, Math.PI / 2);
+
+  // ---- the square LED screen in its bronze frame (both faces) and the salmon name band
+  const ledS = 6.4;
+  const ledY = wallTop + 0.9 + ledS / 2;
+  const fr = new Pieces();
+  fr.box(gx, ledY, zc, D + 0.1, ledS + 0.6, ledS + 0.6);
+  b.add(fr.mesh(bronze));
+  const led = new LedBoard('BELLAGIO', ['FOUNTAINS EVERY 15 MIN AFTER 8PM', 'O • CIRQUE DU SOLEIL', 'CONSERVATORY: POSTCARDS FROM CHRISTMAS', 'VIA BELLAGIO SHOPS', 'RESORT & CASINO'], ['#c9a24a', '#1f6f5a', '#8a1e2e', '#2c5fa8', '#5a3a8a'], 320, 320);
+  const scr = new THREE.MeshBasicMaterial({ map: led.tex });
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(ledS, ledS), scr);
+    m.rotation.y = s > 0 ? Math.PI / 2 : -Math.PI / 2;
+    b.add(m, gx + s * ((D + 0.1) / 2 + 0.02), ledY, zc);
+  }
+  const bandY = ledY + ledS / 2 + 1.25;
+  const bt = bellagioBand();
+  const bandMat = b.nightGlow(new THREE.MeshStandardMaterial({ map: bt.map, emissiveMap: bt.glow, emissive: 0xffd890, emissiveIntensity: 0.04, roughness: 0.6, metalness: 0.1 }), 0.04, 1.35);
+  for (const s of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(W - 3.4, 1.6), bandMat);
+    m.rotation.y = s > 0 ? Math.PI / 2 : -Math.PI / 2;
+    b.add(m, gx + s * ((D - 0.3) / 2 + 0.02), bandY, zc);
+  }
+  // warm cove lines under the cornice and the string course
   const cv = new Pieces();
-  cv.box(sx + 1.2, ys + 12.62, sz, 0.08, 0.08, W + 0.3);
-  cv.box(sx + 1.4, ys + 15.3, sz, 0.08, 0.08, W + 0.8);
-  cv.box(sx + 1.66, ys + 0.12, sz, 0.08, 0.08, W + 0.4);
+  for (const s of [-1, 1]) {
+    cv.box(gx + s * ((D + 0.8) / 2 + 0.02), wallTop - 0.02, zc, 0.06, 0.06, W + 0.5);
+    cv.box(gx + s * ((D + 0.9) / 2 + 0.02), wallTop + upH - 0.02, zc, 0.06, 0.06, W - 0.7);
+  }
   b.add(cv.mesh(cove));
 
-  // ---- frieze with the gold channel letters (halo-lit at night)
-  const fr = bellagioFrieze();
-  const friezeMat = b.nightGlow(new THREE.MeshStandardMaterial({ map: fr.map, emissiveMap: fr.glow, emissive: 0xffd890, emissiveIntensity: 0.05, roughness: 0.55, metalness: 0.15 }), 0.05, 1.5);
-  const frieze = new THREE.Mesh(new THREE.PlaneGeometry(W - 1.4, 1.5), friezeMat);
-  frieze.rotation.y = Math.PI / 2;
-  b.add(frieze, sx + 0.87, ys + 14.05, sz);
-
-  // ---- LED board + the two lower panels (the "O" poster and the Conservatory show)
-  const led = new LedBoard('BELLAGIO', ['FOUNTAINS EVERY 15 MIN AFTER 8PM', 'O • CIRQUE DU SOLEIL', 'CONSERVATORY: POSTCARDS FROM CHRISTMAS', 'VIA BELLAGIO SHOPS', 'RESORT & CASINO'], ['#c9a24a', '#1f6f5a', '#8a1e2e', '#2c5fa8', '#5a3a8a'], 512, 288);
-  const screen = (t: THREE.Texture, y: number, z: number, w: number, h: number) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
-    m.rotation.y = Math.PI / 2;
-    b.add(m, fx + 0.02, y, z);
-  };
-  screen(led.tex, ys + 8.3, sz, 6.2, 3.7);
-  screen(posterO(), ys + 3.6, sz - 1.6, 2.9, 2.25);
-  screen(posterConservatory(), ys + 3.6, sz + 1.6, 2.9, 2.25);
-  b.every((_dt, t) => {
-    if (near(sx, sz, 230)) led.draw(t);
-  });
-
-  // ---- flower bed on the plinth (petunias / mums in Bellagio's reds, golds and whites)
-  const fl = new Pieces();
-  const lf = new Pieces();
-  for (let i = 0; i < 70; i++) {
-    const z = sz - W / 2 + 0.3 + (i / 69) * (W - 0.6);
-    const x = sx + 0.8 + Math.sin(i * 7.3) * 0.5;
-    if (i % 3 === 0) lf.geo(new THREE.IcosahedronGeometry(0.26, 0), x, ys + 0.2, z);
-    else fl.geo(new THREE.IcosahedronGeometry(0.17 + (i % 4) * 0.02, 0), x, ys + 0.24 + (i % 2) * 0.1, z);
+  // ---- flower urns either side of the arch at the sidewalk
+  const urnG = new Pieces();
+  const flowers = new Pieces();
+  for (const s of [-1, 1]) {
+    const uz = zc + s * (W / 2 + 0.9);
+    urnG.geo(new THREE.CylinderGeometry(0.75, 0.45, 1.0, 14), gx + 1.2, 0.5, uz);
+    urnG.geo(new THREE.CylinderGeometry(0.85, 0.85, 0.16, 14), gx + 1.2, 1.05, uz);
+    for (let i = 0; i < 9; i++) flowers.geo(new THREE.IcosahedronGeometry(0.22, 0), gx + 1.2 + Math.cos(i * 2.4) * 0.45, 1.25 + (i % 3) * 0.08, uz + Math.sin(i * 2.4) * 0.45);
   }
-  b.add(fl.mesh(new THREE.MeshStandardMaterial({ color: 0xd23a4a, roughness: 0.7, emissive: 0x5a0a10, emissiveIntensity: 0.2 })));
-  b.add(lf.mesh(new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 0.8 })));
+  b.add(urnG.mesh(trim, true));
+  b.add(flowers.mesh(new THREE.MeshStandardMaterial({ color: 0xd23a4a, roughness: 0.7, emissive: 0x5a0a10, emissiveIntensity: 0.2 })));
 
-  b.collider(sx - 1.7, sx + 1.75, sz - W / 2 - 0.4, sz + W / 2 + 0.4, 0, ys + 19, true);
-  b.light(0xffd9a0, 10, 18, sx + 5, 3, sz, 0);
+  // colliders: the two piers and the solid storeys over the arch
+  const pier = W / 2 - archR;
+  for (const s of [-1, 1]) b.collider(gx - D / 2 - 0.3, gx + D / 2 + 0.3, zc + s * archR + (s < 0 ? -pier : 0), zc + s * archR + (s > 0 ? pier : 0), 0, top + 4, true);
+  b.collider(gx - D / 2, gx + D / 2, zc - W / 2, zc + W / 2, spring + archR, top + 4, true);
+  b.every((_dt, t) => {
+    if (near(gx, zc, 230)) led.draw(t);
+  });
 }
 
 // ================================================================================================
@@ -452,15 +476,50 @@ const GLYPHS: Record<string, { w: number; s: Array<[number, number, number, numb
     ],
   },
   I: { w: 0.08, s: [[0.04, 0, 0.04, 1]] },
+  // lowercase for the "Aria" logotype (x-height 0.62 of the capital, as on the real sign: A 26 ft, ria 16 ft)
+  r: {
+    w: 0.34,
+    s: [
+      [0.03, 0, 0.03, 0.62],
+      [0.03, 0.42, 0.1, 0.54],
+      [0.1, 0.54, 0.2, 0.61],
+      [0.2, 0.61, 0.34, 0.6],
+    ],
+  },
+  i: {
+    w: 0.08,
+    s: [
+      [0.04, 0, 0.04, 0.62],
+      [0.04, 0.8, 0.04, 0.88],
+    ],
+  },
+  a: {
+    w: 0.64,
+    s: [
+      [0.580, 0.310, 0.541, 0.465],
+      [0.541, 0.465, 0.435, 0.578],
+      [0.435, 0.578, 0.290, 0.620],
+      [0.290, 0.620, 0.145, 0.578],
+      [0.145, 0.578, 0.039, 0.465],
+      [0.039, 0.465, 0.000, 0.310],
+      [0.000, 0.310, 0.039, 0.155],
+      [0.039, 0.155, 0.145, 0.042],
+      [0.145, 0.042, 0.290, 0.000],
+      [0.290, 0.000, 0.435, 0.042],
+      [0.435, 0.042, 0.541, 0.155],
+      [0.541, 0.155, 0.580, 0.310],
+      [0.6, 0, 0.6, 0.62],
+    ],
+  },
 };
 
-/** "ARIA" in channel letters along the concave face of the curved tower (centre cx, cz; face radius r). */
+/** The thin "Aria" logotype in channel letters along the concave face of the curved tower (centre cx, cz; face radius r). */
 export function buildAriaSign(b: WorldBuilder, cx = -60, cz = 268, r = 53.2, aMid = Math.PI * 1.05, y0 = 47.6, size = 5.6): void {
   const face = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xe9eef4, roughness: 0.28, metalness: 0.55, emissive: 0xffffff, emissiveIntensity: 0.12 }), 0.12, 2.1);
   const back = new THREE.MeshStandardMaterial({ color: 0x8a96a4, roughness: 0.3, metalness: 0.8 });
-  const word = 'ARIA';
-  const t = size * 0.085; // stroke thickness
-  const gap = size * 0.42;
+  const word = 'Aria';
+  const t = size * 0.075; // stroke thickness
+  const gap = size * 0.2;
   let total = 0;
   for (const ch of word) total += GLYPHS[ch].w * size;
   total += gap * (word.length - 1);

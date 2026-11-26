@@ -10,9 +10,14 @@ import type { JetSpec } from './fountains';
 import { bellagioCasinoRoof, buildBellagioCasinoDressing, buildBellagioLobby } from './grandInteriors';
 import { buildViaBellagio } from './viaBellagio';
 import { buildCosmoExtras } from './cosmoExtras';
-import { buildAriaSign, buildBellagioSign, buildCosmoSigns } from './westSigns';
+import { buildAriaSign, buildBellagioGateway, buildCosmoSigns } from './westSigns';
 import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from './grandCaesars';
-import { caesarsSigns, treasureIslandSigns } from './stripSigns';
+import { caesarsMarquee, caesarsStatuary, caesarsTempleFront, caesarsTowerCrown, forumEntrance } from './caesarsFront';
+import { uplights } from './stripFronts';
+import { buildTiSign, tiCove, tiShipLights, tiTowerLetters } from './tiFront';
+import { bellagioLakeFront, bellagioLakeVillage, cosmoBeacon, cosmoComets } from './westExtras';
+import { ariaMarquee, crystalsTenants, veerTowers } from './cityCenterFront';
+import { buildGuitarHotel, hardRockBanner } from './guitarHotel';
 import { crystalsFront, forumPlanting, forumWall } from './stripFronts';
 
 /**
@@ -50,7 +55,14 @@ function buildCityCenter(b: WorldBuilder): void {
   // The Shops at Crystals — Libeskind's tilted steel-and-glass shards over a glass storefront band (stripFronts.ts)
   b.box(-40, 0, 232, 38, 9, 40, mat(0xb9c3cc, 0.4, 0.6), true);
   crystalsFront(b);
-  b.add(neonSign('CRYSTALS', '#101418', '#e8f4ff', 8, 1.5, 'THE SHOPS AT CRYSTALS'), -20.55, 6.5, 232, -Math.PI / 2);
+  // No big name on the Strip face, only the tenants' signs; the ARIA marquee stands across the walk (cityCenterFront.ts)
+  crystalsTenants(b);
+  ariaMarquee(b);
+  // Veer Towers at Harmon, leaning 5° apart, behind Crystals
+  veerTowers(b, [
+    { x: -70, z: 217, w: 11, d: 9, h: 45, lean: -0.087 },
+    { x: -86, z: 229, w: 11, d: 9, h: 45, lean: 0.087 },
+  ]);
   tower(b, { x: -40, z: 280, w: 16, d: 22, h: 52, facade: silver, metal: 0.6, rough: 0.25 });
   b.add(neonSign('WALDORF ASTORIA', '#0d0f14', '#f6e7c8', 10, 1.4), -31.8, 46, 280, -Math.PI / 2);
   // ARIA: curving blue-silver low-e glass with sawtooth sunshade fins washed by podium floodlights
@@ -68,8 +80,10 @@ function buildCityCenter(b: WorldBuilder): void {
 // ---------------------------------------------------------------- Cosmopolitan
 function buildCosmopolitan(b: WorldBuilder): void {
   const blueGlass = { wall: '#3a4a5c', mullion: '#55677c', glass: '#1d2938', lit: '#d7f0ff', cols: 9, rows: 20, style: 2 as const, seed: 11 };
-  tower(b, { x: -82, z: 170, w: 18, d: 14, h: 56, facade: blueGlass, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0xc77dff }, wash: 0xd59cff });
-  tower(b, { x: -82, z: 196, w: 18, d: 14, h: 56, facade: { ...blueGlass, seed: 13 }, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0xc77dff }, wash: 0xd59cff });
+  // the balcony edges carry blue-violet light lines (they pulse up the towers like comets on the real one)
+  const cosmoA = tower(b, { x: -82, z: 170, w: 18, d: 14, h: 56, facade: blueGlass, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0x6a5cff }, wash: 0x9a8cff });
+  const cosmoB = tower(b, { x: -82, z: 196, w: 18, d: 14, h: 56, facade: { ...blueGlass, seed: 13 }, metal: 0.7, rough: 0.2, ledFins: false, balconies: { color: 0x6a5cff }, wash: 0x9a8cff });
+  cosmoComets(b, [cosmoA, cosmoB], 0x6a5cff);
   b.building(-82, 183, 18, 40, '#3a4a5c', 'Cosmopolitan');
 
   // Podium: casino floor with the 3-level Chandelier bar and the VIP lounge
@@ -170,6 +184,8 @@ function buildCosmopolitan(b: WorldBuilder): void {
 
   // Strip marquee (four-sided LED pylon), the podium's LED canvas and the wordmark over the doors
   buildCosmoSigns(b);
+  // the "Beacon": the LED logo display on the Boulevard tower's crown (since 2016)
+  cosmoBeacon(b, -74.55, 170, 50.4);
   // Chandelier lounges + bartenders, LED art columns, the Marquee entrance, Secret Pizza, VIP lounge
   buildCosmoExtras(b);
 
@@ -206,21 +222,16 @@ function buildBellagio(b: WorldBuilder): void {
   b.waterZones.push({ name: 'Lake Bellagio', minX: lakeX0, maxX: lakeX1, minZ: lakeZ0, maxZ: lakeZ1, y: 0.06 });
   b.feature({ kind: 'water', x: (lakeX0 + lakeX1) / 2, z: (lakeZ0 + lakeZ1) / 2, w: lakeX1 - lakeX0, d: lakeZ1 - lakeZ0, color: '#2e8b9a' });
 
-  // Italianate balustrade with lamp posts around the lake
+  // Italianate balustrade with black multi-lantern lamp posts along the Strip side of the lake
   const stone = mat(0xe9dcc0, 0.7);
-  const globe = basic(0xffe4a8);
-  b.box(lakeX1 + 0.5, 0, (lakeZ0 + lakeZ1) / 2, 0.6, 1.05, lakeZ1 - lakeZ0 + 1, stone);
+  bellagioLakeFront(b, lakeX1 + 0.5, lakeZ0 - 0.5, lakeZ1 + 0.5);
   b.box((lakeX0 + lakeX1) / 2, 0, lakeZ0 - 0.5, lakeX1 - lakeX0, 1.05, 0.6, stone);
   b.box((lakeX0 + lakeX1) / 2, 0, lakeZ1 + 0.5, lakeX1 - lakeX0, 1.05, 0.6, stone);
   b.box(lakeX0 - 0.5, 0, (lakeZ0 + lakeZ1) / 2, 0.6, 1.05, lakeZ1 - lakeZ0 + 1, stone);
-  for (let z = lakeZ0 + 2; z <= lakeZ1 - 12; z += 6.5) {
-    b.add(mesh(new THREE.BoxGeometry(0.5, 2.6, 0.5), stone, lakeX1 + 0.5, 1.3, z));
-    b.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), globe, lakeX1 + 0.5, 2.8, z));
-  }
   for (let z = lakeZ0 + 5; z <= lakeZ1 - 12; z += 13) b.add(cypressTree(5 + (z % 3)), -18.4, 0, z);
   for (let z = lakeZ0 + 8; z <= lakeZ1 - 12; z += 22) b.add(planter(2, 2, 0xffd34d), -18.2, 0, z + 6);
-  // The Bellagio sign: travertine pylon with the LED board, gold letters and cornices, at the lake's corner
-  buildBellagioSign(b);
+  // The Bellagio sign: the sandstone tower over the entrance of Bellagio Drive (westSigns.ts)
+  buildBellagioGateway(b);
 
   // Fountains: three lines of shooters + a ring of "super shooters" (one instanced draw, see fountains.ts)
   const jets: JetSpec[] = [];
@@ -279,16 +290,20 @@ function buildBellagio(b: WorldBuilder): void {
   b.pickup(-19.6, 1.25, 52, 2, 'Fountain Balustrade Smokes', false);
   b.pickup(-19.6, 1.25, 88, 2, 'Ash-Stand Pack by the Fountains', false);
 
-  // F1 Grand Prix teardown (late Nov 2026): half-dismantled grandstand + barriers along the lake front
+  // F1 Grand Prix teardown (late Nov 2026): the Fountain Club grandstand over the lake edge is coming down;
+  // its top tiers are already gone (crews take it apart until mid-December), the lower ones and bare posts remain
   const steel = mat(0x6d737c, 0.4, 0.7);
   const tier = mat(0x30343c, 0.6, 0.4);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     const y = 1.4 + i * 1.1;
     const x = -24 - i * 1.6;
-    b.box(x, y, 66, 1.6, 0.25, i < 3 ? 30 : 14, tier);
+    b.box(x, y, i < 2 ? 66 : 72, 1.6, 0.25, i < 2 ? 30 : 12, tier);
   }
   for (let z = 52; z <= 80; z += 4) {
-    for (let i = 0; i < 5; i++) b.add(mesh(new THREE.BoxGeometry(0.12, 1.4 + i * 1.1, 0.12), steel, -24 - i * 1.6, (1.4 + i * 1.1) / 2, z));
+    for (let i = 0; i < 3; i++) {
+      if (i === 2 && z < 66) continue;
+      b.add(mesh(new THREE.BoxGeometry(0.12, 1.4 + i * 1.1, 0.12), steel, -24 - i * 1.6, (1.4 + i * 1.1) / 2, z));
+    }
   }
   b.add(neonSign('F1 TEARDOWN', '#101010', '#ff3b1f', 6, 1.1, 'CREWS WORKING • GRANDSTAND CLOSED', 0.1), -20.6, 3.2, 44, -Math.PI / 2);
   const jersey = mat(0xd9d6cf, 0.85);
@@ -296,7 +311,7 @@ function buildBellagio(b: WorldBuilder): void {
     if (Math.abs(z - 60) < 3) continue;
     b.box(-12.15, 0, z, 0.55, 0.85, 3.6, jersey, false, false);
   }
-  b.pickup(-28.8, 6.2, 60, 3, 'Grandstand Crew Pack', false);
+  b.pickup(-27.2, 4.6, 72, 3, 'Grandstand Crew Pack', false);
 
   // North walkway from the corner (bridge stairs land here) to the casino
   const trav = travertine();
@@ -357,6 +372,14 @@ function buildBellagio(b: WorldBuilder): void {
 
   // Conservatory & Botanical Gardens — "Postcards From Christmas" (Nov 13 2026 – Jan 2 2027)
   buildConservatory(b);
+  // The Lake Como village front across the lake: ochre and cream stucco, arched loggias, terracotta roofs,
+  // two little towers and Italian stone pines (westExtras.ts)
+  bellagioLakeVillage(b, -79.9, [
+    [18, 21.5, 11],
+    [30.5, 62, 11],
+    [66, 77, 9],
+    [87, 98, 9],
+  ]);
 
   // Bellagio Dr (main drive, signalised at the Strip) + porte-cochère at the lobby doors
   const drive = mat(0x2b2b30, 0.85);
@@ -378,9 +401,12 @@ function buildBellagio(b: WorldBuilder): void {
   b.add(planter(10, 3, 0xff4d7a), -40, 0, 146);
 
   // The crescent tower (cream/ochre, 36 floors)
-  curvedTower(b, -65, 70, 86, Math.PI * 0.84, Math.PI * 1.16, 6, 16, 47, { wall: '#e9dcc0', mullion: '#f5ecd8', glass: '#7c8a8f', lit: '#ffe199', cols: 12, rows: 22, style: 0, seed: 21 });
-  const crown = neonSign('BELLAGIO', '#1d120a', '#ffd573', 18, 3);
-  b.add(crown, -142, 43, 70, -Math.PI / 2);
+  // peach-cream walls, white cornice bands, blue-green glass; no name on the crown, a domed belvedere at the crest
+  curvedTower(b, -65, 70, 86, Math.PI * 0.84, Math.PI * 1.16, 6, 16, 47, { wall: '#e8d3b0', mullion: '#f7ecda', glass: '#4f7f9a', lit: '#ffe199', cols: 12, rows: 22, style: 0, seed: 21 });
+  b.add(mesh(new THREE.CylinderGeometry(3.4, 3.6, 3.2, 20), mat(0xf2e4c8, 0.6), -151, 48.4, 70, true));
+  b.add(mesh(new THREE.CylinderGeometry(3.9, 3.9, 0.35, 20), mat(0xfaf3e4, 0.55), -151, 50.1, 70));
+  b.add(mesh(new THREE.SphereGeometry(3.3, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xb5654a, 0.7), -151, 50.2, 70, true));
+  b.add(mesh(new THREE.CylinderGeometry(0.25, 0.4, 1.6, 8), mat(0xd9ae4a, 0.3, 0.85), -151, 54.2, 70));
   b.building(-150, 70, 18, 74, '#e9dcc0', 'Bellagio');
   b.building(-102, 40, 44, 44, '#c99c6d');
   b.zone('Bellagio', -150, -19, 10, 155);
@@ -499,14 +525,24 @@ function buildCaesars(b: WorldBuilder): void {
     [-1.3, 1.3],
     [1.3, 1.3],
   ]) shrine.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, 3, 8), mat(0xf2c14e, 0.25, 0.85), x, 2.1, z));
-  shrine.add(mesh(new THREE.ConeGeometry(2.5, 2.4, 4), mat(0xf2c14e, 0.25, 0.85), 0, 4.8, 0));
-  shrine.children[shrine.children.length - 1].rotation.y = Math.PI / 4;
+  // Thai-style pavilion roof: three stacked gold tiers and a slim spire
+  for (const [r, hh, yy] of [
+    [2.5, 1.1, 4.1],
+    [1.8, 1.0, 4.9],
+    [1.15, 0.9, 5.6],
+  ]) {
+    const tierMesh = mesh(new THREE.ConeGeometry(r, hh, 4), mat(0xf2c14e, 0.25, 0.85), 0, yy, 0);
+    tierMesh.rotation.y = Math.PI / 4;
+    shrine.add(tierMesh);
+  }
+  shrine.add(mesh(new THREE.ConeGeometry(0.22, 2.2, 8), mat(0xf2c14e, 0.25, 0.85), 0, 7.1, 0));
   shrine.add(mesh(new THREE.SphereGeometry(0.55, 12, 10), mat(0xf2c14e, 0.2, 0.9), 0, 1.4, 0));
   b.add(shrine, -30, 0, -37);
   b.collider(-31.7, -28.3, -38.7, -35.3, 0, 0.6);
   b.zone('Brahma Shrine', -34, -26, -41, -33);
 
   // Fountain pools + statues + cypress rows
+  const jetMat = new THREE.MeshBasicMaterial({ color: 0xe6fbff, transparent: true, opacity: 0.7 });
   for (const [z0, z1] of [
     [-44, -60],
     [-70, -86],
@@ -514,7 +550,7 @@ function buildCaesars(b: WorldBuilder): void {
     b.floor(-38, (z0 + z1) / 2, 10, Math.abs(z1 - z0), water, 0.36);
     b.box(-38, 0, (z0 + z1) / 2, 11, 0.35, Math.abs(z1 - z0) + 1, marble);
     for (let i = 0; i < 6; i++) {
-      const jet = mesh(new THREE.CylinderGeometry(0.06, 0.18, 2.4, 6), new THREE.MeshBasicMaterial({ color: 0xe6fbff, transparent: true, opacity: 0.7 }), -38 + ((i % 2) * 2 - 1) * 2.5, 1.55, z0 - 1.5 - (i >> 1) * 5);
+      const jet = mesh(new THREE.CylinderGeometry(0.06, 0.18, 2.4, 6), jetMat, -38 + ((i % 2) * 2 - 1) * 2.5, 1.55, z0 - 1.5 - (i >> 1) * 5);
       b.add(jet);
     }
   }
@@ -528,8 +564,11 @@ function buildCaesars(b: WorldBuilder): void {
     b.add(g, x, 0, z);
     b.collider(x - 0.7 * scale, x + 0.7 * scale, z - 0.7 * scale, z + 0.7 * scale, 0, 2 * scale, true);
   };
-  statue(-30, -65);
-  statue(-46, -65);
+  // Winged Victory on her column in the first pool, rearing white horses between the pools (caesarsFront.ts)
+  caesarsStatuary(b, [-38, -52], [
+    [-30, -65, Math.PI / 2],
+    [-46, -65, Math.PI / 2],
+  ]);
   statue(-26, -94, 1.5); // Julius Caesar, at the main entrance
   b.zone('Julius Caesar Statue', -30, -21, -99, -89);
   for (let z = -22; z > -116; z -= 7) b.add(cypressTree(6), -21.5, 0, z);
@@ -540,6 +579,8 @@ function buildCaesars(b: WorldBuilder): void {
     b.collider(-54.6, -53.4, z - 0.6, z + 0.6, 0, 8, true);
   }
   b.add(mesh(new THREE.BoxGeometry(3, 1.2, 58), marble, -54, 8.6, -53));
+  // warm gold uplights wash the wall behind the colonnade after dark
+  uplights(b, 1, -56.9, -80, -26, 11.5, 0xffd59a, 4.5);
   buildCasinoFloor(b, {
     id: 'caesars',
     casinoName: 'Caesars Palace',
@@ -576,7 +617,9 @@ function buildCaesars(b: WorldBuilder): void {
     ],
     tourists: [{ pts: [[-60, -28], [-96, -28], [-96, -76], [-60, -76]], prop: 'cig' }, { pts: [[-70, -44], [-70, -64]], prop: 'yard-drink' }],
   });
-  caesarsSigns(b); // roadside marquee at Flamingo Rd + gold letters on the colonnade and tower (stripSigns.ts)
+  // The 2026 marquee at Flamingo Rd, the temple front with the red name over the entrance (caesarsFront.ts)
+  caesarsMarquee(b);
+  caesarsTempleFront(b, -54, 9.2, -53, 16);
   // Domed rotunda round Caesar, statues and chandeliers inside; a roof that shades the floor (grandCaesars.ts)
   buildCaesarsCasinoDressing(b);
   caesarsCasinoRoof(b);
@@ -597,15 +640,11 @@ function buildCaesars(b: WorldBuilder): void {
   b.box(fx1, 5, (fz0 + fz1) / 2, 1, 5, 6, lobbyWall, true);
   b.box((fx0 + fx1) / 2, 10, (fz0 + fz1) / 2, fx1 - fx0, 0.5, fz1 - fz0, lobbyWall); // the painted sky hangs under it
   b.floor((fx0 + fx1) / 2, (fz0 + fz1) / 2, fx1 - fx0, fz1 - fz0, new THREE.MeshStandardMaterial({ map: makeCarpetTexture('#d8ccb4', '#a88a5a'), roughness: 0.6 }), 0.03);
-  for (let z = fz0 + 2; z <= fz1 - 2; z += 4) {
-    b.add(mesh(new THREE.CylinderGeometry(0.5, 0.55, 9, 12), marble, fx1 + 2, 4.5, z, true));
-    b.collider(fx1 + 1.5, fx1 + 2.5, z - 0.5, z + 0.5, 0, 9, true);
-  }
-  const pediment = mesh(new THREE.ConeGeometry(14, 4, 4), marble, fx1 + 2, 11.5, (fz0 + fz1) / 2);
-  pediment.rotation.y = Math.PI / 4;
-  pediment.scale.set(0.3, 1, 1);
-  b.add(pediment);
-  b.add(neonSign('THE FORUM SHOPS', '#1a140d', '#f7d560', 10, 1.4, 'AT CAESARS'), fx1 + 2.6, 8.4, (fz0 + fz1) / 2, -Math.PI / 2);
+  // The Trevi-style entrance: paired giant columns, the arched lunette, the attic with the name and the
+  // rotunda's dome rising behind (caesarsFront.ts); washed warm from ground uplights after dark
+  forumEntrance(b, fx1, (fz0 + fz1) / 2, 10.5, (fx0 + fx1) / 2);
+  for (const s of [-1, 1]) for (const off of [3.7, 5.3]) b.collider(fx1 + 0.6, fx1 + 2.0, (fz0 + fz1) / 2 + s * off - 0.7, (fz0 + fz1) / 2 + s * off + 0.7, 0, 10.3, true);
+  uplights(b, 1, fx1 + 2.05, fz0 + 1, fz1 - 1, 13.5, 0xffe2b4, 3.2);
   // Boutique counter along the north wall, clear of the walk through to the street
   const counter = barCounter(6, 0x111111, 0x5a3a12);
   b.add(counter, -36, 0, fz0 + 2.5);
@@ -621,9 +660,11 @@ function buildCaesars(b: WorldBuilder): void {
   forumWall(b, -26, -180, -164, 12);
   forumPlanting(b, -22.4, [-122.5, -129, -135.5, -165.5, -172, -178.5]);
 
-  // Towers (white with blue glass)
-  const caesarsSkin = { wall: '#f2efe6', mullion: '#ffffff', glass: '#6e9bc5', lit: '#fff0b3', cols: 12, rows: 22, style: 0 as const, seed: 31 };
-  tower(b, { x: -120, z: -50, w: 20, d: 46, h: 41, facade: caesarsSkin });
+  // Towers: warm ivory with grey-blue windows, washed gold after dark; the Palace Tower wears the red name
+  // under its cornice and a pediment with the medallion on the roof line
+  const caesarsSkin = { wall: '#efe6d3', mullion: '#fbf6ea', glass: '#5f7a90', lit: '#ffe6b0', cols: 12, rows: 22, style: 0 as const, seed: 31 };
+  tower(b, { x: -120, z: -50, w: 20, d: 46, h: 41, facade: caesarsSkin, wash: 0xffd59a, washZone: 16 });
+  caesarsTowerCrown(b, -110, -50, 30.6, -111.8, 41);
   tower(b, { x: -128, z: -104, w: 46, d: 18, h: 38, facade: { ...caesarsSkin, seed: 33 } });
   tower(b, { x: -152, z: -40, w: 14, d: 34, h: 30, facade: { ...caesarsSkin, seed: 35 } });
 
@@ -651,60 +692,30 @@ function buildHardRockSite(b: WorldBuilder): void {
   b.floor(-80, (z0 + z1) / 2, 122, z0 - z1, dirt, 0.015);
   b.feature({ kind: 'plaza', x: -80, z: (z0 + z1) / 2, w: 122, d: z0 - z1, color: '#6b5238' });
 
-  // Construction fence with windscreen banners along the Strip (gate gap at z −252)
-  const screen = mat(0x1f3a2c, 0.9);
+  // Construction barrier along the Strip: black panels with the gold Hard Rock branding (gate gap at z −252)
+  const screen = mat(0x0d0d10, 0.85);
   for (const [a, c] of [
     [z0 - 1, -249],
     [-255, z1 + 1],
   ]) {
     b.box(-20.2, 0, (a + c) / 2, 0.15, 2.6, Math.abs(c - a), screen, true, false);
   }
-  for (let z = z0 - 12; z > z1; z -= 26) {
-    b.add(neonSign('HARD ROCK', '#0b0b0f', '#f6f6f6', 9, 1.7, 'HOTEL & CASINO • OPENING 2027', 0.06), -20.05, 1.35, z, -Math.PI / 2);
+  for (let z = z0 - 12; z > z1; z -= 22) {
+    if (Math.abs(z - -252) < 8) continue;
+    b.add(hardRockBanner(b, 9, 1.9), -20.1, 1.35, z, -Math.PI / 2);
   }
   for (const z of [-249, -255]) b.add(mesh(new THREE.BoxGeometry(0.3, 3.2, 0.3), mat(0x8c8f94, 0.4, 0.6), -20.2, 1.6, z));
 
-  // The Guitar Hotel on the old volcano site: body topped out, neck steel ~⅓ up, LED strings going in
-  const blue = new THREE.MeshStandardMaterial({ color: 0x2f6fb0, roughness: 0.15, metalness: 0.75, emissive: 0x0c2850, emissiveIntensity: 0.2 });
-  b.nightGlow(blue, 0.15, 0.55);
+  // The Guitar Hotel on the old volcano site: topped out and glazed, the neck a stub of bare steel (guitarHotel.ts)
   const gx = -52;
   const gz = -222;
-  const body = new THREE.Group();
-  const lower = mesh(new THREE.CylinderGeometry(15, 15, 12, 40), blue, 0, 15, 0, true);
-  lower.rotation.z = Math.PI / 2;
-  const upper = mesh(new THREE.CylinderGeometry(11.5, 11.5, 12, 36), blue, 0, 36, 0, true);
-  upper.rotation.z = Math.PI / 2;
-  body.add(lower, upper, mesh(new THREE.BoxGeometry(12, 10, 17), blue, 0, 27, 0, true));
-  // Sound hole + bridge on the Strip-facing face
-  const hole = mesh(new THREE.CircleGeometry(4.2, 28), basic(0x0a1222), 6.05, 27, 0);
-  hole.rotation.y = Math.PI / 2;
-  body.add(hole);
-  body.add(mesh(new THREE.BoxGeometry(0.6, 1.2, 9), mat(0x111111, 0.4), 6.2, 12, 0));
-  // Neck: solid first third, then bare steel
-  body.add(mesh(new THREE.BoxGeometry(10, 8, 5), blue, 0, 51, 0, true));
-  const steel = mat(0xa0a4aa, 0.4, 0.8);
-  for (let y = 55; y < 63; y += 2) {
-    for (const zz of [-2.4, 2.4]) body.add(mesh(new THREE.BoxGeometry(0.35, 2, 0.35), steel, 4.6, y + 1, zz));
-    body.add(mesh(new THREE.BoxGeometry(0.3, 0.3, 5), steel, 4.6, y, 0));
-  }
-  // LED "strings": six lines, the first few already lit
-  const stringMats: THREE.MeshBasicMaterial[] = [];
-  for (let i = 0; i < 6; i++) {
-    const m = new THREE.MeshBasicMaterial({ color: i < 4 ? 0xe9f6ff : 0x3a4048 });
-    stringMats.push(m);
-    body.add(mesh(new THREE.BoxGeometry(0.12, 46, 0.12), m, 6.3, 34, -2.5 + i));
-  }
-  b.add(body, gx, 0, gz);
-  b.collider(gx - 6, gx + 6, gz - 15, gz + 15, 0, 48, true);
-  b.every((_dt, t, night) => {
-    for (let i = 0; i < 4; i++) stringMats[i].color.setHSL((t * 0.08 + i * 0.12) % 1, 0.6, 0.55 + night * 0.25);
-  });
+  buildGuitarHotel(b, gx, gz);
   b.zone('Hard Rock Guitar Hotel (under construction)', -72, -20, -245, -200);
 
   // Tower crane, slowly slewing
   const crane = new THREE.Group();
   const yellow = mat(0xf2c230, 0.5, 0.4);
-  for (let y = 0; y < 70; y += 3) {
+  for (let y = 0; y < 76; y += 3) {
     crane.add(mesh(new THREE.BoxGeometry(2, 0.2, 2), yellow, 0, y, 0));
     for (const [x, z] of [
       [-0.9, -0.9],
@@ -720,13 +731,13 @@ function buildHardRockSite(b: WorldBuilder): void {
   jib.add(mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), basic(0xff2a2a), 38, 1, 0));
   const hook = mesh(new THREE.BoxGeometry(0.1, 22, 0.1), mat(0x222222, 0.5), 26, -11, 0);
   jib.add(hook);
-  jib.position.y = 71;
+  jib.position.y = 77;
   bakeGroup(jib);
   bakeGroup(crane);
   crane.add(jib);
   b.scene.add(crane);
-  crane.position.set(-34, 0, -200);
-  b.collider(-35, -33, -201, -199, 0, 70, true);
+  crane.position.set(-76, 0, -213);
+  b.collider(-77, -75, -214, -212, 0, 76, true);
   b.every((_dt, t) => {
     jib.rotation.y = Math.sin(t * 0.05) * 1.2 + 0.6;
   });
@@ -766,7 +777,7 @@ function buildHardRockSite(b: WorldBuilder): void {
   for (let i = 0; i < 6; i++) b.add(mesh(new THREE.BoxGeometry(6, 0.3, 0.3), mat(0x7a4a2a, 0.8, 0.4), -60, 0.15 + i * 0.32, -284 + (i % 2) * 0.2));
   b.pickup(-60, 2.4, -284, 4, "Ironworker's Lunch-Break Pack", false);
   b.zone('Hard Rock Construction Site (ex-Mirage)', -142, -19, z1, z0);
-  b.building(gx, gz, 12, 30, '#2f6fb0', 'Guitar Hotel');
+  b.building(gx, gz, 38, 11, '#2f86b8', 'Guitar Hotel');
   b.building(-112, -268, 50, 50, '#2f6fb0', 'Hard Rock');
   b.crowd.tourists.push({ pts: [[-16, -186], [-16, -320]], prop: 'camera' }, { pts: [[-14, -318], [-14, -190]], prop: 'none' });
 }
@@ -816,19 +827,28 @@ function buildTreasureIsland(b: WorldBuilder): void {
   };
   ship(-42, -348, 0, 0x5a3a22);
   ship(-46, -380, Math.PI, 0x3a2a1a);
+  tiShipLights(b, [
+    { x: -42, z: -348, facing: 0 },
+    { x: -46, z: -380, facing: Math.PI },
+  ]);
   // Gangplank from the boardwalk up to the first ship
   stairs(b, -24, -350, '-x', 1.6, 2.5, 15.5, plank, 0.5);
   b.pickup(-42, 3.6, -352, 4, "Pirate Ship Captain's Stash", false);
   b.zone("Sirens' Cove (Treasure Island)", lx0, -19, lz0, lz1);
 
-  const ti = { wall: '#c9a27a', mullion: '#e0c19e', glass: '#5a6a72', lit: '#ffe2a0', cols: 9, rows: 22, style: 0 as const, seed: 51 };
+  // the Y tower in its terracotta "Salmon Stream" paint with a cream window grid
+  const ti = { wall: '#c4704f', mullion: '#efdcc2', glass: '#4f5d66', lit: '#ffe2a0', cols: 9, rows: 22, style: 0 as const, seed: 51 };
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
     tower(b, { x: -104 + Math.cos(a) * 13, z: -364 + Math.sin(a) * 13, w: 28, d: 11, h: 34, facade: { ...ti, seed: 51 + i }, rotY: -a });
   }
-  b.box(-80, 0, -364, 14, 10, 50, mat(0xb98f66, 0.8), true);
-  treasureIslandSigns(b); // timber marquee with the skull and crossbones, gold TREASURE ISLAND, red TI (stripSigns.ts)
-  b.building(-104, -364, 40, 40, '#c9a27a', 'TI');
+  b.box(-80, 0, -364, 14, 10, 50, mat(0xb26a4c, 0.8), true);
+  // the Caribbean village front behind the ships and the rockwork round the cove (tiFront.ts)
+  tiCove(b, -73, -389, -339, 10, { x0: lx0, x1: lx1, zA: lz0, zB: lz1 });
+  // the 2003 TI sign by the Spring Mountain corner, and the gold letters on the wings (tiFront.ts)
+  buildTiSign(b);
+  tiTowerLetters(b);
+  b.building(-104, -364, 40, 40, '#c4704f', 'TI');
   b.zone('Treasure Island', -142, -19, -405, -326);
   b.crowd.tourists.push({ pts: [[-21.8, -334], [-21.8, -392]], prop: 'camera' }, { pts: [[-16, -330], [-16, -400]], prop: 'yard-drink' });
 }
