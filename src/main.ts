@@ -1335,6 +1335,66 @@ let isDragging = false;
 let lastPointerX = 0;
 let lastPointerY = 0;
 const camTarget = catHolder.position.clone().add(new THREE.Vector3(0, 0.8, 0));
+/** How far along the boom the camera may sit (1 = full distance), eased back out after a wall pulls it in. */
+let camClip = 1;
+const camWant = new THREE.Vector3();
+const camLook = new THREE.Vector3();
+
+/**
+ * First hit (as a 0..1 fraction of the segment) of the camera boom against the world's boxes: walls,
+ * ceilings and solid buildings, so the camera stays inside a casino instead of showing its outside.
+ * Thin posts are skipped (the camera would pop on every lamp), and so is any box the cat's head is in.
+ */
+function boomHit(ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  const x0 = Math.min(ax, bx);
+  const x1 = Math.max(ax, bx);
+  const z0 = Math.min(az, bz);
+  const z1 = Math.max(az, bz);
+  let best = 1;
+  for (const box of world.colliders) {
+    if (box.maxX < x0 || box.minX > x1 || box.maxZ < z0 || box.minZ > z1) continue;
+    if (box.maxX - box.minX < 0.9 && box.maxZ - box.minZ < 0.9) continue;
+    if (ax > box.minX && ax < box.maxX && az > box.minZ && az < box.maxZ && ay > box.minY && ay < box.topY) continue;
+    let tmin = 0;
+    let tmax = best;
+    // slab test per axis
+    if (Math.abs(dx) < 1e-6) {
+      if (ax < box.minX || ax > box.maxX) continue;
+    } else {
+      let t1 = (box.minX - ax) / dx;
+      let t2 = (box.maxX - ax) / dx;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tmin = Math.max(tmin, t1);
+      tmax = Math.min(tmax, t2);
+      if (tmin > tmax) continue;
+    }
+    if (Math.abs(dy) < 1e-6) {
+      if (ay < box.minY || ay > box.topY) continue;
+    } else {
+      let t1 = (box.minY - ay) / dy;
+      let t2 = (box.topY - ay) / dy;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tmin = Math.max(tmin, t1);
+      tmax = Math.min(tmax, t2);
+      if (tmin > tmax) continue;
+    }
+    if (Math.abs(dz) < 1e-6) {
+      if (az < box.minZ || az > box.maxZ) continue;
+    } else {
+      let t1 = (box.minZ - az) / dz;
+      let t2 = (box.maxZ - az) / dz;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tmin = Math.max(tmin, t1);
+      tmax = Math.min(tmax, t2);
+      if (tmin > tmax) continue;
+    }
+    if (tmin < best) best = tmin;
+  }
+  return best;
+}
 
 canvas.addEventListener('pointerdown', (e) => {
   isDragging = true;
@@ -1976,10 +2036,24 @@ function step(now: number, render = true): void {
     camYaw += diff * Math.min(1, dt * 2.5);
     camPitch = THREE.MathUtils.lerp(camPitch, 0.24, dt * 2);
   }
-  const dist = driving.active ? Math.max(camDist, 8.5) : riding?.kind === 'highroller' || riding?.kind === 'elevator' ? Math.max(camDist, 6) : camDist;
+  // A ride can frame its own shot (a seat facing the Sphere's screen, say); dragging still wins.
+  const rideView = riding?.view?.() ?? null;
+  if (rideView && !isDragging) {
+    let dy = rideView.yaw - camYaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    camYaw += dy * Math.min(1, dt * 3);
+    camPitch = THREE.MathUtils.lerp(camPitch, rideView.pitch, Math.min(1, dt * 3));
+  }
+  const dist = rideView ? rideView.dist : driving.active ? Math.max(camDist, 8.5) : riding?.kind === 'highroller' || riding?.kind === 'elevator' ? Math.max(camDist, 6) : camDist;
   const horiz = Math.cos(camPitch) * dist;
-  camera.position.set(camTarget.x + Math.sin(camYaw) * horiz, Math.max(0.4, camTarget.y + Math.sin(camPitch) * dist), camTarget.z + Math.cos(camYaw) * horiz);
-  camera.lookAt(camTarget);
+  camWant.set(camTarget.x + Math.sin(camYaw) * horiz, Math.max(0.4, camTarget.y + Math.sin(camPitch) * dist), camTarget.z + Math.cos(camYaw) * horiz);
+  // Keep the camera on the cat's side of walls and under ceilings; ease back out once clear.
+  const hit = boomHit(camTarget.x, camTarget.y, camTarget.z, camWant.x, camWant.y, camWant.z);
+  const fit = hit < 1 ? Math.max(0.06, hit - 0.3 / Math.max(dist, 0.5)) : 1;
+  camClip = fit < camClip ? fit : THREE.MathUtils.lerp(camClip, fit, Math.min(1, dt * 3));
+  camera.position.lerpVectors(camTarget, camWant, camClip);
+  camera.lookAt(rideView?.look ?? camLook.copy(camTarget));
 
   if (render) {
     if (composer && bloom) {

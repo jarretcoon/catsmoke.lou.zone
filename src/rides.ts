@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type RideKind = 'deuce' | 'highroller' | 'gondola' | 'elevator' | 'tram' | 'monorail' | 'coaster';
+export type RideKind = 'deuce' | 'highroller' | 'gondola' | 'elevator' | 'tram' | 'monorail' | 'coaster' | 'seat';
 
 /** Anything the cat can hop on with [G]. */
 export interface Rideable {
@@ -26,4 +26,10 @@ export interface Rideable {
   ridingPrompt: string;
   /** Live status line while riding (e.g. the next Deuce stop). */
   status?(): string;
+  /**
+   * Optional camera framing while riding: the orbit yaw/pitch/dist around the cat the camera eases to
+   * (pitch may be negative to look up from below), and an optional world point to look at instead of the cat.
+   * Mouse-drag still overrides it while the button is held.
+   */
+  view?(): { yaw: number; pitch: number; dist: number; look?: THREE.Vector3 } | null;
 }
