@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { PlatformBox } from './world/builder';
 import type { PursuerNPC, StripCrowdSystem } from './npcs';
-import { basic, car, mat, mesh } from './world/props';
+import { bakeGroup } from './meshBake';
+import { basic, mat, mesh } from './world/props';
+import { buildChaseVehicle } from './world/vehicles';
 
 // ============================================================ Degen Points (Goat-Simulator style score)
 const RANKS: Array<[number, string]> = [
@@ -119,36 +121,10 @@ export interface WantedCallbacks {
 }
 
 function chaseVehicle(kind: 'van' | 'cop'): { group: THREE.Group; lights: THREE.MeshBasicMaterial[] } {
-  const built = car(kind === 'van' ? 'suv' : 'sedan', kind === 'van' ? 0xf2f2f0 : 0x111318);
-  const g = built.group;
-  if (kind === 'cop') g.add(mesh(new THREE.BoxGeometry(1.88, 0.5, 2.2), mat(0xf2f2f2, 0.3, 0.4), 0, 0.85, 0));
-  const lightA = new THREE.MeshBasicMaterial({ color: 0xff2020 });
-  const lightB = new THREE.MeshBasicMaterial({ color: 0x2050ff });
-  const top = kind === 'van' ? 2.3 : 1.85;
-  g.add(mesh(new THREE.BoxGeometry(0.6, 0.16, 0.3), lightA, -0.35, top, -0.2), mesh(new THREE.BoxGeometry(0.6, 0.16, 0.3), lightB, 0.35, top, -0.2));
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 96;
-  const ctx = c.getContext('2d')!;
-  ctx.fillStyle = kind === 'van' ? '#f2f2f0' : '#f2f2f2';
-  ctx.fillRect(0, 0, 512, 96);
-  ctx.fillStyle = kind === 'van' ? '#2d5a2d' : '#14213d';
-  ctx.font = 'bold 44px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(kind === 'van' ? 'ANIMAL CONTROL' : 'METRO POLICE', 256, 50, 490);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  for (const s of [-1, 1]) {
-    const decal = mesh(new THREE.PlaneGeometry(3.2, 0.6), new THREE.MeshBasicMaterial({ map: tex }), s * (kind === 'van' ? 1.01 : 0.94), kind === 'van' ? 1.0 : 0.75, 0);
-    decal.rotation.y = (s * Math.PI) / 2;
-    g.add(decal);
-  }
-  if (kind === 'van') {
-    const cage = mat(0x777777, 0.5, 0.7);
-    g.add(mesh(new THREE.BoxGeometry(1.8, 1.0, 1.4), cage, 0, 1.6, -1.6));
-  }
-  return { group: g, lights: [lightA, lightB] };
+  // Shaped Metro cruiser / Animal Control truck with light bars; plain parts merge to a few draw calls.
+  const built = buildChaseVehicle(kind);
+  bakeGroup(built.group);
+  return built;
 }
 
 export class WantedSystem {

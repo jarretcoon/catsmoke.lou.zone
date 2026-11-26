@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { bakeGroup } from './meshBake';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type TouristProp = 'yard-drink' | 'camera' | 'cig' | 'bag' | 'none';
 export type Outfit = 'tourist' | 'guard' | 'elvis' | 'showgirl' | 'slapper' | 'officer' | 'animal-control' | 'worker';
@@ -178,229 +178,376 @@ function makeSpeechTexture(text: string, accent = '#ffd25a'): THREE.CanvasTextur
   return tex;
 }
 
-function std(color: number, roughness = 0.7, metalness = 0, extra: THREE.MeshStandardMaterialParameters = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
+// ---------------------------------------------------------------- people
+// Every person is six moving pieces (body, head, two arms, two legs). Each piece is ONE mesh: its parts are
+// merged into a vertex-coloured geometry that is cached by recipe and shared by everyone who looks the same,
+// all drawn with one shared material. Only special bits (Hawaiian print, glowing yard cups, the cigarette,
+// the guard's torch beam) add their own small meshes.
+let humanMat: THREE.MeshStandardMaterial | null = null;
+const HUMAN_MAT = () => (humanMat ??= new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.66, metalness: 0.02 }));
+const primCache = new Map<string, THREE.BufferGeometry>();
+const pieceCache = new Map<string, THREE.BufferGeometry>();
+const hMat4 = new THREE.Matrix4();
+const hQuat = new THREE.Quaternion();
+const hEuler = new THREE.Euler();
+const hPos = new THREE.Vector3();
+const hScale = new THREE.Vector3();
+
+/** Cached primitive, stripped to position + normal (no index) so pieces merge cleanly. */
+function prim(key: string, make: () => THREE.BufferGeometry): [string, THREE.BufferGeometry] {
+  let g = primCache.get(key);
+  if (!g) {
+    g = make();
+    if (g.index) g = g.toNonIndexed();
+    for (const n of Object.keys(g.attributes)) if (n !== 'position' && n !== 'normal') g.deleteAttribute(n);
+    primCache.set(key, g);
+  }
+  return [key, g];
 }
+/** Tapered capsule hanging down from y = 0 (radius r1 at the top, r2 at the bottom, total length len). */
+const taper = (r1: number, r2: number, len: number) =>
+  prim(`tp${r1}|${r2}|${len}`, () => {
+    const pts: THREE.Vector2[] = [new THREE.Vector2(0, -len)];
+    for (let i = 1; i <= 3; i++) {
+      const a = -Math.PI / 2 + (i / 3) * (Math.PI / 2);
+      pts.push(new THREE.Vector2(r2 * Math.cos(a), -len + r2 + r2 * Math.sin(a)));
+    }
+    for (let i = 0; i <= 3; i++) {
+      const a = (i / 3) * (Math.PI / 2);
+      pts.push(new THREE.Vector2(r1 * Math.cos(a) + 1e-4, -r1 + r1 * Math.sin(a)));
+    }
+    pts[pts.length - 1].x = 0;
+    return new THREE.LatheGeometry(pts, 8);
+  });
+const sphere = (r: number, ws = 8, hs = 6, thetaLen = Math.PI) => prim(`sp${r}|${ws}|${hs}|${thetaLen}`, () => new THREE.SphereGeometry(r, ws, hs, 0, Math.PI * 2, 0, thetaLen));
+const box = (w: number, h: number, d: number) => prim(`bx${w}|${h}|${d}`, () => new THREE.BoxGeometry(w, h, d));
+const cyl = (rt: number, rb: number, h: number, seg = 8, open = false) => prim(`cy${rt}|${rb}|${h}|${seg}|${open}`, () => new THREE.CylinderGeometry(rt, rb, h, seg, 1, open));
+const cone = (r: number, h: number, seg = 5) => prim(`co${r}|${h}|${seg}`, () => new THREE.ConeGeometry(r, h, seg));
+const lathe = (key: string, pts: Array<[number, number]>, seg = 12) => prim(`la${key}`, () => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg));
+const torus = (r: number, t: number, arc: number) => prim(`to${r}|${t}|${arc}`, () => new THREE.TorusGeometry(r, t, 4, 8, arc));
+
+const TORSO_M: Array<[number, number]> = [[0.176, 0.93], [0.17, 1.0], [0.182, 1.1], [0.204, 1.22], [0.214, 1.31], [0.204, 1.385], [0.165, 1.435], [0.09, 1.47], [0, 1.48]];
+const TORSO_F: Array<[number, number]> = [[0.172, 0.94], [0.15, 1.03], [0.163, 1.12], [0.19, 1.22], [0.19, 1.29], [0.178, 1.36], [0.148, 1.42], [0.08, 1.46], [0, 1.47]];
+const HIPS_M: Array<[number, number]> = [[0, 0.79], [0.12, 0.79], [0.172, 0.83], [0.185, 0.89], [0.178, 0.95]];
+const HIPS_F: Array<[number, number]> = [[0, 0.79], [0.13, 0.79], [0.19, 0.84], [0.2, 0.9], [0.174, 0.96]];
+
+/** Collects coloured parts for one moving piece, then builds (or reuses) its merged geometry. */
+class Piece {
+  private key = '';
+  private readonly parts: Array<{ g: THREE.BufferGeometry; c: number; m: THREE.Matrix4 }> = [];
+  add([k, g]: [string, THREE.BufferGeometry], c: number, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1): void {
+    this.key += `${k}#${c}#${[x, y, z, rx, ry, rz, sx, sy, sz].map((v) => Math.round(v * 1000)).join(',')};`;
+    hMat4.compose(hPos.set(x, y, z), hQuat.setFromEuler(hEuler.set(rx, ry, rz)), hScale.set(sx, sy, sz));
+    this.parts.push({ g, c, m: hMat4.clone() });
+  }
+  mesh(cast = true): THREE.Mesh {
+    let geo = pieceCache.get(this.key);
+    if (!geo) {
+      const col = new THREE.Color();
+      const list = this.parts.map(({ g, c, m }) => {
+        const out = g.clone().applyMatrix4(m);
+        col.setHex(c);
+        const n = out.attributes.position.count;
+        const arr = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) {
+          arr[i * 3] = col.r;
+          arr[i * 3 + 1] = col.g;
+          arr[i * 3 + 2] = col.b;
+        }
+        out.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+        return out;
+      });
+      geo = mergeGeometries(list, false)!;
+      for (const g of list) g.dispose();
+      geo.computeBoundingSphere();
+      pieceCache.set(this.key, geo);
+    }
+    const m = new THREE.Mesh(geo, HUMAN_MAT());
+    m.castShadow = cast;
+    return m;
+  }
+}
+
+const hawaiianMats = new Map<number, THREE.MeshStandardMaterial>();
+const cupMats = new Map<number, THREE.MeshStandardMaterial>();
+let cigParts: { paper: THREE.BufferGeometry; ember: THREE.BufferGeometry; paperMat: THREE.Material; emberMat: THREE.Material } | null = null;
+
+type HairStyle = 'short' | 'side' | 'long' | 'pony' | 'bun' | 'bald' | 'curly' | 'buzz';
+const MALE_HAIR: HairStyle[] = ['short', 'side', 'buzz', 'bald', 'curly', 'short', 'side'];
+const FEMALE_HAIR: HairStyle[] = ['long', 'pony', 'bun', 'curly', 'long', 'side'];
 
 export function buildHuman(seed: number, outfit: Outfit, prop: TouristProp): Rig & { flashMat: THREE.MeshBasicMaterial | null } {
   const g = new THREE.Group();
   g.rotation.order = 'YXZ';
   const isGuard = outfit === 'guard' || outfit === 'officer';
   const isAC = outfit === 'animal-control';
-  const female = outfit === 'showgirl' || (outfit === 'tourist' && seed % 2 === 1);
+  const tourist = outfit === 'tourist';
+  const female = outfit === 'showgirl' || (tourist && seed % 2 === 1);
 
-  const skinColor = SKIN_TONES[seed % SKIN_TONES.length];
-  const hairColor = outfit === 'elvis' ? 0x0b0b10 : HAIR_COLORS[(seed * 3) % HAIR_COLORS.length];
-  const shirtHex =
+  const skin = SKIN_TONES[seed % SKIN_TONES.length];
+  const hair = outfit === 'elvis' ? 0x0b0b10 : HAIR_COLORS[(seed * 3) % HAIR_COLORS.length];
+  const shirt =
     outfit === 'guard' ? 0x162038 : outfit === 'officer' ? 0x1b2433 : isAC ? 0xc2a878 : outfit === 'worker' ? 0xf4f4f4 : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xff3fa4 : outfit === 'slapper' ? 0x8cff3a : SHIRT_COLORS[(seed * 5) % SHIRT_COLORS.length];
-  const pantsHex =
-    outfit === 'guard' ? 0x0e1320 : outfit === 'officer' ? 0x141a26 : isAC ? 0x4a4f36 : outfit === 'worker' ? 0x2a2a2e : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? skinColor : outfit === 'slapper' ? 0x1c1f2a : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
+  const pants =
+    outfit === 'guard' ? 0x0e1320 : outfit === 'officer' ? 0x141a26 : isAC ? 0x4a4f36 : outfit === 'worker' ? 0x2a2a2e : outfit === 'elvis' ? 0xf4f1ea : outfit === 'showgirl' ? 0xe0a080 : outfit === 'slapper' ? 0x1c1f2a : PANTS_COLORS[(seed * 7) % PANTS_COLORS.length];
+  const shoe = isGuard || outfit === 'slapper' ? 0x0c0d12 : outfit === 'showgirl' ? 0xffd34d : outfit === 'elvis' ? 0xf4f1ea : [0xe9e6de, 0x2a2b30, 0x8a5a34, 0xd23b3b][(seed * 11) % 4];
+  const sole = 0xf2f2f0;
+  const gold = 0xf4c44e;
+  const dark = 0x15171d;
+  const isHawaiian = tourist && seed % 3 === 0;
+  const skirt = tourist && female && seed % 3 === 2;
+  const shorts = tourist && !skirt && (seed >> 1) % 3 === 0;
+  const longSleeves = isGuard || isAC || outfit === 'elvis';
+  const torso = female ? TORSO_F : TORSO_M;
+  const tKey = female ? 'F' : 'M';
 
-  const skinMat = std(skinColor, 0.68);
-  const hairMat = std(hairColor, outfit === 'elvis' ? 0.25 : 0.78);
-  const pantsMat = std(pantsHex, outfit === 'showgirl' ? 0.5 : 0.85);
-  const shoeMat = std(isGuard || outfit === 'slapper' ? 0x0c0d12 : outfit === 'showgirl' ? 0xffd34d : 0xe9e6de, 0.5);
-  const soleMat = std(0xf4f4f6, 0.7);
-  const isHawaiian = outfit === 'tourist' && seed % 3 === 0;
-  const shirtMat = isHawaiian
-    ? new THREE.MeshStandardMaterial({ map: makeHawaiianTexture(shirtHex), roughness: 0.72 })
-    : outfit === 'showgirl'
-      ? std(shirtHex, 0.3, 0.6, { emissive: 0x5a0830, emissiveIntensity: 0.4 })
-      : std(shirtHex, 0.72);
-  const goldMat = std(0xf4c44e, 0.22, 0.85);
-
-  const add = (parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, cast = false) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.castShadow = cast;
-    parent.add(m);
-    return m;
-  };
-
-  // Pelvis / belt
-  add(g, new THREE.BoxGeometry(0.38, 0.14, 0.22), pantsMat, 0, 0.84, 0, true);
-  add(g, new THREE.BoxGeometry(0.4, 0.05, 0.24), outfit === 'elvis' ? goldMat : std(0x1a1615, 0.45), 0, 0.9, 0);
-  add(g, new THREE.BoxGeometry(outfit === 'elvis' ? 0.16 : 0.08, 0.06, 0.03), goldMat, 0, 0.9, 0.125);
-
-  const torso = add(g, new THREE.CylinderGeometry(female ? 0.19 : 0.21, 0.175, 0.52, 14), shirtMat, 0, 1.17, 0, true);
-  torso.scale.set(1.05, 1, 0.65);
-  for (const s of [-1, 1]) add(g, new THREE.SphereGeometry(0.088, 10, 8), shirtMat, s * 0.22, 1.38, 0);
-
+  // ---------------- body: hips, torso, shoulders, neck, outfit
+  const body = new Piece();
+  body.add(lathe(`hip${tKey}`, female ? HIPS_F : HIPS_M), skirt ? skin : pants, 0, 0, 0, 0, 0, 0, 1, 1, 0.68);
+  if (!isHawaiian) body.add(lathe(`tor${tKey}`, torso), shirt, 0, 0, 0, 0, 0, 0, 1, 1, 0.66);
+  for (const s of [-1, 1]) body.add(sphere(0.074, 8, 6), shirt, s * 0.2, 1.385, 0);
+  body.add(cyl(0.052, 0.058, 0.16, 8, true), skin, 0, 1.52, 0);
+  const beltCol = outfit === 'elvis' ? gold : isGuard || isAC ? 0x111111 : 0x2a211b;
+  if (outfit !== 'showgirl') {
+    body.add(cyl(0.183, 0.183, 0.045, 12, true), beltCol, 0, 0.945, 0, 0, 0, 0, 1, 1, 0.69);
+    body.add(box(outfit === 'elvis' ? 0.16 : 0.06, 0.05, 0.02), gold, 0, 0.945, 0.128);
+  }
+  if (skirt) body.add(cyl(0.18, 0.27, 0.36, 12, true), pants, 0, 0.78, 0, 0, 0, 0, 1, 1, 0.76);
   if (isGuard) {
-    const badge = add(g, new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), goldMat, 0.1, 1.28, 0.13);
-    badge.rotation.x = Math.PI / 2;
-    add(g, new THREE.BoxGeometry(0.06, 0.3, 0.03), std(0x10141f, 0.5), 0, 1.24, 0.13);
+    body.add(box(0.05, 0.27, 0.02), outfit === 'officer' ? 0x0c0f16 : 0x5a1018, 0, 1.25, 0.136);
+    body.add(box(0.1, 0.06, 0.02), 0xf2f2f2, 0, 1.42, 0.12, 0.3);
+    body.add(cyl(0.034, 0.034, 0.012, 8), gold, 0.1, 1.3, 0.142, Math.PI / 2);
     if (outfit === 'officer') {
-      add(g, new THREE.BoxGeometry(0.42, 0.1, 0.26), std(0x111111, 0.5), 0, 0.92, 0); // duty belt
-      add(g, new THREE.BoxGeometry(0.38, 0.3, 0.25), std(0x22262e, 0.6), 0, 1.2, 0.02); // vest
+      body.add(cyl(0.21, 0.195, 0.4, 12, true), 0x22262e, 0, 1.22, 0, 0, 0, 0, 1, 1, 0.74);
+      body.add(cyl(0.2, 0.2, 0.08, 12, true), 0x111111, 0, 0.93, 0, 0, 0, 0, 1, 1, 0.72);
+      body.add(box(0.07, 0.17, 0.11), 0x111111, -0.2, 0.88, 0.02);
+      body.add(box(0.08, 0.06, 0.03), 0x9fb4d0, 0.12, 1.34, 0.15);
     }
   } else if (isAC) {
-    add(g, new THREE.BoxGeometry(0.1, 0.07, 0.02), std(0x2d5a2d, 0.6), -0.1, 1.3, 0.13); // patch
-    add(g, new THREE.BoxGeometry(0.42, 0.07, 0.26), std(0x3a2a1a, 0.6), 0, 0.92, 0);
+    body.add(box(0.1, 0.07, 0.02), 0x2d5a2d, -0.1, 1.3, 0.138);
+    body.add(box(0.08, 0.05, 0.02), 0x2d5a2d, 0.1, 1.3, 0.138);
   } else if (outfit === 'worker') {
-    add(g, new THREE.BoxGeometry(0.34, 0.5, 0.02), std(0xffffff, 0.6), 0, 1.0, 0.13); // apron
+    body.add(box(0.32, 0.5, 0.015), 0xffffff, 0, 1.0, 0.132);
+    body.add(box(0.33, 0.035, 0.016), 0xd81e2a, 0, 1.25, 0.133);
   } else if (outfit === 'elvis') {
-    // High collar, open V and rhinestone studs
-    for (const s of [-1, 1]) {
-      const collar = add(g, new THREE.BoxGeometry(0.12, 0.16, 0.03), shirtMat, s * 0.09, 1.47, 0.07);
-      collar.rotation.z = s * 0.35;
-    }
-    for (let i = 0; i < 6; i++) add(g, new THREE.SphereGeometry(0.014, 6, 6), goldMat, (i % 2 ? 1 : -1) * 0.09, 1.05 + i * 0.05, 0.125);
-    const cape = add(g, new THREE.BoxGeometry(0.44, 0.6, 0.02), std(0xf4f1ea, 0.4), 0, 1.12, -0.13);
-    cape.rotation.x = 0.08;
+    for (const s of [-1, 1]) body.add(box(0.12, 0.17, 0.03), shirt, s * 0.085, 1.47, 0.06, 0, 0, s * 0.35);
+    body.add(cyl(0.05, 0.005, 0.2, 3), skin, 0, 1.36, 0.128, 0, 0, 0, 1, 1, 0.25);
+    for (let i = 0; i < 8; i++) body.add(sphere(0.013, 5, 4), gold, (i % 2 ? 1 : -1) * (0.07 + (i % 4) * 0.01), 1.06 + i * 0.045, 0.13);
+    body.add(box(0.46, 0.62, 0.02), 0xf4f1ea, 0, 1.12, -0.14, 0.08);
+    body.add(box(0.48, 0.03, 0.025), gold, 0, 1.43, -0.13);
   } else if (outfit === 'showgirl') {
-    // Rhinestone bodice + giant feather headdress & back plumes
-    const plumeMat = std(0xfff0f8, 0.6, 0, { emissive: 0xff7ac8, emissiveIntensity: 0.15 });
-    const pinkPlume = std(0xff5fb6, 0.55, 0, { emissive: 0xff2b9e, emissiveIntensity: 0.25 });
     for (let i = 0; i < 9; i++) {
       const a = -1.1 + i * 0.275;
-      const f = add(g, new THREE.ConeGeometry(0.09, 0.95, 6), i % 2 ? pinkPlume : plumeMat, Math.sin(a) * 0.45, 1.45 + Math.cos(a) * 0.42, -0.2);
-      f.rotation.z = -a;
+      body.add(cone(0.09, 0.95, 5), i % 2 ? 0xff5fb6 : 0xfff0f8, Math.sin(a) * 0.45, 1.45 + Math.cos(a) * 0.42, -0.2, 0, 0, -a);
     }
+    for (let i = 0; i < 7; i++) body.add(sphere(0.014, 5, 4), 0xfff6c0, (i - 3) * 0.045, 1.2 + Math.abs(i - 3) * 0.02, 0.122);
+    body.add(cyl(0.195, 0.195, 0.05, 12, true), gold, 0, 0.95, 0, 0, 0, 0, 1, 1, 0.7);
   } else if (outfit === 'slapper') {
-    add(g, new THREE.BoxGeometry(0.36, 0.06, 0.2), std(0xf2f2f2, 0.6), 0, 1.3, 0.04); // vest stripe
+    body.add(box(0.36, 0.06, 0.2), 0xf2f2f2, 0, 1.3, 0.04);
+  } else if (tourist && seed % 6 === 5) {
+    body.add(box(0.16, 0.08, 0.06), [0x2b2b33, 0xe8486b, 0x2e7bd8][seed % 3], 0.06, 0.9, 0.13); // fanny pack
+  }
+  if (tourist && prop === 'camera') {
+    body.add(box(0.14, 0.09, 0.07), 0x1c1f28, 0, 1.18, 0.17);
+    body.add(cyl(0.032, 0.035, 0.06, 10), 0x0b0e14, 0, 1.18, 0.22, Math.PI / 2);
+    body.add(box(0.012, 0.3, 0.012), 0x1c1f28, 0.06, 1.33, 0.11, 0.4);
+  }
+  g.add(body.mesh());
+  if (isHawaiian) {
+    let hm = hawaiianMats.get(shirt);
+    if (!hm) hawaiianMats.set(shirt, (hm = new THREE.MeshStandardMaterial({ map: makeHawaiianTexture(shirt), roughness: 0.72 })));
+    const tor = new THREE.Mesh(new THREE.LatheGeometry(torso.map(([r, y]) => new THREE.Vector2(r, y)), 12), hm);
+    tor.scale.set(1, 1, 0.66);
+    tor.castShadow = true;
+    g.add(tor);
   }
 
-  add(g, new THREE.CylinderGeometry(0.062, 0.072, 0.12, 10), skinMat, 0, 1.46, 0);
-
+  // ---------------- head: face, hair, hats
   const head = new THREE.Group();
   head.position.set(0, 1.62, 0);
   g.add(head);
-  const cranium = add(head, new THREE.SphereGeometry(0.145, 16, 14), skinMat, 0, 0, 0, true);
-  cranium.scale.set(0.92, 1.06, 0.98);
-  const nose = add(head, new THREE.ConeGeometry(0.022, 0.055, 6), skinMat, 0, -0.01, 0.145);
-  nose.rotation.x = Math.PI * 0.45;
-  for (const s of [-1, 1]) {
-    const ear = add(head, new THREE.SphereGeometry(0.032, 8, 8), skinMat, s * 0.132, -0.01, 0);
-    ear.scale.set(0.55, 1.0, 0.75);
-  }
-
-  const hasShades = isGuard || isAC || outfit === 'elvis' || (outfit === 'tourist' && seed % 2 === 0);
+  const h = new Piece();
+  h.add(sphere(0.128, 14, 10), skin, 0, 0.01, 0, 0, 0, 0, 0.94, 1.04, 1.0);
+  h.add(sphere(0.104, 12, 8), skin, 0, -0.045, 0.012, 0, 0, 0, 0.95, 0.9, 1.0);
+  for (const s of [-1, 1]) h.add(sphere(0.03, 6, 5), skin, s * 0.12, -0.005, -0.005, 0, 0, 0, 0.45, 1, 0.75);
+  h.add(sphere(0.022, 6, 5), skin, 0, -0.022, 0.124, 0, 0, 0, 0.85, 1.05, 1.15);
+  h.add(torus(0.026, 0.0055, Math.PI), 0x7a2a2a, 0, -0.058, 0.111, 0, 0, Math.PI);
+  const hasShades = isGuard || isAC || outfit === 'elvis' || (tourist && seed % 4 === 0);
   if (hasShades) {
-    const frameMat = outfit === 'elvis' ? goldMat : std(0x12141c, 0.2, 0.7);
-    const lensMat = std(isGuard ? 0x090b10 : outfit === 'elvis' ? 0x5a3a12 : 0x261436, 0.08, 0.85);
-    add(head, new THREE.BoxGeometry(0.18, 0.018, 0.03), frameMat, 0, 0.025, 0.138);
-    for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.068, 0.05, 0.025), lensMat, s * 0.048, 0.02, 0.142);
+    const frame = outfit === 'elvis' ? gold : 0x12141c;
+    const lens = isGuard ? 0x090b10 : outfit === 'elvis' ? 0x5a3a12 : [0x261436, 0x10202e, 0x3a1a10][seed % 3];
+    h.add(box(0.19, 0.016, 0.02), frame, 0, 0.03, 0.124);
+    for (const s of [-1, 1]) h.add(box(0.066, 0.046, 0.016), lens, s * 0.046, 0.016, 0.127);
   } else {
-    const eyeMat = std(0x161a24, 0.3);
-    for (const s of [-1, 1]) add(head, new THREE.SphereGeometry(0.016, 8, 8), eyeMat, s * 0.046, 0.022, 0.132);
+    for (const s of [-1, 1]) {
+      h.add(sphere(0.024, 8, 6), 0xfbfbf6, s * 0.044, 0.018, 0.112, 0, 0, 0, 1, 1.2, 0.55);
+      h.add(sphere(0.014, 6, 5), 0x1d1610, s * 0.044, 0.016, 0.122, 0, 0, 0, 1, 1.15, 0.6);
+    }
+  }
+  for (const s of [-1, 1]) h.add(box(0.044, 0.011, 0.012), hair === 0x8e939e ? 0x6b6f78 : hair, s * 0.046, hasShades ? 0.06 : 0.052, 0.117, 0, 0, -s * 0.12);
+
+  const style: HairStyle = outfit === 'elvis' ? 'short' : isGuard || isAC ? 'buzz' : outfit === 'showgirl' ? 'bun' : outfit === 'worker' ? (female ? 'pony' : 'short') : (female ? FEMALE_HAIR : MALE_HAIR)[(seed * 7 + 3) % (female ? FEMALE_HAIR.length : MALE_HAIR.length)];
+  const cap = (r: number, tilt: number, y = 0.018) => h.add(sphere(r, 12, 6, Math.PI * 0.52), hair, 0, y, -0.008, tilt, 0, 0, 0.97, 1.04, 1.02);
+  if (style === 'short') cap(0.136, -0.42);
+  else if (style === 'buzz') cap(0.131, -0.45);
+  else if (style === 'side') {
+    cap(0.137, -0.4);
+    h.add(box(0.16, 0.035, 0.06), hair, 0.025, 0.088, 0.098, -0.45, 0, -0.28);
+  } else if (style === 'long') {
+    cap(0.138, -0.38);
+    h.add(sphere(0.135, 10, 8), hair, 0, -0.1, -0.06, 0, 0, 0, 1.03, 1.55, 0.62);
+    for (const s of [-1, 1]) h.add(box(0.035, 0.2, 0.08), hair, s * 0.118, -0.07, -0.01);
+  } else if (style === 'pony') {
+    cap(0.137, -0.4);
+    h.add(sphere(0.06, 8, 6), hair, 0, -0.04, -0.155, 0.3, 0, 0, 0.8, 1.6, 0.8);
+    h.add(sphere(0.022, 6, 4), 0xff5e8e, 0, 0.03, -0.14);
+  } else if (style === 'bun') {
+    cap(0.137, -0.4);
+    h.add(sphere(0.062, 8, 6), hair, 0, 0.11, -0.1);
+  } else if (style === 'bald') {
+    h.add(torus(0.121, 0.022, Math.PI), hair, 0, -0.004, -0.004, -Math.PI / 2);
+  } else if (style === 'curly') {
+    h.add(prim('ico0.146', () => new THREE.IcosahedronGeometry(0.146, 1)), hair, 0, 0.062, -0.036, 0, seed, 0, 1.05, 0.92, 1.02);
   }
 
   if (isGuard || isAC) {
-    add(head, new THREE.CylinderGeometry(0.155, 0.145, 0.09, 14), std(isAC ? 0x4a4f36 : 0x13192b, 0.5), 0, 0.11, 0);
-    add(head, new THREE.BoxGeometry(0.2, 0.02, 0.12), std(0x090b12, 0.2), 0, 0.075, 0.12);
-  } else if (outfit === 'worker') {
-    // White paper hat
-    add(head, new THREE.BoxGeometry(0.3, 0.09, 0.14), std(0xffffff, 0.7), 0, 0.12, 0);
-    add(head, new THREE.BoxGeometry(0.31, 0.025, 0.145), std(0xd81e2a, 0.6), 0, 0.09, 0);
-  } else {
-    add(head, new THREE.SphereGeometry(0.152, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.58), hairMat, 0, 0.02, -0.01);
-    if (outfit === 'elvis') {
-      const pomp = add(head, new THREE.SphereGeometry(0.1, 12, 8), hairMat, 0, 0.13, 0.06);
-      pomp.scale.set(1.2, 0.7, 1.1);
-      for (const s of [-1, 1]) add(head, new THREE.BoxGeometry(0.025, 0.09, 0.04), hairMat, s * 0.128, -0.03, 0.04);
-    } else if (outfit === 'showgirl') {
-      const crown = add(head, new THREE.CylinderGeometry(0.16, 0.15, 0.06, 16), goldMat, 0, 0.1, 0);
-      crown.rotation.x = -0.15;
-      for (let i = 0; i < 7; i++) {
-        const a = -0.9 + i * 0.3;
-        const f = add(head, new THREE.ConeGeometry(0.035, 0.55, 5), std(i % 2 ? 0xff5fb6 : 0xfff0f8, 0.6), Math.sin(a) * 0.22, 0.36 + Math.cos(a) * 0.12, -0.02);
-        f.rotation.z = -a * 0.8;
-      }
-    } else if (outfit === 'slapper' || seed % 4 === 1) {
-      const capMat = std(outfit === 'slapper' ? 0x111111 : [0xd9362b, 0x2665d8, 0x28995a][seed % 3], 0.6);
-      add(head, new THREE.SphereGeometry(0.156, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45), capMat, 0, 0.04, 0);
-      const brim = add(head, new THREE.BoxGeometry(0.17, 0.018, 0.14), capMat, 0, 0.06, 0.14);
-      brim.rotation.x = 0.15;
-    } else if (female) {
-      const pony = add(head, new THREE.SphereGeometry(0.07, 10, 8), hairMat, 0, 0.0, -0.16);
-      pony.scale.set(0.8, 1.4, 0.8);
+    if (isAC) {
+      h.add(sphere(0.142, 12, 5, Math.PI * 0.45), 0x4a4f36, 0, 0.035, 0);
+      h.add(box(0.17, 0.016, 0.13), 0x4a4f36, 0, 0.068, 0.14, 0.12);
+    } else {
+      h.add(cyl(0.143, 0.135, 0.08, 12), 0x13192b, 0, 0.11, 0);
+      h.add(cyl(0.162, 0.15, 0.035, 12), 0x13192b, 0, 0.16, 0.01);
+      h.add(box(0.2, 0.018, 0.11), 0x090b12, 0, 0.075, 0.125, 0.15);
+      h.add(box(0.04, 0.04, 0.01), gold, 0, 0.13, 0.145);
     }
+  } else if (outfit === 'worker') {
+    h.add(box(0.3, 0.09, 0.14), 0xffffff, 0, 0.12, 0);
+    h.add(box(0.31, 0.025, 0.145), 0xd81e2a, 0, 0.09, 0);
+  } else if (outfit === 'elvis') {
+    h.add(sphere(0.1, 10, 8), hair, 0, 0.13, 0.05, 0, 0, 0, 1.2, 0.72, 1.15);
+    for (const s of [-1, 1]) h.add(box(0.025, 0.1, 0.045), hair, s * 0.122, -0.035, 0.045);
+  } else if (outfit === 'showgirl') {
+    h.add(cyl(0.16, 0.15, 0.06, 14), gold, 0, 0.1, 0, -0.15);
+    for (let i = 0; i < 7; i++) {
+      const a = -0.9 + i * 0.3;
+      h.add(cone(0.035, 0.55, 5), i % 2 ? 0xff5fb6 : 0xfff0f8, Math.sin(a) * 0.22, 0.36 + Math.cos(a) * 0.12, -0.02, 0, 0, -a * 0.8);
+    }
+  } else if (outfit === 'slapper' || (tourist && seed % 4 === 1)) {
+    const capCol = outfit === 'slapper' ? 0x111111 : [0xd9362b, 0x2665d8, 0x28995a, 0xf2f2f0][seed % 4];
+    h.add(sphere(0.143, 12, 5, Math.PI * 0.45), capCol, 0, 0.035, 0, -0.1);
+    h.add(box(0.17, 0.016, 0.14), capCol, 0, 0.07, 0.145, 0.15);
+  } else if (tourist && seed % 9 === 4) {
+    const hatCol = [0xd8c49a, 0x2a2018, 0xf2efe6][seed % 3];
+    h.add(cyl(0.25, 0.25, 0.02, 14), hatCol, 0, 0.09, 0, 0.06, 0, 0, 1, 1, 0.82);
+    h.add(cyl(0.1, 0.128, 0.13, 10), hatCol, 0, 0.16, 0, 0.06, 0, 0, 1, 1, 1.12);
+    h.add(cyl(0.129, 0.129, 0.025, 10, true), 0x5a2a14, 0, 0.11, 0.004, 0.06, 0, 0, 1, 1, 1.12);
+  } else if (tourist && female && seed % 5 === 3) {
+    h.add(cyl(0.24, 0.24, 0.012, 16), 0xe6cf98, 0, 0.085, 0, -0.08);
+    h.add(sphere(0.135, 12, 5, Math.PI * 0.5), 0xe6cf98, 0, 0.07, -0.01, -0.08);
+    h.add(cyl(0.137, 0.137, 0.03, 12, true), 0xd8362b, 0, 0.09, -0.008, -0.08);
   }
+  head.add(h.mesh());
 
+  // ---------------- legs (pivot at the hip)
+  const legSkin = outfit === 'showgirl' ? 0xd49a7a : skin;
   const buildLeg = (side: number): THREE.Group => {
     const leg = new THREE.Group();
-    leg.position.set(side * 0.11, 0.8, 0);
-    const legMat = outfit === 'showgirl' ? std(0xd49a7a, 0.4) : pantsMat;
-    add(leg, new THREE.CapsuleGeometry(0.074, 0.26, 6, 10), legMat, 0, -0.18, 0, true);
-    add(leg, new THREE.CapsuleGeometry(0.06, 0.28, 6, 10), legMat, 0, -0.5, 0, true);
-    add(leg, new THREE.BoxGeometry(0.11, 0.08, 0.21), shoeMat, 0, -0.73, 0.04, true);
-    add(leg, new THREE.BoxGeometry(0.115, 0.028, 0.215), soleMat, 0, -0.775, 0.04);
-    if (outfit === 'elvis') {
-      const flare = add(leg, new THREE.CylinderGeometry(0.07, 0.11, 0.18, 10), pantsMat, 0, -0.62, 0);
-      flare.castShadow = true;
+    leg.position.set(side * 0.105, 0.8, 0);
+    const p = new Piece();
+    if (skirt || outfit === 'showgirl') {
+      p.add(taper(0.08, 0.064, 0.42), legSkin, 0, 0.03, 0);
+      p.add(taper(0.062, 0.046, 0.36), legSkin, 0, -0.37, 0);
+    } else if (shorts) {
+      p.add(taper(0.094, 0.086, 0.27), pants, 0, 0.04, 0);
+      p.add(taper(0.07, 0.064, 0.2), skin, 0, -0.2, 0);
+      p.add(taper(0.064, 0.048, 0.36), skin, 0, -0.37, 0);
+      p.add(cyl(0.05, 0.052, 0.07, 8, true), 0xf4f4f2, 0, -0.69, 0);
+    } else {
+      p.add(taper(0.088, 0.068, 0.43), pants, 0, 0.04, 0);
+      p.add(taper(0.066, 0.052, 0.38), pants, 0, -0.37, 0);
+      if (outfit === 'elvis') p.add(cyl(0.065, 0.112, 0.2, 10, true), pants, 0, -0.64, 0);
     }
+    if (outfit === 'showgirl') {
+      p.add(sphere(0.055, 8, 5, Math.PI / 2), shoe, 0, -0.75, 0.05, 0, 0, 0, 0.8, 0.6, 1.5);
+      p.add(box(0.03, 0.07, 0.03), shoe, 0, -0.765, -0.03);
+    } else {
+      p.add(sphere(0.07, 8, 5, Math.PI / 2), shoe, 0, -0.77, 0.045, 0, 0, 0, 0.82, 0.78, 1.7);
+      p.add(cyl(0.07, 0.07, 0.03, 8), sole, 0, -0.783, 0.045, 0, 0, 0, 0.82, 1, 1.7);
+    }
+    leg.add(p.mesh());
     return leg;
   };
   const leftLeg = buildLeg(1);
   const rightLeg = buildLeg(-1);
   g.add(leftLeg, rightLeg);
 
+  // ---------------- arms (pivot at the shoulder) + held props
+  let flashMat: THREE.MeshBasicMaterial | null = null;
+  let cigMesh: THREE.Object3D | null = null;
+  const sleeve = shirt;
   const buildArm = (side: number): THREE.Group => {
     const arm = new THREE.Group();
-    arm.position.set(side * 0.24, 1.38, 0);
-    add(arm, new THREE.CapsuleGeometry(0.056, 0.16, 6, 10), shirtMat, 0, -0.12, 0, true);
-    add(arm, new THREE.CapsuleGeometry(0.044, 0.22, 6, 10), isGuard || isAC || outfit === 'elvis' ? shirtMat : skinMat, 0, -0.34, 0, true);
-    add(arm, new THREE.SphereGeometry(0.046, 8, 8), skinMat, 0, -0.5, 0);
+    arm.position.set(side * 0.245, 1.38, 0);
+    const p = new Piece();
+    if (longSleeves) {
+      p.add(taper(0.064, 0.052, 0.31), sleeve, 0, 0.03, 0);
+      p.add(taper(0.05, 0.042, 0.26), sleeve, 0, -0.25, 0);
+    } else {
+      p.add(taper(0.07, 0.064, 0.16), outfit === 'showgirl' ? skin : sleeve, 0, 0.035, 0);
+      p.add(taper(0.052, 0.045, 0.27), skin, 0, -0.03, 0);
+      p.add(taper(0.046, 0.038, 0.26), skin, 0, -0.26, 0);
+    }
+    if (outfit === 'showgirl') p.add(cyl(0.05, 0.05, 0.04, 8, true), gold, 0, -0.46, 0);
+    p.add(sphere(0.044, 8, 6), skin, 0, -0.545, 0.005, 0, 0, 0, 0.78, 1.2, 0.62);
+    p.add(sphere(0.018, 5, 4), skin, -side * 0.022, -0.515, 0.032, 0, 0, 0, 1, 1.6, 1);
+    const right = side < 0;
+    if (right && isAC) {
+      p.add(cyl(0.02, 0.02, 1.9, 6), 0xb8bcc6, 0, -0.5, 0.9, Math.PI / 2);
+      p.add(torus(0.13, 0.012, Math.PI * 2), 0x222222, 0, -0.5, 1.88, 0, Math.PI / 2);
+    }
+    if (right && isGuard) p.add(cyl(0.032, 0.028, 0.22, 8), 0x1a1e26, 0, -0.5, 0.1, Math.PI / 2);
+    if (right && outfit === 'slapper') p.add(box(0.09, 0.012, 0.13), 0xffffff, 0, -0.55, 0.05, 0.4);
+    if (right && tourist && prop === 'yard-drink') p.add(cyl(0.008, 0.008, 0.18, 6), 0xffffff, 0, -0.06, 0.16);
+    if (!right && tourist && prop === 'bag') {
+      p.add(box(0.24, 0.28, 0.1), [0xe8486b, 0xf2efe6, 0x2b2b33][seed % 3], 0.04, -0.66, 0);
+      p.add(torus(0.07, 0.008, Math.PI), 0x2b2b33, 0.04, -0.52, 0);
+    }
+    arm.add(p.mesh());
+    if (right && isGuard) {
+      flashMat = new THREE.MeshBasicMaterial({ color: 0xffe69c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
+      const beam = new THREE.Mesh(prim('beam', () => new THREE.ConeGeometry(1.4, 4.4, 14, 1, true))[1], flashMat);
+      beam.position.set(0, -0.5, 2.35);
+      beam.rotation.x = -Math.PI / 2;
+      arm.add(beam);
+    }
+    if (right && tourist && prop === 'yard-drink') {
+      const k = seed % 3;
+      let cm = cupMats.get(k);
+      if (!cm) cupMats.set(k, (cm = new THREE.MeshStandardMaterial({ color: [0xff33a6, 0x2de2ff, 0x7aff47][k], roughness: 0.15, emissive: [0xff1e8a, 0x00b7ff, 0x45d618][k], emissiveIntensity: 0.4 })));
+      const cup = new THREE.Mesh(cyl(0.055, 0.032, 0.44, 10)[1], cm);
+      cup.position.set(0, -0.34, 0.16);
+      arm.add(cup);
+    }
+    if (right && tourist && prop === 'cig') {
+      cigParts ??= {
+        paper: new THREE.CylinderGeometry(0.01, 0.01, 0.11, 8).rotateX(Math.PI / 2),
+        ember: new THREE.CylinderGeometry(0.0105, 0.008, 0.018, 8).rotateX(Math.PI / 2).translate(0, 0, 0.06),
+        paperMat: new THREE.MeshStandardMaterial({ color: 0xf7f5f0, roughness: 0.7 }),
+        emberMat: new THREE.MeshBasicMaterial({ color: 0xff5a1f }),
+      };
+      const cigGroup = new THREE.Group();
+      cigGroup.add(new THREE.Mesh(cigParts.paper, cigParts.paperMat), new THREE.Mesh(cigParts.ember, cigParts.emberMat));
+      cigGroup.position.set(0, -0.53, 0.09);
+      arm.add(cigGroup);
+      cigMesh = cigGroup;
+    }
     return arm;
   };
   const leftArm = buildArm(1);
   const rightArm = buildArm(-1);
   g.add(leftArm, rightArm);
-
-  let flashMat: THREE.MeshBasicMaterial | null = null;
-  if (isAC) {
-    // Catch-pole: long aluminum pole with a cable loop at the end
-    const pole = add(rightArm, new THREE.CylinderGeometry(0.02, 0.02, 1.9, 6), std(0xb8bcc6, 0.3, 0.8), 0, -0.5, 0.9);
-    pole.rotation.x = Math.PI / 2;
-    const loop = add(rightArm, new THREE.TorusGeometry(0.13, 0.012, 6, 16), std(0x222222, 0.5), 0, -0.5, 1.88);
-    loop.rotation.y = Math.PI / 2;
-  }
-  if (isGuard) {
-    const torch = add(rightArm, new THREE.CylinderGeometry(0.032, 0.028, 0.22, 8), std(0x1a1e26, 0.3, 0.8), 0, -0.5, 0.1);
-    torch.rotation.x = Math.PI / 2;
-    flashMat = new THREE.MeshBasicMaterial({ color: 0xffe69c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
-    const cone = add(rightArm, new THREE.ConeGeometry(1.4, 4.4, 14, 1, true), flashMat, 0, -0.5, 2.35);
-    cone.rotation.x = -Math.PI / 2;
-  }
-
-  let cigMesh: THREE.Object3D | null = null;
-  if (outfit === 'slapper') {
-    const cards = add(rightArm, new THREE.BoxGeometry(0.09, 0.012, 0.13), std(0xffffff, 0.5), 0, -0.55, 0.05);
-    cards.rotation.x = 0.4;
-  } else if (outfit === 'tourist') {
-    if (prop === 'yard-drink') {
-      const cupMat = std([0xff33a6, 0x2de2ff, 0x7aff47][seed % 3], 0.15, 0, {
-        emissive: [0xff1e8a, 0x00b7ff, 0x45d618][seed % 3],
-        emissiveIntensity: 0.4,
-      });
-      add(rightArm, new THREE.CylinderGeometry(0.055, 0.032, 0.44, 10), cupMat, 0, -0.34, 0.16);
-      add(rightArm, new THREE.CylinderGeometry(0.008, 0.008, 0.18, 6), std(0xffffff, 0.4), 0, -0.06, 0.16);
-      rightArm.rotation.x = -0.55;
-    } else if (prop === 'camera') {
-      add(g, new THREE.BoxGeometry(0.14, 0.09, 0.07), std(0x1c1f28, 0.35), 0, 1.18, 0.17);
-      const lensM = add(g, new THREE.CylinderGeometry(0.032, 0.035, 0.06, 10), std(0x0b0e14, 0.1, 0.8), 0, 1.18, 0.22);
-      lensM.rotation.x = Math.PI / 2;
-    } else if (prop === 'cig') {
-      const cigGroup = new THREE.Group();
-      const paper = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.11, 8), std(0xf7f5f0, 0.7));
-      paper.rotation.x = Math.PI / 2;
-      cigGroup.add(paper);
-      const ember = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.008, 0.018, 8), new THREE.MeshBasicMaterial({ color: 0xff5a1f }));
-      ember.rotation.x = Math.PI / 2;
-      ember.position.z = 0.06;
-      cigGroup.add(ember);
-      cigGroup.position.set(0, -0.5, 0.09);
-      rightArm.add(cigGroup);
-      rightArm.rotation.x = -0.45;
-      cigMesh = cigGroup;
-    } else if (prop === 'bag') {
-      add(leftArm, new THREE.BoxGeometry(0.24, 0.28, 0.1), std([0xe8486b, 0xf2efe6, 0x2b2b33][seed % 3], 0.55), 0.04, -0.62, 0);
-    }
-  }
-
-  // Collapse ~35 primitive meshes into ~8 vertex-colored ones (limbs stay separately animated).
-  for (const part of [g, head, leftArm, rightArm, leftLeg, rightLeg]) bakeGroup(part);
+  if (tourist && prop === 'yard-drink') rightArm.rotation.x = -0.55;
+  if (tourist && prop === 'cig') rightArm.rotation.x = -0.45;
 
   return { group: g, leftArm, rightArm, leftLeg, rightLeg, head, cigMesh, flashMat };
 }

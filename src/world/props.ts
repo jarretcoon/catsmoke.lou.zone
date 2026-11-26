@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeSignTexture } from './textures';
+import { buildCar, buildDeuceBus } from './vehicles';
 
 // ---------- shared material cache (identical looks share one material) ----------
 const matCache = new Map<string, THREE.Material>();
@@ -333,39 +334,11 @@ export function flamingoBird(phase: number): THREE.Group {
 }
 
 // ---------- vehicles ----------
+// Shaped bodies live in ./vehicles; these wrappers keep the old entry points.
 export type CarKind = 'taxi' | 'limo' | 'suv' | 'sedan' | 'sport';
 
 export function car(kind: CarKind, color: number): { group: THREE.Group; length: number } {
-  const g = new THREE.Group();
-  const len = kind === 'limo' ? 7.6 : kind === 'suv' ? 5.0 : kind === 'sport' ? 4.4 : 4.7;
-  const width = kind === 'suv' ? 2.0 : 1.85;
-  const bodyH = kind === 'suv' ? 1.0 : kind === 'sport' ? 0.6 : 0.75;
-  const paint = mat(color, 0.25, 0.7);
-  const glass = mat(0x0f1420, 0.08, 0.9);
-  g.add(mesh(new THREE.BoxGeometry(width, bodyH, len), paint, 0, 0.35 + bodyH / 2, 0, true));
-  const cabinLen = kind === 'limo' ? 5.4 : kind === 'sport' ? 1.8 : kind === 'suv' ? 3.4 : 2.4;
-  const cabinH = kind === 'suv' ? 0.85 : kind === 'sport' ? 0.45 : 0.62;
-  g.add(mesh(new THREE.BoxGeometry(width - 0.18, cabinH, cabinLen), glass, 0, 0.35 + bodyH + cabinH / 2, kind === 'sport' ? -0.3 : -0.15));
-  g.add(mesh(new THREE.BoxGeometry(width - 0.16, 0.06, cabinLen - 0.2), paint, 0, 0.35 + bodyH + cabinH + 0.03, -0.15));
-  const tire = mat(0x111216, 0.85);
-  for (const wz of [len * 0.32, -len * 0.32]) {
-    for (const wx of [-width / 2, width / 2]) {
-      const w = mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.26, 12), tire, wx, 0.36, wz);
-      w.rotation.z = Math.PI / 2;
-      g.add(w);
-    }
-  }
-  const hl = basic(0xfff5cc);
-  const tl = basic(0xff2233);
-  for (const hx of [-width * 0.33, width * 0.33]) {
-    g.add(mesh(new THREE.BoxGeometry(0.34, 0.14, 0.06), hl, hx, 0.35 + bodyH * 0.6, len / 2 + 0.03));
-    g.add(mesh(new THREE.BoxGeometry(0.34, 0.14, 0.06), tl, hx, 0.35 + bodyH * 0.6, -len / 2 - 0.03));
-  }
-  if (kind === 'taxi') {
-    g.add(mesh(new THREE.BoxGeometry(0.9, 0.28, 0.3), basic(0xfff3c4), 0, 0.35 + bodyH + cabinH + 0.2, -0.15));
-    g.add(mesh(new THREE.BoxGeometry(width + 0.01, 0.12, len * 0.7), mat(0x111111, 0.5), 0, 0.35 + bodyH * 0.55, 0));
-  }
-  return { group: g, length: len };
+  return buildCar(kind, color);
 }
 
 /**
@@ -373,50 +346,5 @@ export function car(kind: CarKind, color: number): { group: THREE.Group; length:
  * Livery is passed in so it can match the current paint scheme.
  */
 export function deuceBus(livery: { body: number; band: number; accent: number }): { group: THREE.Group; wheels: THREE.Mesh[]; deckOffset: THREE.Vector3 } {
-  const g = new THREE.Group();
-  const wheels: THREE.Mesh[] = [];
-  const bodyMat = new THREE.MeshStandardMaterial({ color: livery.body, roughness: 0.3, metalness: 0.55 });
-  const bandMat = new THREE.MeshStandardMaterial({ color: livery.band, roughness: 0.35, metalness: 0.4 });
-  const dark = mat(0x191d28, 0.4);
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x18283c, roughness: 0.08, metalness: 0.7, transparent: true, opacity: 0.66 });
-
-  g.add(mesh(new THREE.BoxGeometry(2.55, 1.9, 12.6), bodyMat, 0, 1.3, 0, true));
-  g.add(mesh(new THREE.BoxGeometry(2.6, 0.95, 11.0), glassMat, 0, 1.62, 0.2));
-  g.add(mesh(new THREE.BoxGeometry(2.58, 0.3, 12.62), bandMat, 0, 2.38, 0));
-  g.add(mesh(new THREE.BoxGeometry(2.52, 0.2, 12.4), dark, 0, 2.45, 0));
-  const seatMat = mat(0x1c458c, 0.7);
-  for (let sz = -4.8; sz <= 4.8; sz += 1.2) for (const sx of [-0.68, 0.68]) g.add(mesh(new THREE.BoxGeometry(0.78, 0.55, 0.5), seatMat, sx, 2.82, sz));
-  g.add(mesh(new THREE.BoxGeometry(2.56, 1.15, 12.3), glassMat, 0, 3.12, 0));
-  g.add(mesh(new THREE.BoxGeometry(2.6, 0.24, 12.6), bodyMat, 0, 3.86, 0));
-  g.add(mesh(new THREE.BoxGeometry(2.62, 0.12, 12.62), new THREE.MeshStandardMaterial({ color: livery.accent, roughness: 0.4 }), 0, 0.42, 0));
-
-  const front = neonSign('THE DEUCE', '#0a1222', '#ffcb47', 2.2, 0.5, 'ON THE STRIP');
-  front.position.set(0, 3.55, 6.31);
-  g.add(front);
-  for (const s of [-1, 1]) {
-    const side = neonSign('THE DEUCE', '#111111', '#ffe066', 4.4, 0.55, 'RTC • ON THE STRIP', 0.05);
-    side.rotation.y = (s * Math.PI) / 2;
-    side.position.set(s * 1.31, 2.05, -1.5);
-    g.add(side);
-  }
-  const tireMat = mat(0x111216, 0.85);
-  const rimMat = mat(0xd8dce8, 0.25, 0.85);
-  for (const wz of [4.2, -3.1, -4.6]) {
-    for (const wx of [-1.24, 1.24]) {
-      const tire = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.34, 14), tireMat, wx, 0.5, wz);
-      tire.rotation.z = Math.PI / 2;
-      tire.userData.keep = true;
-      g.add(tire);
-      const hub = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.36, 10), rimMat, wx, 0.5, wz);
-      hub.rotation.z = Math.PI / 2;
-      g.add(hub);
-      wheels.push(tire);
-    }
-  }
-  for (const hx of [-0.85, 0.85]) {
-    g.add(mesh(new THREE.BoxGeometry(0.38, 0.2, 0.08), basic(0xfff6cf), hx, 0.75, 6.32));
-    g.add(mesh(new THREE.BoxGeometry(0.38, 0.24, 0.08), basic(0xff2233), hx, 0.9, -6.32));
-  }
-  // Cat rides at the front of the upper deck, the best seat on the Strip.
-  return { group: g, wheels, deckOffset: new THREE.Vector3(0, 2.56, 5.6) };
+  return buildDeuceBus(livery);
 }
