@@ -182,7 +182,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.feature({ kind: 'road', x: 0, z: midZ, w: half * 2, d: len, color: '#3b3a40' });
   // Night light on the street surfaces themselves: frontage spill, lamp pools, reflected neon (streetGlow.ts)
   const glow = new StreetGlow(STRIP.north - 60, STRIP.south + 60, half + 1.0);
-  glow.apply(roadMat, { fill: 0.68, pools: 0.7, sheen: 0.22, lift: 0.035 });
+  glow.apply(roadMat, { fill: 0.46, pools: 0.7, sheen: 0.22, lift: 0.015 }); // night asphalt stays dark between the pools; the neon reads in the sheen
   glow.apply(paver, { fill: 0.07, pools: 0.1, sheen: 0.03 });
   glow.apply(band, { fill: 0.12, pools: 0.2, sheen: 0.05, lift: 0.01 });
   b.every((_dt, _t, night) => glow.update(night));
@@ -255,7 +255,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   const crossLen = STRIP.flamingoEast - STRIP.flamingoWest;
   const crossMid = (STRIP.flamingoEast + STRIP.flamingoWest) / 2;
   // The cross streets catch the frontage glow too (the resorts on the corners light them)
-  const crossGlow = { fill: 0.6, pools: 0, sheen: 0.14, lift: 0.03 };
+  const crossGlow = { fill: 0.42, pools: 0, sheen: 0.14, lift: 0.013 };
   const crossMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 });
   glow.apply(crossMat, crossGlow);
   const cross = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), crossMat);
