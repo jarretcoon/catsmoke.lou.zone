@@ -4,6 +4,7 @@ import { viewer } from './builder';
 import type { WorldBuilder } from './builder';
 import { makeCarpetTexture } from './textures';
 import { basic, mat, mesh } from './props';
+import { gateOpen, type GateBox } from './interiorKit';
 import {
   bellagioMarbleTexture,
   canopyStripeTexture,
@@ -166,6 +167,23 @@ export function gated(b: WorldBuilder, obj: THREE.Object3D, minX: number, maxX: 
   return g;
 }
 
+/**
+ * Adds `obj` to the scene, drawn only while the camera is inside `box` or looking in through one of its
+ * doors (interiorKit's gate test); `anim` runs only while it's drawn. Registers the box for
+ * hiddenIndoors so street crowds inside it aren't drawn from outside.
+ */
+export function gatedDoors(b: WorldBuilder, obj: THREE.Object3D, box: GateBox, anim?: (t: number, dt: number) => void, open: () => boolean = () => gateOpen(box)): void {
+  b.scene.add(obj);
+  obj.visible = false;
+  const g: Gate = { obj, minX: box.minX, maxX: box.maxX, minZ: box.minZ, maxZ: box.maxZ };
+  interiorBoxes.push({ minX: box.minX, maxX: box.maxX, minZ: box.minZ, maxZ: box.maxZ, gate: g });
+  b.every((dt, t) => {
+    const v = gateOpen(box);
+    obj.visible = v;
+    if (v && anim) anim(t, dt);
+  });
+}
+
 /** PlaneGeometry (facing +z) with its UVs remapped to an atlas sub-rect. */
 export function quad(w: number, h: number, u0: number, v0: number, u1: number, v1: number): THREE.PlaneGeometry {
   const g = new THREE.PlaneGeometry(w, h);
@@ -294,32 +312,83 @@ export function poolWater(): THREE.MeshStandardMaterial {
 // BELLAGIO
 // ================================================================================================
 
-/** Glass blossom: a ruffled bowl hanging mouth-down (unit radius). */
+/**
+ * Glass blossom (Chihuly "Persian"): a ruffled disc, unit radius, cupped toward the ceiling so its
+ * open face looks down at the lobby. Eight soft lobes ripple the rim (radial wave + scalloped
+ * outline). uv.x = radius (0 centre → 1 lip), uv.y = angle / 2π (for the optic ribs in the shader).
+ */
 function blossomGeometry(): THREE.BufferGeometry {
-  const seg = 14;
-  const rings = 3;
+  const seg = 20;
+  const rings = 4;
   const pos: number[] = [];
   const uv: number[] = [];
   const idx: number[] = [];
-  pos.push(0, 0, 0);
-  uv.push(0.5, 0.5);
+  pos.push(0, -0.05, 0);
+  uv.push(0, 0);
   for (let j = 1; j <= rings; j++) {
     const r = j / rings;
-    for (let i = 0; i < seg; i++) {
+    for (let i = 0; i <= seg; i++) {
       const a = (i / seg) * Math.PI * 2;
-      const ruffle = 0.3 * Math.sin(a * 7) * r * r * r;
-      const y = -0.38 * r * r + ruffle;
-      pos.push(Math.cos(a) * r, y, Math.sin(a) * r);
-      uv.push(0.5 + Math.cos(a) * r * 0.5, 0.5 + Math.sin(a) * r * 0.5);
+      const lobe = Math.sin(a * 8);
+      const rr = r * (1 + 0.07 * lobe * r);
+      const y = 0.4 * r * r + 0.2 * lobe * Math.pow(r, 2.6) + 0.05 * Math.sin(a * 3 + 1) * r;
+      pos.push(Math.cos(a) * rr, y, Math.sin(a) * rr);
+      uv.push(r, i / seg);
     }
   }
-  for (let i = 0; i < seg; i++) idx.push(0, 1 + i, 1 + ((i + 1) % seg));
+  const row = seg + 1;
+  for (let i = 0; i < seg; i++) idx.push(0, 1 + i + 1, 1 + i);
   for (let j = 1; j < rings; j++) {
-    const a0 = 1 + (j - 1) * seg;
-    const a1 = 1 + j * seg;
+    const a0 = 1 + (j - 1) * row;
+    const a1 = 1 + j * row;
+    for (let i = 0; i < seg; i++) idx.push(a0 + i, a0 + i + 1, a1 + i + 1, a0 + i, a1 + i + 1, a1 + i);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * Glass trumpet (Chihuly "Venetian" horn): a flared bell with a wavy lip up among the blossoms,
+ * narrowing into a twisted, ribbed stem that curls at its tip, pointing down. Unit length.
+ * uv.x = 1 at the lip → 0 at the tip, uv.y = angle / 2π.
+ */
+function hornGeometry(): THREE.BufferGeometry {
+  const seg = 10;
+  const n = 10;
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  for (let j = 0; j <= n; j++) {
+    const t = j / n;
+    const r0 = 0.03 + 0.46 * Math.pow(1 - t, 4.2);
+    for (let i = 0; i <= seg; i++) {
+      const a = (i / seg) * Math.PI * 2;
+      const twist = a + t * 3.4;
+      const lip = Math.pow(1 - t, 6);
+      const rib = 1 + 0.12 * Math.cos(twist * 5) * (0.3 + 0.7 * t);
+      const r = r0 * rib * (1 + 0.2 * Math.sin(a * 6) * lip);
+      let x = Math.cos(a) * r;
+      let z = Math.sin(a) * r;
+      let y = -t + 0.09 * Math.sin(a * 6) * lip + 0.04 * lip;
+      // the tip curls over at the bottom
+      const c = Math.pow(t, 3);
+      x += 0.28 * c;
+      y += 0.12 * c * c;
+      z += 0.06 * Math.sin(t * 5) * t;
+      pos.push(x, y, z);
+      uv.push(1 - t, i / seg);
+    }
+  }
+  const row = seg + 1;
+  for (let j = 0; j < n; j++) {
     for (let i = 0; i < seg; i++) {
-      const i1 = (i + 1) % seg;
-      idx.push(a0 + i, a1 + i, a1 + i1, a0 + i, a1 + i1, a0 + i1);
+      const a0 = j * row + i;
+      const a1 = (j + 1) * row + i;
+      idx.push(a0, a1, a0 + 1, a0 + 1, a1, a1 + 1);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -330,42 +399,56 @@ function blossomGeometry(): THREE.BufferGeometry {
   return g;
 }
 
-/** Twisted glass horn ("Venetian" spiral) pointing down, unit length. */
-function hornGeometry(): THREE.BufferGeometry {
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 6; i++) {
-    const t = i / 6;
-    pts.push(new THREE.Vector2(0.03 + 0.2 * Math.pow(t, 2.6), -t));
-  }
-  const g = new THREE.LatheGeometry(pts, 8);
-  // twist
-  const p = g.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i);
-    const a = y * 2.4;
-    const x = p.getX(i);
-    const z = p.getZ(i);
-    p.setXYZ(i, x * Math.cos(a) - z * Math.sin(a) + 0.18 * y * y, y, x * Math.sin(a) + z * Math.cos(a));
-  }
-  g.computeVertexNormals();
-  return g;
-}
-
-/** Glossy glass with emissive tinted by the instance colour and brightened at grazing angles (backlit look). */
+/**
+ * Hand-blown glass: glossy (catches the env map), tinted by the instance colour, glowing from the
+ * backlit recess. Thin glass reads brighter: the lip is lighter and hotter than the deep centre, optic
+ * ribs streak the colour, and grazing angles flare (no transmission pass needed).
+ */
 export function glassMaterial(): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.42, side: THREE.DoubleSide });
+  const m = new THREE.MeshStandardMaterial({ color: 0x5c5c5c, roughness: 0.07, metalness: 0.05, emissive: 0xffffff, emissiveIntensity: 0.72, envMapIntensity: 2.0, side: THREE.DoubleSide });
+  m.defines = { USE_UV: '' };
   m.onBeforeCompile = (sh) => {
     sh.fragmentShader = sh.fragmentShader.replace(
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
       #if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA ) || defined( USE_INSTANCING_COLOR )
-        float rimF = 1.0 - clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
-        totalEmissiveRadiance *= vColor.rgb * (0.65 + 1.1 * rimF * rimF);
+        float rimF = 1.0 - clamp( abs( dot( normalize( vNormal ), normalize( vViewPosition ) ) ), 0.0, 1.0 );
+        float lipF = smoothstep( 0.72, 1.0, vUv.x );
+        float rib = 0.9 + 0.1 * cos( vUv.y * 6.2831853 * 16.0 );
+        vec3 tint = vColor.rgb;
+        vec3 deep = tint * tint * 0.9;
+        vec3 lipCol = mix( tint, vec3( 1.0, 0.96, 0.86 ), 0.2 );
+        vec3 glassCol = mix( mix( deep, tint, smoothstep( 0.0, 0.7, vUv.x ) ), lipCol * 1.2, lipF );
+        totalEmissiveRadiance *= glassCol * rib * ( 0.75 + 1.0 * rimF * rimF );
       #endif`
     );
   };
-  m.customProgramCacheKey = () => 'grand-glass';
+  m.customProgramCacheKey = () => 'grand-glass-2';
   return m;
+}
+
+/** Soft multicoloured light pooled under the glass ceiling (additive floor decal). */
+let floorGlowTex: THREE.CanvasTexture | null = null;
+function floorGlowTexture(): THREE.CanvasTexture {
+  if (floorGlowTex) return floorGlowTex;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 256;
+  const ctx = c.getContext('2d')!;
+  const r = rand(77);
+  const cols = ['255,150,40', '255,90,40', '60,110,255', '255,210,60', '160,80,255', '60,200,90'];
+  for (let i = 0; i < 40; i++) {
+    const x = 20 + r() * 88;
+    const y = 20 + r() * 216;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 18 + r() * 26);
+    g.addColorStop(0, `rgba(${cols[i % cols.length]},0.10)`);
+    g.addColorStop(1, `rgba(${cols[i % cols.length]},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 256);
+  }
+  floorGlowTex = new THREE.CanvasTexture(c);
+  floorGlowTex.colorSpace = THREE.SRGBColorSpace;
+  return floorGlowTex;
 }
 
 /**
@@ -492,13 +575,15 @@ export function buildBellagioLobby(b: WorldBuilder): void {
     k.box(velvet, -115.05, 0.75, z, 0.25, 0.9, 3.2);
     b.collider(-116, -114.9, z - 1.6, z + 1.6, 0, 0.6);
   }
-  k.flush(g);
 
-  // ---- Fiori di Como: ~2,000 glass blossoms (two instanced draws) ----
+  // ---- Fiori di Como: ~2,000 glass blossoms and trumpets (two instanced draws) ----
   const glass = glassMaterial();
-  const palette = [0x1f5fff, 0x27c3ff, 0x6bf04a, 0xffd21f, 0xff8a1f, 0xff2f2f, 0xff3fa8, 0x9a4bff, 0xffb03a, 0x2ad6a0, 0xff6a3a, 0x3a7aff];
-  const nB = 1650;
-  const nH = 350;
+  // Mostly the warm end (amber, orange, gold, red) with cobalt, green, violet and aqua through it
+  const palette = [0xff9a1a, 0xffb52a, 0xffd21f, 0xff6a1a, 0xff2f22, 0xe0182e, 0x1f4bff, 0x2a86ff, 0x3ccf3a, 0x8a3aff, 0xff3f9a, 0x1fd0b8, 0xffe15a, 0xff7a2a];
+  const weights = [3, 3, 3, 3, 2, 1.5, 2, 1.2, 1.5, 1.3, 1, 0.8, 1.5, 2];
+  const wsum = weights.reduce((a, c) => a + c, 0);
+  const nB = 1750;
+  const nH = 300;
   const blossoms = new THREE.InstancedMesh(blossomGeometry(), glass, nB);
   const horns = new THREE.InstancedMesh(hornGeometry(), glass, nH);
   const m4 = new THREE.Matrix4();
@@ -508,27 +593,42 @@ export function buildBellagioLobby(b: WorldBuilder): void {
   const pv = new THREE.Vector3();
   const col = new THREE.Color();
   const rr = rand(2026);
-  const place = (im: THREE.InstancedMesh, i: number, size: number, horn: boolean) => {
-    // denser near the top, a soft hanging belly in the middle of the field
+  const pick = () => {
+    let w = rr() * wsum;
+    for (let i = 0; i < palette.length; i++) if ((w -= weights[i]) <= 0) return palette[i];
+    return palette[0];
+  };
+  const place = (im: THREE.InstancedMesh, i: number, horn: boolean) => {
+    // dense near the steel armature, sagging into a soft belly in the middle of the field
     const u = rr();
     const v = rr();
-    const x = -126.6 + u * 9.2;
-    const z = 70.4 + v * 21.2;
+    const x = -126.7 + u * 9.4;
+    const z = 70.3 + v * 21.4;
     const belly = Math.sin(u * Math.PI) * Math.sin(v * Math.PI);
-    const y = HR - 0.15 - Math.pow(rr(), 1.6) * (0.6 + 1.3 * belly) - (horn ? 0.2 : 0);
-    e.set((rr() - 0.5) * (horn ? 0.5 : 0.7), rr() * Math.PI * 2, (rr() - 0.5) * (horn ? 0.5 : 0.7));
+    const depth = Math.pow(rr(), 1.5) * (0.5 + 1.5 * belly);
+    const y = HR - 0.12 - depth - (horn ? 0.05 : 0);
+    if (horn) {
+      e.set((rr() - 0.5) * 0.7, rr() * Math.PI * 2, (rr() - 0.5) * 0.7);
+      const s = 0.55 + rr() * 0.4;
+      sv.set(s, s * (1.3 + rr() * 0.9), s);
+    } else {
+      // most face down at the lobby, some tip toward the walls, a few hang on edge
+      const tilt = rr() < 0.2 ? 0.6 + rr() * 0.9 : rr() * 0.55;
+      const dir = rr() * Math.PI * 2;
+      e.set(Math.cos(dir) * tilt, rr() * Math.PI * 2, Math.sin(dir) * tilt);
+      const s = 0.3 + rr() * 0.32;
+      sv.set(s, s * (0.35 + rr() * 1.3), s);
+    }
     q.setFromEuler(e);
-    const s = size * (0.75 + rr() * 0.6);
-    sv.set(s, horn ? s * (1.4 + rr()) : s, s);
     pv.set(x, y, z);
     m4.compose(pv, q, sv);
     im.setMatrixAt(i, m4);
-    col.setHex(palette[Math.floor(rr() * palette.length)]);
-    col.offsetHSL(0, 0, (rr() - 0.5) * 0.12);
+    col.setHex(pick());
+    col.offsetHSL((rr() - 0.5) * 0.03, 0, (rr() - 0.5) * 0.1);
     im.setColorAt(i, col);
   };
-  for (let i = 0; i < nB; i++) place(blossoms, i, 0.44, false);
-  for (let i = 0; i < nH; i++) place(horns, i, 0.7, true);
+  for (let i = 0; i < nB; i++) place(blossoms, i, false);
+  for (let i = 0; i < nH; i++) place(horns, i, true);
   for (const im of [blossoms, horns]) {
     im.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -536,6 +636,15 @@ export function buildBellagioLobby(b: WorldBuilder): void {
     im.frustumCulled = true;
     g.add(im);
   }
+  // the steel armature peeking through, and a warm glow pooled on the floor below the glass
+  const steel = mat(0x2a2a2e, 0.5, 0.8);
+  for (let z = 71; z < 92; z += 3) k.box(steel, -122, HR - 0.25, z, 9.6, 0.06, 0.06);
+  for (let x = -126.5; x <= -117.5; x += 3) k.box(steel, x, HR - 0.25, 81, 0.06, 0.06, 21.6);
+  k.flush(g);
+  const pool = new THREE.MeshBasicMaterial({ map: floorGlowTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const poolM = mesh(new THREE.PlaneGeometry(13, 26), pool, -122, 0.06, 81);
+  poolM.rotation.x = -Math.PI / 2;
+  g.add(poolM);
   gated(b, g, x0, x1, z0, z1, 4);
 
   b.zone('Bellagio Lobby • Fiori di Como', x0, x1, z0, z1);

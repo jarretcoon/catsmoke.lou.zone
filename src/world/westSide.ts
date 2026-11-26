@@ -1,14 +1,16 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bakeGroup } from '../meshBake';
 import type { WorldBuilder } from './builder';
 import { curvedTower, stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
-import { LedBoard, makeCarpetTexture, makePaverTexture } from './textures';
+import { makeCarpetTexture, makePaverTexture } from './textures';
 import { barCounter, basic, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
 import { waterJets } from './fountains';
 import type { JetSpec } from './fountains';
 import { bellagioCasinoRoof, buildBellagioCasinoDressing, buildBellagioLobby } from './grandInteriors';
+import { buildViaBellagio } from './viaBellagio';
+import { buildCosmoExtras } from './cosmoExtras';
+import { buildAriaSign, buildBellagioSign, buildCosmoSigns } from './westSigns';
 import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from './grandCaesars';
 import { caesarsSigns, treasureIslandSigns } from './stripSigns';
 
@@ -57,7 +59,7 @@ function buildCityCenter(b: WorldBuilder): void {
   b.add(neonSign('WALDORF ASTORIA', '#0d0f14', '#f6e7c8', 10, 1.4), -31.8, 46, 280, -Math.PI / 2);
   // ARIA: curving blue-silver low-e glass with sawtooth sunshade fins washed by podium floodlights
   curvedTower(b, -60, 268, 62, Math.PI * 0.86, Math.PI * 1.24, 6, 16, 56, { ...silver, glass: '#56789a', mullion: '#d8e0e8', lit: '#eef3ff', seed: 5 }, 0.7, { rough: 0.2, fins: { every: 2, depth: 0.8 }, ledFins: false, wash: 0xdce8ff, washZone: 22, washStrength: 0.6 });
-  b.add(neonSign('ARIA', '#0b0d12', '#ffffff', 10, 3), -112, 50, 268, -Math.PI / 2);
+  buildAriaSign(b);
   // Vdara: a slim silver crescent
   curvedTower(b, -100, 215, 46, Math.PI * 0.9, Math.PI * 1.2, 4, 13, 53, { ...silver, wall: '#c8d2da', glass: '#8aa2b8', mullion: '#eef2f5', seed: 9 }, 0.7, { crescent: true, rough: 0.2, ledFins: false, wash: 0xeef4ff, washZone: 14 });
   b.building(-40, 232, 38, 40, '#9aa6b2', 'Crystals');
@@ -92,7 +94,7 @@ function buildCosmopolitan(b: WorldBuilder): void {
     slots: { accent: '#d68cff', topper: 0xc86bff, rows: [{ x: -30, z: 166, count: 5, along: 'x', facing: 0 }] },
     slotLabel: 'Cosmo Neon Slots',
     tables: [
-      { game: 'blackjack', x: -30, z: 196, rot: Math.PI, label: 'Cosmo Blackjack' },
+      { game: 'blackjack', x: -29.5, z: 199.2, rot: Math.PI, label: 'Cosmo Blackjack' },
       { game: 'blackjack', x: -57, z: 172, rot: Math.PI / 2, label: 'VIP High-Limit Blackjack', vipOnly: true },
       { game: 'roulette', x: -57, z: 192, rot: Math.PI / 2, label: 'VIP High-Limit Roulette', vipOnly: true },
     ],
@@ -103,35 +105,39 @@ function buildCosmopolitan(b: WorldBuilder): void {
       { x: -28, z: 172, amount: 3, label: 'Cosmo Slot Bank Pack' },
     ],
     tourists: [
-      { pts: [[-28, 176], [-44, 176], [-44, 190], [-28, 190]], prop: 'yard-drink' },
-      { pts: [[-36, 168], [-36, 198]], prop: 'cig' },
+      { pts: [[-29.3, 176.6], [-50, 176.6], [-50, 187.4], [-29.3, 187.4]], prop: 'yard-drink' },
+      { pts: [[-29.3, 168], [-29.3, 196.5]], prop: 'cig' },
     ],
+    // The Cosmo's moody look: dark wood, black glass, plum velvet, violet coves and rose-bronze trim.
+    // The Chandelier, its lounges, the LED-column foyer, Secret Pizza, the Marquee entrance and the
+    // VIP lounge are dressed by cosmoExtras.ts, so the auto-fill keeps off them.
+    interior: {
+      ceiling: 'tray',
+      trim: 0xb08a6a,
+      cove: 0xc86bff,
+      columnWrap: 0x0c0a12,
+      wainscot: 0x2a1812,
+      upperWall: 0x18121e,
+      seat: 0x4a1238,
+      slotThemes: [1, 2, 6, 4, 0],
+      fill: 0.8,
+      bar: false,
+      sportsbook: false,
+      highLimit: false,
+      keepOut: [
+        [-62, -50.6, 160, 204],
+        [-51.5, -32, 160, 165.4],
+        [-33.2, -24, 160, 164.2],
+        [-49.5, -32.6, 165.6, 198.4],
+        [-33.6, -24, 168.6, 196.4],
+        [-45.4, -34.6, 198.6, 204],
+      ],
+    },
   });
 
   // The Chandelier: three levels of crystal strands around a circular bar
   const cx = -40;
   const cz = 182;
-  const strands: THREE.BufferGeometry[] = [];
-  for (let ring = 0; ring < 4; ring++) {
-    const r = 2.2 + ring * 1.1;
-    const n = 26 + ring * 8;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + ring * 0.2;
-      const top = 11.8;
-      const len = 3 + ((i * 7 + ring * 3) % 5) * 0.9 + ring * 1.2;
-      const g = new THREE.CylinderGeometry(0.035, 0.035, len, 4);
-      g.translate(cx + Math.cos(a) * r, top - len / 2, cz + Math.sin(a) * r);
-      strands.push(g);
-    }
-  }
-  const crystals = mergeGeometries(strands)!;
-  const crystalMat = new THREE.MeshStandardMaterial({ color: 0xf4e9ff, emissive: 0xd59cff, emissiveIntensity: 1.2, roughness: 0.1, metalness: 0.3 });
-  const chandelier = new THREE.Mesh(crystals, crystalMat);
-  b.add(chandelier);
-  b.every((_dt, t) => {
-    crystalMat.emissiveIntensity = 1.0 + Math.sin(t * 1.3) * 0.25;
-    crystalMat.emissive.setHSL(0.78 + Math.sin(t * 0.15) * 0.06, 0.8, 0.6);
-  });
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     const seg = barCounter(2.6, 0x1a1a22, 0x3a1f4a);
@@ -141,11 +147,12 @@ function buildCosmopolitan(b: WorldBuilder): void {
   }
   b.collider(cx - 3.4, cx + 3.4, cz - 3.4, cz + 3.4, 0, 1.15, true);
   b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(cx + 4.4, 0, cz), radius: 2.5, label: 'Chandelier Bar' });
-  // Level 1.5 mezzanine wrapping the chandelier (walk up the stairs inside)
+  // Level 1.5 mezzanines either side of the chandelier, each with its own stair up from the casino
   const mezz = mat(0x2a2236, 0.4, 0.4);
-  b.box(cx, 4.2, cz - 7.5, 14, 0.35, 3, mezz);
-  b.box(cx, 4.2, cz + 7.5, 14, 0.35, 3, mezz);
-  stairs(b, cx + 7, cz - 7.5, '+x', 3, 4.2, 6, mezz);
+  b.box(cx - 0.5, 4.2, cz - 7.5, 15, 0.35, 3, mezz);
+  b.box(cx - 0.5, 4.2, cz + 7.5, 15, 0.35, 3, mezz);
+  stairs(b, cx + 5.5, cz - 15, '+z', 3, 4.55, 6, mezz);
+  stairs(b, cx + 5.5, cz + 15, '-z', 3, 4.55, 6, mezz);
   b.pickup(cx, 4.95, cz + 7.5, 3, 'Chandelier 1.5 Rail Pack', true);
   b.zone('The Chandelier', cx - 8, cx + 8, cz - 9, cz + 9);
 
@@ -163,17 +170,12 @@ function buildCosmopolitan(b: WorldBuilder): void {
   b.vipColliders.push(ropeWall);
   b.add(neonSign('VIP', '#1a0a14', '#ffd24d', 3, 1.1, 'HIGH-ROLLER LOUNGE', 0.1), ropeX + 0.3, 3.6, 182, Math.PI / 2);
   b.shopSpots.push({ kind: 'vip-host', position: new THREE.Vector3(ropeX + 2.2, 0, 182), radius: 2.6, label: 'VIP Host' });
-  const sofa = mat(0x3a0f24, 0.7);
-  for (const z of [166, 200]) b.add(mesh(new THREE.BoxGeometry(2.4, 0.7, 5), sofa, -60, 0.35, z, true));
   b.zone('VIP High-Roller Lounge', -62, ropeX, 160, 204);
 
-  // Strip marquee: the giant LED pylon
-  const led = new LedBoard('COSMOPOLITAN', ['JUST THE RIGHT AMOUNT OF WRONG', 'CHANDELIER BAR NOW POURING', 'BOULEVARD POOL • ROOFTOP', 'FREE ENTRY • 21+'], ['#7a2cff', '#ff2c8a', '#00b3ff', '#ff9a00']);
-  const pylon = new THREE.Mesh(new THREE.BoxGeometry(1.2, 22, 8), [basic(0x111111), basic(0x111111), basic(0x111111), basic(0x111111), new THREE.MeshBasicMaterial({ map: led.tex }), new THREE.MeshBasicMaterial({ map: led.tex })]);
-  pylon.rotation.y = Math.PI / 2;
-  b.add(pylon, -21.2, 11, 158);
-  b.collider(-25.5, -16.9, 157.4, 158.6, 0, 22, true);
-  b.every((_dt, t) => led.draw(t));
+  // Strip marquee (four-sided LED pylon), the podium's LED canvas and the wordmark over the doors
+  buildCosmoSigns(b);
+  // Chandelier lounges + bartenders, LED art columns, the Marquee entrance, Secret Pizza, VIP lounge
+  buildCosmoExtras(b);
 
   // Boulevard Pool on the podium roof, overlooking the Strip
   const pool = new THREE.MeshStandardMaterial({ color: 0x2bb6d9, roughness: 0.05, metalness: 0.2, emissive: 0x0b4a66, emissiveIntensity: 0.6 });
@@ -215,12 +217,14 @@ function buildBellagio(b: WorldBuilder): void {
   b.box((lakeX0 + lakeX1) / 2, 0, lakeZ0 - 0.5, lakeX1 - lakeX0, 1.05, 0.6, stone);
   b.box((lakeX0 + lakeX1) / 2, 0, lakeZ1 + 0.5, lakeX1 - lakeX0, 1.05, 0.6, stone);
   b.box(lakeX0 - 0.5, 0, (lakeZ0 + lakeZ1) / 2, 0.6, 1.05, lakeZ1 - lakeZ0 + 1, stone);
-  for (let z = lakeZ0 + 2; z <= lakeZ1; z += 6.5) {
+  for (let z = lakeZ0 + 2; z <= lakeZ1 - 12; z += 6.5) {
     b.add(mesh(new THREE.BoxGeometry(0.5, 2.6, 0.5), stone, lakeX1 + 0.5, 1.3, z));
     b.add(mesh(new THREE.SphereGeometry(0.28, 10, 8), globe, lakeX1 + 0.5, 2.8, z));
   }
-  for (let z = lakeZ0 + 5; z <= lakeZ1 - 2; z += 13) b.add(cypressTree(5 + (z % 3)), -18.4, 0, z);
-  for (let z = lakeZ0 + 8; z <= lakeZ1; z += 22) b.add(planter(2, 2, 0xffd34d), -18.2, 0, z + 6);
+  for (let z = lakeZ0 + 5; z <= lakeZ1 - 12; z += 13) b.add(cypressTree(5 + (z % 3)), -18.4, 0, z);
+  for (let z = lakeZ0 + 8; z <= lakeZ1 - 12; z += 22) b.add(planter(2, 2, 0xffd34d), -18.2, 0, z + 6);
+  // The Bellagio sign: travertine pylon with the LED board, gold letters and cornices, at the lake's corner
+  buildBellagioSign(b);
 
   // Fountains: three lines of shooters + a ring of "super shooters" (one instanced draw, see fountains.ts)
   const jets: JetSpec[] = [];
@@ -352,6 +356,8 @@ function buildBellagio(b: WorldBuilder): void {
   buildBellagioCasinoDressing(b);
   bellagioCasinoRoof(b);
   buildBellagioLobby(b);
+  // Via Bellagio: the skylit shopping arcade from the porte-cochère to the Strip (south of the drive)
+  buildViaBellagio(b);
 
   // Conservatory & Botanical Gardens — "Postcards From Christmas" (Nov 13 2026 – Jan 2 2027)
   buildConservatory(b);
@@ -367,17 +373,11 @@ function buildBellagio(b: WorldBuilder): void {
     [-115, 110],
     [-129, 110],
   ]) b.box(px, 0, pz, 0.8, 6, 0.8, mat(0xe9dcc0, 0.6), true);
-  const led = new LedBoard('BELLAGIO', ['FOUNTAINS EVERY 30 MINUTES', 'CONSERVATORY: POSTCARDS FROM CHRISTMAS', 'RESORT & CASINO', 'FREE • OPEN 24 HOURS'], ['#d4a64a', '#1f6f5a', '#a8323e', '#2c5fa8'], 512, 256);
-  const signM = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 0.6), [basic(0x2a2016), basic(0x2a2016), basic(0x2a2016), basic(0x2a2016), new THREE.MeshBasicMaterial({ map: led.tex }), new THREE.MeshBasicMaterial({ map: led.tex })]);
-  signM.rotation.y = Math.PI / 2;
-  b.add(signM, -20.6, 6.5, 114);
-  b.add(mesh(new THREE.BoxGeometry(1.4, 4, 3), mat(0xe9dcc0, 0.6), -20.6, 2, 114));
-  b.collider(-21.4, -19.8, 112.5, 115.5, 0, 9, true);
-  b.every((_dt, t) => led.draw(t));
 
   // South gardens between the drive and Cosmopolitan
-  plaza(b, -19, -70, 112, 155, trav);
-  for (let z = 120; z < 154; z += 8) b.add(cypressTree(5.5), -24, 0, z);
+  plaza(b, -19, -70, 122.2, 155, trav);
+  plaza(b, -19, -24.4, 110, 122.2, trav);
+  for (let z = 128; z < 154; z += 8) b.add(cypressTree(5.5), -24, 0, z);
   b.add(planter(10, 3, 0xff8a3d), -40, 0, 130);
   b.add(planter(10, 3, 0xff4d7a), -40, 0, 146);
 
@@ -405,7 +405,11 @@ function buildConservatory(b: WorldBuilder): void {
   b.box(minX, 4.6, 91, 1, 4.4, 6, wall, true);
   b.add(mesh(new THREE.BoxGeometry(1.1, 0.18, 6), basic(0xffd27a), minX, 4.6, 91));
   b.box(cx, 0, minZ, maxX - minX, 9, 1, wall, true);
-  b.box(cx, 0, maxZ, maxX - minX, 9, 1, wall, true);
+  // South wall opens onto Bellagio Dr (doorway x −85…−81), straight across from Via Bellagio's north door
+  b.box((minX - 85) / 2, 0, maxZ, -85 - minX, 9, 1, wall, true);
+  b.box(-80.5, 0, maxZ, 1, 9, 1, wall, true);
+  b.box(-83, 4.6, maxZ, 4, 4.4, 1, wall, true);
+  b.add(mesh(new THREE.BoxGeometry(4, 0.18, 1.1), basic(0xffd27a), -83, 4.6, maxZ));
   b.box(maxX, 0, minZ + 6.5, 1, 9, 13, wall, true);
   b.box(maxX, 0, maxZ - 6.5, 1, 9, 13, wall, true);
   b.box(maxX, 4.6, cz, 1, 4.4, 8, wall, true);
@@ -475,7 +479,7 @@ function buildConservatory(b: WorldBuilder): void {
   mailbox.add(mesh(new THREE.BoxGeometry(0.6, 0.5, 0.8), gold, 0, 1.5, 0));
   b.add(mailbox, cx - 3, 0, maxZ - 3);
   b.pickup(cx - 3, 2.1, maxZ - 3, 3, 'Letter-to-Santa Mailbox Smokes', false);
-  for (let i = 0; i < 10; i++) b.add(cypressTree(2.4), minX + 3 + (i % 5) * 6, 0, i < 5 ? minZ + 2 : maxZ - 2);
+  for (let i = 0; i < 10; i++) if (i !== 9) b.add(cypressTree(2.4), minX + 3 + (i % 5) * 6, 0, i < 5 ? minZ + 2 : maxZ - 2);
 
   b.zone('Bellagio Conservatory • Postcards From Christmas', minX, maxX, minZ, maxZ);
   b.crowd.tourists.push({ pts: [[-84, 70], [-108, 70], [-108, 94], [-84, 94]], prop: 'camera' });
