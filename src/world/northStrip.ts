@@ -2142,7 +2142,7 @@ function buildFontainebleau(b: WorldBuilder): void {
   // Porte-cochère, signage, the bowtie, LIV
   const steel = mat(0xd9dee4, 0.2, 0.85);
   b.add(mesh(new THREE.BoxGeometry(8, 0.5, 16), mat(0x1c2a44, 0.4, 0.5), 25.5, 6.2, -765, true));
-  b.add(mesh(new THREE.BoxGeometry(7.6, 0.05, 15.6), basic(0xeaf4ff), 25.5, 5.93, -765));
+  b.add(mesh(new THREE.BoxGeometry(7.6, 0.05, 15.6), basic(0xa9b8cc), 25.5, 5.93, -765)); // lit soffit, kept under the bloom threshold
   for (const [x, z] of [
     [22.6, -758],
     [28.4, -758],
