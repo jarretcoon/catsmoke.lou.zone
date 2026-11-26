@@ -10,14 +10,16 @@ import { LedBoard, makeBoulevardTexture, makePaverTexture, makeSignTexture } fro
 import type { FacadeSpec } from './textures';
 import { barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign, palmTree, planter } from './props';
 import type { CarKind } from './props';
-import { xFromO, zFromS } from './strip';
+import { STRIP, xFromO, zFromS } from './strip';
+import { buildNorthNeighbours, buildPorteCochere, buildSouthNeighbours, bulbLetters, casinoEntranceClown, paved, towerValance } from './northBlock';
 import { fontainebleauSign, peppermillSign, resortsWorldPylonCrown, resortsWorldTowerSign, saharaSign, stratSign, wynnSignature } from './stripSigns';
-import { neonPanel } from './signKit';
+import { bulbPath, bulbRect, letterFace, letters, neonPanel } from './signKit';
 
 /**
  * North Strip, Spring Mountain Rd / Sands Ave → Circus Circus (Sahara + the STRAT as backdrop).
  * West, south → north: Fashion Show + The Cloud · ex-New Frontier lot (Wynn) · Resorts World ·
- * Slots-A-Fun · Circus Circus (big top, towers, Adventuredome, the Lucky the Clown sign).
+ * vacant ex-Westward Ho lot · McDonald's · Slots-A-Fun · Circus Circus (main entrance, porte-cochère + big top,
+ * Lucky the Clown, towers, Adventuredome) · Circus Circus Dr · Travelodge · Sky Las Vegas (northBlock.ts).
  * East, south → north: Wynn (mountain + Lake of Dreams) · Encore · Wynn Golf Club · Peppermill ·
  * Diamond Lot (ex-Riviera) · LVCC West Hall · Las Vegas Monorail · Fontainebleau.
  * Real positions come from zFromS / xFromO (the real ~28° bend north of s≈600 is ignored).
@@ -26,8 +28,10 @@ export function buildNorthStrip(b: WorldBuilder): void {
   buildFashionShow(b);
   buildFrontierLot(b);
   buildResortsWorld(b);
+  buildSouthNeighbours(b, -671, -697);
   buildSlotsAFun(b);
   buildCircusCircus(b);
+  buildNorthNeighbours(b, Z_CCDR, STRIP.north);
   buildAdventuredome(b);
   buildWynn(b);
   buildEncore(b);
@@ -47,8 +51,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Z_SANDS = -420;
 /** Convention Center Dr (reserved for x > 0 within ±9 m). */
 const Z_CONV = zFromS(2180);
-/** Circus Circus Dr (reserved for x < 0 within ±9 m). */
-const Z_CCDR = zFromS(2720);
+/** Circus Circus main entrance drive, signalised, opposite Elvis Presley Blvd (reserved for x < 0 within ±9 m). */
+const Z_CCENT = -735.3;
+/** Circus Circus Dr, north of the big top and Lucky (strip.ts CROSSWALKS; reserved for x < 0 within ±9 m). */
+const Z_CCDR = -797;
 
 // =============================================================== helpers
 
@@ -620,13 +626,10 @@ function buildResortsWorld(b: WorldBuilder): void {
   mergeAdd(b, deco);
   b.pickup(-27, 1.05, -604, 3, 'Famous Foods Street Eats Pack', false);
 
-  // North lot toward the Adventuredome
-  parkingLot(b, -24, -130, -677.5, -695.8);
-  parkCars(b, stallSpots(-24, -130, -677.5, -695.8), 3, 1);
-  b.floor(-21.7, -684, 4.6, 23.4, mat(0x5f7d45, 0.95), 0.018);
-  b.add(neonSign('ADVENTUREDOME', '#2a0a1e', '#ff7ac8', 6, 1.3, 'INDOOR THEME PARK THIS WAY', 0.12), -21.4, 4.4, -684, HALF_PI);
-  b.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.8, 6), mat(0x2a2c32, 0.4, 0.6)), -21.4, 1.9, -684);
-  b.zone('Adventuredome Parking', -130, -19, -696, -672);
+  // North lot toward the Adventuredome, behind the vacant lot + McDonald's (northBlock.ts)
+  parkingLot(b, -62, -130, -677.5, -695.8);
+  parkCars(b, stallSpots(-62, -130, -677.5, -695.8), 3, 1);
+  b.zone('Adventuredome Parking', -130, -60, -696, -672);
 
   b.building(-48, -628, 36, 80, '#4a1612', 'Resorts World');
   b.building(-80, -604, 14, 48, '#7a2418');
@@ -705,47 +708,89 @@ function buildSlotsAFun(b: WorldBuilder): void {
     tourists: [{ pts: [[-27, -702.2], [-43.5, -702.2], [-43.5, -707.6], [-27, -707.6]], prop: 'yard-drink' }],
   });
 
-  // $2 beer bar + hot-dog counter
+  // The Big Chill frozen-daiquiri bar by the door ($2 drafts) + the $2 hot-dog counter
   b.add(barCounter(5, 0x1a1a1a, 0x7a1010), -29.2, 0, -700.4, HALF_PI);
   b.collider(-29.6, -28.8, -702.9, -697.9, 0, 1.15, true);
-  b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(-27.4, 0, -700.4), radius: 2.4, label: 'Slots-A-Fun $2 Beer Bar' });
-  b.add(neonSign('$2 BEER', '#1a0505', '#ffd23a', 3.4, 0.9, 'HOT DOGS • 24/7', 0.08), -29.2, 4.6, -700.4, HALF_PI);
+  b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(-27.4, 0, -700.4), radius: 2.4, label: 'Big Chill Daiquiri Bar ($2 drafts, Slots-A-Fun)' });
+  b.add(neonSign('BIG CHILL', '#06141f', '#4ad8ff', 3.4, 0.9, 'FROZEN DAIQUIRIS • $2 DRAFTS', 0.08), -29.2, 4.6, -700.4, HALF_PI);
+  const slush: THREE.Object3D[] = [];
+  const slushM = [0xff3a5a, 0x3ac8ff].map((c) => b.nightGlow(new THREE.MeshStandardMaterial({ color: c, roughness: 0.15, emissive: c, emissiveIntensity: 0.25 }), 0.25, 0.5));
+  [0, 1, 0, 1, 0].forEach((c, i) => {
+    const z = -702.2 + i * 0.85;
+    slush.push(mesh(new THREE.BoxGeometry(0.5, 0.35, 0.6), mat(0xc8ccd2, 0.3, 0.7), -30.1, 1.3, z));
+    slush.push(mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.55, 10), slushM[c], -30.1, 1.75, z));
+  });
+  mergeAdd(b, slush, false);
   b.box(-27.6, 0, -710.4, 3.4, 1.0, 1.1, mat(0xd9d4c8, 0.4, 0.4), true);
   const grill: THREE.Object3D[] = [];
   for (let i = 0; i < 6; i++) grill.push(part(new THREE.CylinderGeometry(0.06, 0.06, 0.7, 8), mat(0xa8552a, 0.6), -28.8 + i * 0.45, 1.08, -710.4, 0, HALF_PI));
   grill.push(mesh(new THREE.BoxGeometry(3.0, 0.05, 0.9), mat(0x9aa0a8, 0.3, 0.8), -27.6, 1.02, -710.4));
   mergeAdd(b, grill, false);
-  b.add(neonSign('HOT DOGS', '#1a0505', '#ffd23a', 2.6, 0.6, undefined, 0.06), -27.6, 2.6, -711.2);
+  b.add(neonSign('$2 HOT DOGS', '#1a0505', '#ffd23a', 2.6, 0.6, undefined, 0.06), -27.6, 2.6, -711.2);
 
-  // Facade sign over the doors
-  b.add(neonSign('SLOTS-A-FUN', '#b3161e', '#ffffff', 11, 1.0, undefined, 0.2), -23.0, 5.45, -704.5, HALF_PI);
-
-  // The iconic round polished-aluminium sign cabinet on its pole
-  const px = -20.9;
-  const pz = -697.6;
-  const cy = 10.4;
-  const alu = mat(0xd9dde2, 0.18, 0.95);
-  b.add(mesh(new THREE.CylinderGeometry(0.28, 0.34, cy - 3, 12), alu, px, (cy - 3) / 2, pz, true));
-  b.collider(px - 0.35, px + 0.35, pz - 0.35, pz + 0.35, 0, cy, true);
-  b.add(part(new THREE.CylinderGeometry(3.2, 3.2, 0.9, 48), alu, px, cy, pz, 0, 0, HALF_PI));
-  b.add(part(new THREE.TorusGeometry(3.2, 0.16, 8, 48), alu, px, cy, pz, HALF_PI));
+  // ---- The Strip front (UNLV neon survey + 2024 photos): an open mouth under a barrel-vaulted gold
+  // canopy on two tapered inverted-cone pillars, round red-neon-ringed cabinets on the pillars, gold bulb
+  // raceways and red bulb letters on the pediment, the $2 specials either side of the door.
+  const fx = maxX; // facade plane
+  const cz = -704.5;
+  const gold = mat(0xd8a838, 0.3, 0.85);
+  const red = mat(0xb3161e, 0.5, 0.1);
+  const front: THREE.Object3D[] = [];
+  // pediment band across the whole front
+  front.push(mesh(new THREE.BoxGeometry(0.9, 2.6, maxZ - minZ + 0.6), red, fx + 0.45, 6.5, cz));
+  front.push(mesh(new THREE.BoxGeometry(1.0, 0.22, maxZ - minZ + 0.8), gold, fx + 0.5, 5.15, cz));
+  front.push(mesh(new THREE.BoxGeometry(1.0, 0.22, maxZ - minZ + 0.8), gold, fx + 0.5, 7.85, cz));
+  // barrel vault over the doors
+  const vault = new THREE.CylinderGeometry(4.4, 4.4, 3.4, 28, 1, true, 0, Math.PI);
+  vault.rotateZ(HALF_PI);
+  vault.scale(1, 0.42, 1);
+  front.push(mesh(vault, mat(0xe0b040, 0.25, 0.9, { side: THREE.DoubleSide }), fx + 1.7, 4.55, cz));
+  // the two inverted-cone pillars + their red-neon-ringed round cabinets
+  const ringM = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xd8101e, roughness: 0.35, emissive: 0xff1a2a, emissiveIntensity: 0.2 }), 0.2, 1.2);
   const faceTex = slotsSignTexture();
-  for (const s of [-1, 1]) b.add(part(new THREE.CircleGeometry(2.98, 48), new THREE.MeshBasicMaterial({ map: faceTex }), px + s * 0.46, cy, pz, s * HALF_PI));
-  const bulbA = new THREE.MeshBasicMaterial({ color: 0xfff1b0 });
-  const bulbB = new THREE.MeshBasicMaterial({ color: 0xfff1b0 });
-  const bulbs: THREE.Object3D[] = [];
-  for (let i = 0; i < 28; i++) {
-    const a = (i / 28) * Math.PI * 2;
-    for (const s of [-1, 1]) bulbs.push(mesh(new THREE.SphereGeometry(0.1, 6, 4), i % 2 ? bulbA : bulbB, px + s * 0.5, cy + Math.cos(a) * 3.38, pz + Math.sin(a) * 3.38));
+  const faceM = b.nightGlow(new THREE.MeshStandardMaterial({ map: faceTex, emissiveMap: faceTex, emissive: 0xffffff, emissiveIntensity: 0.25, roughness: 0.5 }), 0.25, 0.95);
+  for (const s of [-1, 1]) {
+    const pz = cz + s * 4.75;
+    const px = fx + 2.9;
+    front.push(mesh(new THREE.CylinderGeometry(0.62, 0.24, 4.6, 16), gold, px, 2.3, pz));
+    front.push(mesh(new THREE.CylinderGeometry(0.64, 0.64, 0.35, 16), red, px, 3.2, pz));
+    front.push(mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.0, 10), gold, px, 5.1, pz));
+    b.collider(px - 0.45, px + 0.45, pz - 0.45, pz + 0.45, 0, 4.6, true);
+    const cy = 7.0;
+    front.push(part(new THREE.CylinderGeometry(1.45, 1.45, 0.5, 40), mat(0xd9dde2, 0.2, 0.9), px, cy, pz, 0, HALF_PI));
+    front.push(part(new THREE.TorusGeometry(1.45, 0.11, 8, 40), ringM, px, cy, pz + 0.26));
+    front.push(part(new THREE.TorusGeometry(1.45, 0.11, 8, 40), ringM, px, cy, pz - 0.26));
+    for (const f of [-1, 1]) front.push(part(new THREE.CircleGeometry(1.32, 40), faceM, px, cy, pz + f * 0.26, f > 0 ? 0 : Math.PI));
   }
-  mergeAdd(b, bulbs, false);
-  b.add(neonSign('$2 BEER • HOT DOG', '#140404', '#ffd23a', 5.6, 1.3, 'LOOSEST SLOTS ON THE STRIP', 0.25), px, 6.0, pz, HALF_PI);
-  b.every((_dt, t, night) => {
-    const on = Math.floor(t * 6) % 2 === 0;
-    const hi = 0.55 + night * 0.45;
-    bulbA.color.setRGB(1, 0.94, 0.68).multiplyScalar(on ? hi : 0.25);
-    bulbB.color.setRGB(1, 0.94, 0.68).multiplyScalar(on ? 0.25 : hi);
-  });
+  mergeAdd(b, front);
+  // bulb letters + gold bulb raceways on the pediment, chasing bulbs round the vault's arch
+  b.add(letterFace(b, 9.2, 1.7, bulbLetters("SLOTS A' FUN", '#fff6ec', '#d0101c', '#d8a838', 0.12)), fx + 0.92, 6.5, cz, HALF_PI);
+  const race = new THREE.Group();
+  const span = (maxZ - minZ) / 2;
+  for (const y of [7.55]) race.add(bulbPath([[-span, y], [span, y]], false, 0.32, 0.17, 0));
+  const arch: Array<[number, number]> = [];
+  for (let i = 0; i <= 20; i++) {
+    const a = (i / 20) * Math.PI;
+    arch.push([Math.cos(a) * 4.3, 4.55 + Math.sin(a) * 4.3 * 0.42]);
+  }
+  race.add(bulbPath(arch, false, 0.34, 0.18, 2.5));
+  race.rotation.y = HALF_PI;
+  race.position.set(fx + 0.93, 0, cz);
+  b.add(race);
+  // the $2 specials boards either side of the mouth
+  b.add(letters(b, '$2 HOT DOGS', 2.8, 1.9, { style: 'block', fill: '#ffd23a', bg: '#1a0505', sub: '$2 DRAFTS • $2 SHRIMP COCKTAIL', subFill: '#ffffff', rule: '#d8a838' }), fx + 0.08, 3.1, minZ + 1.9 - 0.4 + 0.2, HALF_PI);
+  b.add(letters(b, 'BIG CHILL', 2.8, 1.9, { style: 'block', fill: '#4ad8ff', bg: '#06141f', sub: 'FROZEN DAIQUIRIS • 24/7', subFill: '#ffffff', rule: '#d8a838' }), fx + 0.08, 3.1, maxZ - 1.7, HALF_PI);
+  // the small Circus Circus marquee on the north-east roof corner (faces up and down the Strip)
+  const mq = new THREE.Group();
+  mq.add(mesh(new THREE.BoxGeometry(4.4, 1.6, 0.4), mat(0xfbf2f4, 0.5)));
+  mq.add(letters(b, 'CIRCUS CIRCUS', 4.2, 1.4, { style: 'block', fill: '#e8237a', sub: 'HOTEL • CASINO • ADVENTUREDOME', subFill: '#7a1040' }, 0.4));
+  mq.add(bulbRect(4.4, 1.6, 0.4, 0.1, true, 0.3, 0.16));
+  b.add(mq, fx - 1.6, 9.6, minZ + 0.6, 0);
+  b.add(mesh(new THREE.BoxGeometry(0.25, 2.0, 0.25), mat(0x6a6e74, 0.4, 0.6)), fx - 1.6, 8.0, minZ + 0.6);
+  // Big Bus stop pole on the curb
+  b.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.0, 6), mat(0x8a8d92, 0.4, 0.6)), -12.4, 1.5, -701.2);
+  b.add(letters(b, 'BIG BUS', 0.62, 0.8, { style: 'block', fill: '#ffffff', bg: '#d0101c', sub: 'STOP', subFill: '#ffd23a' }, 0.04), -12.4, 2.6, -701.2, HALF_PI);
+  b.collider(-12.5, -12.3, -701.3, -701.1, 0, 3, true);
 
   b.building((minX + maxX) / 2, (minZ + maxZ) / 2, maxX - minX, maxZ - minZ, '#b3161e', 'Slots-A-Fun');
   b.staticMarkers.push({ x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, color: '#ff3a3a', glyph: '$', size: 2.6 });
@@ -754,8 +799,8 @@ function buildSlotsAFun(b: WorldBuilder): void {
 
 // =============================================================== Circus Circus
 function buildCircusCircus(b: WorldBuilder): void {
-  const southOfDr = Z_CCDR + 9.3;
-  const northOfDr = Z_CCDR - 9.3;
+  const southOfDr = Z_CCENT + 9.3;
+  const northOfDr = Z_CCENT - 9.3;
   const ccSkin: FacadeSpec = { wall: '#f7eef2', mullion: '#ffffff', glass: '#d2477f', lit: '#ffd0e6', cols: 10, rows: 22, style: 1, seed: 401 };
 
   // South casino wing at the frontage (Slots-A-Fun side of Circus Circus Dr)
@@ -771,17 +816,26 @@ function buildCircusCircus(b: WorldBuilder): void {
   b.add(neonSign('CIRCUS CIRCUS', '#fff6fa', '#e8237a', 11, 2.0, 'CASINO • MIDWAY • ADVENTUREDOME', 0.25), -20.25, 7.0, wzc, HALF_PI);
   b.add(mesh(new THREE.BoxGeometry(62, 0.6, wd), mat(0xffffff, 0.6), -51.25, 9.3, wzc));
   tower(b, { x: -64, z: -704.5, w: 29, d: 12, h: 24, facade: ccSkin, accent: 0xff4fa8 });
+  towerValance(b, -64, -704.5, 29, 12, 24);
   b.building(-51.25, wzc, 61.5, wd, '#e85a9a', 'Circus Circus');
   b.building(-64, -704.5, 29, 12, '#f7eef2');
 
-  // North of the drive: the big top + the Skyrise tower
+  // North of the main entrance: the big top, the West Tower (35 floors) straight behind it, and the
+  // Skyrise (29 floors) across Circus Circus Dr; white with the pink tent valance and red lettering
   const skyX = xFromO(-330);
-  tower(b, { x: skyX, z: -769, w: 16, d: 34, h: 34, facade: { ...ccSkin, seed: 403 }, accent: 0xff4fa8 });
-  b.add(neonSign('CIRCUS CIRCUS', '#fff4f8', '#ff2f8a', 13, 2.4), skyX + 8.3, 30.5, -769, HALF_PI);
-  b.building(skyX, -769, 16, 34, '#f7eef2', 'Skyrise');
+  tower(b, { x: skyX, z: -767, w: 16, d: 34, h: 36, facade: { ...ccSkin, seed: 403 }, accent: 0xff4fa8 });
+  towerValance(b, skyX, -767, 16, 34, 36);
+  b.add(neonSign('CIRCUS CIRCUS', '#fff4f8', '#ff2f8a', 13, 2.4), skyX + 8.3, 31.5, -767, HALF_PI);
+  b.building(skyX, -767, 16, 34, '#f7eef2', 'West Tower');
+  const skrZ = Z_CCDR - 9 - 17.5;
+  tower(b, { x: skyX, z: skrZ, w: 16, d: 34, h: 31, facade: { ...ccSkin, seed: 405 }, accent: 0xff4fa8 });
+  towerValance(b, skyX, skrZ, 16, 34, 31);
+  b.add(neonSign('CIRCUS CIRCUS', '#fff4f8', '#ff2f8a', 13, 2.4), skyX + 8.3, 26.5, skrZ, HALF_PI);
+  b.building(skyX, skrZ, 16, 34, '#f7eef2', 'Skyrise Tower');
+  b.zone('Circus Circus Skyrise Tower', skyX - 8, skyX + 8, skrZ - 17, skrZ + 17);
 
   // ---- The big top: a walk-in round casino under the striped tent (interior: circusInterior.ts) ----
-  const btx = -44;
+  const btx = -54; // set back behind the porte-cochère drive, as on the real Strip
   const btz = -767;
   const R = 18;
   const wallH = 10;
@@ -840,17 +894,9 @@ function buildCircusCircus(b: WorldBuilder): void {
     b.collider(ex - 0.6, ex + 1.0, btz + s * (doorW / 2 + 0.7) - 0.7, btz + s * (doorW / 2 + 0.7) + 0.7, 0, 7.6, true);
   }
   top.push(mesh(new THREE.BoxGeometry(1.3, 2.6, doorW + 2.8), pinkM, ex + 0.2, 6.1, btz));
-  // canopy (yellow marquee with a lit underside), two slim posts
-  const canW = doorW + 7;
-  top.push(mesh(new THREE.BoxGeometry(6.4, 0.55, canW), goldM, ex + 3.4, 5.05, btz, true));
-  for (const s of [-1, 1]) {
-    top.push(mesh(new THREE.CylinderGeometry(0.14, 0.16, 4.8, 8), mat(0xd4a640, 0.3, 0.8), ex + 6.2, 2.4, btz + s * (canW / 2 - 0.6)));
-    b.collider(ex + 6.05, ex + 6.35, btz + s * (canW / 2 - 0.6) - 0.15, btz + s * (canW / 2 - 0.6) + 0.15, 0, 4.8, true);
-  }
   mergeAdd(b, top);
-  b.add(mesh(new THREE.BoxGeometry(6.0, 0.05, canW - 0.4), basic(0xfff0c8), ex + 3.4, 4.76, btz));
-  b.add(neonSign('CIRCUS CIRCUS', '#fff2f6', '#e81f78', 11, 2.2, 'CASINO • MIDWAY • FREE CIRCUS ACTS', 0.25), ex + 6.75, 6.45, btz, HALF_PI);
-  b.add(neonSign('CIRCUS CIRCUS', '#fff2f6', '#e81f78', 9, 1.9), ex + 0.95, 6.2, btz, HALF_PI);
+  // the 1983 YESCO porte-cochère: an arched bulb canopy over the drive (northBlock.ts)
+  buildPorteCochere(b, ex + 1.0, -24.6, btz, 8.5);
   // glass doors swung open against the pylons, a warm air-curtain glow, a red runner to the sidewalk
   const doorGlass = new THREE.MeshStandardMaterial({ color: 0xbfdcea, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
   for (const s of [-1, 1]) for (const k of [0, 1]) b.add(mesh(new THREE.BoxGeometry(1.6, 3.6, 0.05), doorGlass, ex + 1.1 + k * 0.06, 1.85, btz + s * (doorW / 2 - 0.15 - k * 0.1)));
@@ -862,20 +908,42 @@ function buildCircusCircus(b: WorldBuilder): void {
     ctx.fillRect(0, 0, 4, 64);
   });
   b.add(part(new THREE.PlaneGeometry(doorW, 4.4), new THREE.MeshBasicMaterial({ map: curtainTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), ex + 0.05, 2.2, btz, HALF_PI));
-  b.add(mesh(new THREE.BoxGeometry(8, 0.03, 3.6), mat(0x7a0f1a, 0.95), ex + 4, 0.045, btz));
+  b.add(mesh(new THREE.BoxGeometry(2.4, 0.03, 3.6), mat(0x7a0f1a, 0.95), ex + 1.2, 0.045, btz));
   b.feature({ kind: 'building', x: btx, z: btz, w: R * 2, d: R * 2, color: '#ff5fa2', label: 'Big Top Casino + Midway' });
   buildBigTopInterior(b, { cx: btx, cz: btz, R, wallH, coneH, doorW });
   bigTopLight(b, btx, btz);
 
-  // ---- Lucky the Clown (YESCO, 1976): the classic sign, lit — see luckySign.ts ----
-  buildLuckySign(b, -25.6, -751.8);
-  b.pickup(-24.8, 1.25, -751.9, 3, "Lucky's Planter Stash", false);
-  b.zone('Lucky the Clown Sign', -31, -19.5, -759, northOfDr);
+  // ---- The drive: in from the main entrance, under the porte-cochère, out onto Circus Circus Dr ----
+  const laneE = -25.5;
+  const laneW = -34;
+  const lz0 = northOfDr + 2.3;
+  const lz1 = Z_CCDR + 7;
+  b.floor((laneE + laneW) / 2, (lz0 + lz1) / 2, laneE - laneW, lz0 - lz1, mat(0x2b2b30, 0.85), 0.016);
+  // landscaped island between the sidewalk and the drive (Lucky stands at its north end)
+  paved(b, -19, laneE, lz0, lz1, '#e2ccd2', '#c4aab2', 3);
+  const island: THREE.Object3D[] = [];
+  island.push(mesh(new THREE.BoxGeometry(0.3, 0.16, lz0 - lz1), mat(0xd4cec2, 0.75), laneE + 0.15, 0.08, (lz0 + lz1) / 2));
+  for (const z of [lz0 - 3, lz0 - 10]) island.push(place(palmTree(8.2, false, Math.round(-z)), -22.6, 0, z));
+  for (const z of [lz0 - 6.5, lz0 - 22]) island.push(place(planter(2.4, 3.2, 0xff5fa2), -22.4, 0, z));
+  mergeAdd(b, island);
+  for (const z of [lz0 - 6.5, lz0 - 22]) b.collider(-23.6, -21.2, z - 1.6, z + 1.6, 0, 0.62);
+  b.zone('Circus Circus main entrance (opposite Elvis Presley Blvd)', -60, -19, northOfDr, southOfDr);
+  casinoEntranceClown(b, ex + 0.9, 3.4, btz - 11.2, HALF_PI);
+  b.collider(ex + 0.75, ex + 1.05, btz - 11.35, btz - 11.05, 0, 2, true);
+  b.add(mesh(new THREE.BoxGeometry(0.3, 2.0, 0.3), mat(0x2a2c32, 0.4, 0.6)), ex + 0.9, 1.0, btz - 11.2);
 
-  b.zone('Circus Circus', -100, -19, -790, northOfDr);
+  // ---- Lucky the Clown (YESCO, 1976), perpendicular to the Boulevard like the real pylon: the main
+  // face looks south down the Strip, the second face north (luckySign.ts) ----
+  const lx = -22;
+  const lz = Z_CCDR + 16;
+  buildLuckySign(b, lx, lz, 0);
+  b.pickup(lx + 2.2, 1.25, lz, 3, "Lucky's Planter Stash", false);
+  b.zone('Lucky the Clown Sign', -31, -19, lz - 4, lz + 4);
+
+  b.zone('Circus Circus', -100, -19, Z_CCDR + 7, northOfDr);
   b.zone('Circus Circus', -84, -19, southOfDr, -697);
   b.crowd.performers.push({ kind: 'elvis', x: -16.2, z: -716, facing: HALF_PI }, { kind: 'elvis', x: -16.4, z: -756, facing: HALF_PI });
-  b.crowd.tourists.push({ pts: [[-21.5, -748], [-23, -788]], prop: 'camera' }, { pts: [[-26, -746.6], [-66, -746.6], [-66, -789]], prop: 'bag' });
+  b.crowd.tourists.push({ pts: [[-20.4, -748], [-20.4, lz + 4]], prop: 'camera' }, { pts: [[-26, -745.5], [-76, -745.5], [-76, -788]], prop: 'bag' });
 }
 
 // =============================================================== Adventuredome (+ Canyon Blaster coaster)
@@ -1830,7 +1898,7 @@ function buildMonorail(b: WorldBuilder): void {
 // =============================================================== Fontainebleau (tallest in Nevada)
 function buildFontainebleau(b: WorldBuilder): void {
   const zS = zFromS(2692);
-  const zN = -798;
+  const zN = -822;
   plaza(b, 19, 30, zS, zN, '#e4e2dc', '#c7c4bc');
   const white = mat(0xf2f1ee, 0.5, 0.2);
   b.box(38, 0, -765, 16, 12, 54, white, true);
@@ -1893,7 +1961,7 @@ function buildFontainebleau(b: WorldBuilder): void {
 // =============================================================== Backdrop past the north edge (no collisions)
 function buildNorthBackdrop(b: WorldBuilder): void {
   // The Boulevard keeps going toward the STRAT
-  const z0 = -804;
+  const z0 = STRIP.north - 4;
   const z1 = -1090;
   const len = z0 - z1;
   const road = mesh(new THREE.PlaneGeometry(23.2, len), new THREE.MeshStandardMaterial({ map: makeBoulevardTexture(len, 11.6, [4.8, 8.2, 11.6], 1.4), roughness: 0.82 }), 0, 0.03, (z0 + z1) / 2);
@@ -1976,8 +2044,18 @@ function buildNorthBackdrop(b: WorldBuilder): void {
     xscream.rotation.z = -0.25 + 0.3 * Math.sin(t * 0.7);
   });
 
-  // Bonanza "World's Largest Gift Shop" (west side)
-  const bz = -900;
+  // Hilton Grand Vacations on the Boulevard (39 floors) and the empty Festival Grounds up to Sahara Ave
+  tower(b, { x: -36, z: -874, w: 18, d: 15, h: 42, facade: { wall: '#ddd8ce', mullion: '#f2eee6', glass: '#3a4a5a', lit: '#ffe6b8', cols: 10, rows: 26, style: 1, seed: 521 }, collide: false, cast: false });
+  b.add(letters(b, 'HILTON GRAND VACATIONS', 14, 1.4, { style: 'sans', fill: '#ffffff' }), -26.9, 39.5, -874, HALF_PI);
+  b.add(mesh(new THREE.BoxGeometry(100, 0.02, 44), mat(0xa8926e, 0.98)), -70, 0.012, -906);
+  b.add(mesh(new THREE.BoxGeometry(0.06, 2.2, 44), mat(0x26352a, 0.95)), -19.6, 1.1, -906);
+  b.add(letters(b, 'LAS VEGAS FESTIVAL GROUNDS', 12, 3, { style: 'block', fill: '#ffffff', bg: '#1a1a2a', rule: '#ffd23a' }, 0.3), -24, 8.5, -926, 0);
+  for (const x of [-28, -20]) b.add(mesh(new THREE.BoxGeometry(0.4, 7, 0.4), mat(0x6a6e74, 0.4, 0.6)), x, 3.5, -926);
+  // Sahara Ave crossing the Boulevard
+  b.add(part(new THREE.PlaneGeometry(350, 16), mat(0x2d2d33, 0.9), 0, 0.028, -936, 0, -HALF_PI));
+
+  // Bonanza "World's Largest Gift Shop" (west side, north of Sahara Ave)
+  const bz = -958;
   b.add(mesh(new THREE.BoxGeometry(38, 8, 24), mat(0xe6dcc8, 0.7), -41, 4, bz));
   b.add(mesh(new THREE.BoxGeometry(1.2, 12, 1.2), mat(0x3a2a20, 0.5, 0.4), -21.5, 6, bz + 9));
   b.add(neonSign('BONANZA', '#3a1405', '#ffcf3a', 9, 2.8, "WORLD'S LARGEST GIFT SHOP"), -21.5, 13.5, bz + 9, HALF_PI);
@@ -1990,26 +2068,30 @@ function buildNorthBackdrop(b: WorldBuilder): void {
     b.add(mesh(new THREE.BoxGeometry(0.8, 9, 0.8), mat(0x2a2a30, 0.5, 0.4), x + faceX * 1.4, 4.5, z + 7));
     b.add(neonSign(name, '#fff6fa', fg, 10, 1.7, sub, 0.25), x + faceX * 1.4, 9.8, z + 7, HALF_PI);
   };
-  chapel(-26, -968, 0xfaf8f4, 'A LITTLE WHITE WEDDING CHAPEL', 'DRIVE-UP WEDDINGS • OPEN 24 HOURS', '#d81e5b', 1);
+  chapel(-26, -990, 0xfaf8f4, 'A LITTLE WHITE WEDDING CHAPEL', 'DRIVE-UP WEDDINGS • OPEN 24 HOURS', '#d81e5b', 1);
   chapel(26, -1000, 0xffd6ea, 'VIVA LAS VEGAS WEDDING CHAPEL', 'ELVIS WEDDINGS DAILY', '#7a2cff', -1);
 }
 
 // =============================================================== Sidewalk crowds through the district
 function addSidewalkCrowds(b: WorldBuilder): void {
-  const cc = Z_CCDR;
+  const cc = Z_CCENT;
+  const dr = Z_CCDR;
+  const end = STRIP.north + 4;
   const conv = Z_CONV;
   b.crowd.tourists.push(
     { pts: [[-16, -422], [-16, cc + 10]], prop: 'camera' },
     { pts: [[-14.5, cc + 12], [-14.5, -424]], prop: 'yard-drink' },
     { pts: [[-17.6, -478], [-17.6, -640]], prop: 'bag' },
     { pts: [[-15.2, -700], [-15.2, -560]], prop: 'cig' },
-    { pts: [[-16, cc - 10], [-16, -796]], prop: 'cig' },
-    { pts: [[-14.6, -794], [-14.6, cc - 11]], prop: 'camera' },
+    { pts: [[-16, cc - 10], [-16, dr + 10]], prop: 'cig' },
+    { pts: [[-14.6, dr + 11], [-14.6, cc - 11]], prop: 'camera' },
+    { pts: [[-16.4, dr - 10], [-16.4, end]], prop: 'bag' },
+    { pts: [[-14.8, end + 2], [-14.8, dr - 11]], prop: 'yard-drink' },
     { pts: [[16, -422], [16, conv + 10]], prop: 'yard-drink' },
     { pts: [[14.5, conv + 12], [14.5, -424]], prop: 'camera' },
     { pts: [[17.4, -500], [17.4, -580]], prop: 'cig' },
-    { pts: [[16, conv - 10], [16, -796]], prop: 'cig' },
-    { pts: [[14.5, -794], [14.5, conv - 12]], prop: 'bag' },
+    { pts: [[16, conv - 10], [16, end]], prop: 'cig' },
+    { pts: [[14.5, end + 2], [14.5, conv - 12]], prop: 'bag' },
     { pts: [[17.6, -650], [17.6, -760]], prop: 'yard-drink' }
   );
 }
