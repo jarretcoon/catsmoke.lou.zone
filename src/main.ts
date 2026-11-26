@@ -1920,7 +1920,7 @@ function step(now: number, render = true): void {
     }
   }
   if (crowd.anyChasing() || wanted.stars > 0) stateEl.textContent = wanted.stars > 0 ? `WANTED ${'★'.repeat(wanted.stars)}` : 'ON THE RUN!';
-  catLook?.update(dt, { night: world.getNight(), idle: pose === 'idle' || pose === 'sit' || pose === 'seat', camera: camera.position, tourists: crowd.tourists });
+  catLook?.update(dt, { night: world.getNight(), idle: pose === 'idle' || pose === 'sit' || pose === 'seat', camera: camera.position, tourists: crowd.tourists, focus: riding?.view?.()?.focus });
 
   // Ember + smoke
   const useVape = S.deviceMode === 'vape';

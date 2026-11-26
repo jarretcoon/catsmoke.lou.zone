@@ -33,6 +33,8 @@ export interface CatLookFrame {
   /** Things worth a glance when idle: the camera first, else the nearest tourist. */
   camera?: THREE.Vector3;
   tourists?: ReadonlyArray<{ mesh: THREE.Object3D }>;
+  /** Something that holds his attention (the Sphere's screen from a seat): most glances go there. */
+  focus?: THREE.Vector3;
 }
 
 // ------------------------------------------------------------------ small helpers
@@ -351,6 +353,7 @@ export class CatLook {
   private glanceTarget: THREE.Vector3 | null = null;
   private readonly modelInv = new THREE.Quaternion();
   private readonly tmpTarget = new THREE.Vector3();
+  private readonly glanceAt = new THREE.Vector3();
 
   constructor(model: THREE.Object3D) {
     this.model = model;
@@ -737,6 +740,7 @@ export class CatLook {
   }
 
   private pickGlance(f: CatLookFrame): THREE.Vector3 | null {
+    if (f.focus && Math.random() < 0.8) return f.focus;
     const here = this.model.getWorldPosition(tmpV);
     const fwd = tmpV2.set(0, 0, 1).applyQuaternion(this.model.getWorldQuaternion(tmpQ)).setY(0).normalize();
     if (f.camera) {
@@ -757,7 +761,7 @@ export class CatLook {
         best = tp;
       }
     }
-    if (best) return this.tmpTarget.set(best.x, best.y + 1.55, best.z).clone();
+    if (best) return this.glanceAt.set(best.x, best.y + 1.55, best.z);
     return null;
   }
 }

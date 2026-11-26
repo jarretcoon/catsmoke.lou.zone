@@ -44,6 +44,8 @@ export interface RideView {
   free?: boolean;
   /** Vertical field of view for this shot, in degrees (eased in, and back out after). */
   fov?: number;
+  /** What the rider is watching: Lou's glances go there (the show, from a Sphere seat). */
+  focus?: THREE.Vector3;
 }
 
 let baseFov = 0;

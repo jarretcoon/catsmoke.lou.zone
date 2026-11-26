@@ -264,7 +264,7 @@ export class CatMotion {
     const airborne = free && !grounded && (this.airT > 0.12 || vel.y > 2);
     if (free && grounded && this.wasAir) {
       const impact = Math.max(0, -this.lastVy);
-      this.squashVel -= Math.min(impact, 14) * 0.1;
+      this.squashVel -= Math.min(impact, 14) * 0.14;
       const drop = this.peakY - y;
       const onTop = y - this.takeoffY > 0.3;
       if (this.lock <= 0 && this.speed < 2.8 && (drop > 1.1 || onTop) && this.actions.Pounce) {
@@ -303,7 +303,7 @@ export class CatMotion {
       if (t >= this.flopAt) base = 'flop';
       else if (t >= this.sitAt) base = 'sit';
       else if (this.snackKind !== 'none' && t >= this.snackAt && t < this.snackAt + (this.snackKind === 'snack' ? 1.7 : 0.8)) base = this.snackKind;
-    } else if (base === 'walk' || base === 'run' || base === 'air') {
+    } else if (base !== 'idle' && base !== 'land') {
       this.idleTime = 0;
     }
     // a rest pose survives a one-shot (a puff while sitting stays sitting)

@@ -1360,6 +1360,8 @@ function buildBowl(b: WorldBuilder): { group: THREE.Group; update: (dt: number, 
     const camX = wx + Math.sin(camYaw) * camH;
     const camY = s.y + 0.5 + camUp;
     const lookY = camY - (CX + 20 - camX) * Math.tan(THREE.MathUtils.degToRad(12));
+    // Lou watches the show: the middle of the screen, a little above his eye line
+    const focus = new THREE.Vector3(CX + 22, s.y + 0.5 + 0.75 + 5, CZ + s.z * 0.4);
     const r: Rideable = {
       id: `sphere-seat-${si}`,
       kind: 'seat',
@@ -1379,7 +1381,7 @@ function buildBowl(b: WorldBuilder): { group: THREE.Group; update: (dt: number, 
         look.set(CX + 20, lookY, CZ + s.z * 0.35);
         look.x += Math.sin(tt * 37) * rum;
         look.y += Math.sin(tt * 43 + 1.3) * rum + Math.sin(tt * 11) * rum * 0.5;
-        return { yaw: camYaw, pitch: camPitch, dist: camDist, look, free: true, fov: 74 };
+        return { yaw: camYaw, pitch: camPitch, dist: camDist, look, free: true, fov: 74, focus };
       },
     };
     b.rideables.push(r);
