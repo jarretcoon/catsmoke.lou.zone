@@ -13,9 +13,10 @@ import { viewer, type WorldBuilder } from './builder';
  * the buffet block, the little restaurant panels, FULL SERVICE RV PARK); yellow/orange flame scallops
  * and Lucky's giant red-and-yellow shoes at the base, all up on steel pylons.
  *
- * Built as layered 2.5D cabinets: every piece is an extruded silhouette whose front face samples one
- * painted canvas (the art) and one glow canvas (the night emissive), so the whole sign is two draw
- * calls, plus one instanced mesh for ~300 chasing bulbs and a pulsing neon overlay on the lollipop.
+ * Built as layered 2.5D cabinets: every piece is an extruded silhouette whose two faces (south and
+ * north, like the real double-faced pylon) sample one two-face painted atlas (the art) and one glow
+ * atlas (the night emissive), so the whole sign is two draw calls, plus one instanced mesh for ~600
+ * chasing bulbs and a pulsing neon overlay on both sides of the lollipop.
  * Art coordinates are in "photo px" (372 × 537, y down); s converts to metres.
  */
 

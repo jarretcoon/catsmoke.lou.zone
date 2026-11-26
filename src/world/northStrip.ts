@@ -1968,7 +1968,8 @@ function buildNorthBackdrop(b: WorldBuilder): void {
   road.rotation.x = -HALF_PI;
   b.add(road);
   for (const s of [-1, 1]) b.add(part(new THREE.PlaneGeometry(7.4, len), mat(0x9a9085, 0.85), s * 15.3, 0.02, (z0 + z1) / 2, 0, -HALF_PI));
-  b.add(mesh(new THREE.BoxGeometry(2.8, 0.22, len), mat(0xb8ad9c, 0.85), 0, 0.11, (z0 + z1) / 2));
+  // median, broken for Sahara Ave (z −928 … −944)
+  for (const [ma, mb] of [[z0, -927], [-945, z1]]) b.add(mesh(new THREE.BoxGeometry(2.8, 0.22, ma - mb), mat(0xb8ad9c, 0.85), 0, 0.11, (ma + mb) / 2));
 
   // SAHARA (east side)
   const sz0 = zFromS(3390);
@@ -2052,7 +2053,7 @@ function buildNorthBackdrop(b: WorldBuilder): void {
   b.add(letters(b, 'LAS VEGAS FESTIVAL GROUNDS', 12, 3, { style: 'block', fill: '#ffffff', bg: '#1a1a2a', rule: '#ffd23a' }, 0.3), -24, 8.5, -926, 0);
   for (const x of [-28, -20]) b.add(mesh(new THREE.BoxGeometry(0.4, 7, 0.4), mat(0x6a6e74, 0.4, 0.6)), x, 3.5, -926);
   // Sahara Ave crossing the Boulevard
-  b.add(part(new THREE.PlaneGeometry(350, 16), mat(0x2d2d33, 0.9), 0, 0.028, -936, 0, -HALF_PI));
+  b.add(part(new THREE.PlaneGeometry(350, 16), mat(0x2d2d33, 0.9), 0, 0.045, -936, 0, -HALF_PI)); // over the Blvd plane (no z-fight)
 
   // Bonanza "World's Largest Gift Shop" (west side, north of Sahara Ave)
   const bz = -958;
