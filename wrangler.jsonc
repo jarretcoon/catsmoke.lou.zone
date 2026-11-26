@@ -12,12 +12,11 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // The stats need Workers Analytics Engine, which has to be switched on once for the account (Cloudflare
-  // dashboard > Storage & Databases > Analytics Engine); deploys fail with "You need to enable Analytics
-  // Engine" until it is. Until then there's no binding and worker/index.ts accepts reports and drops them.
-  // Once it's on, add the binding here and in "previews" (previews get their own dataset):
-  //   "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats" }],
-  //   "previews": { "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats_preview" }] }
-  // Required by `wrangler preview` (the PR preview builds). Empty = previews use the top-level settings.
-  "previews": {}
+  // Anonymous game stats (Workers Analytics Engine, switched on for the account 11/26). The live site writes
+  // to catsmoke_stats; PR previews write to their own dataset so they never touch the real numbers.
+  "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats" }],
+  // `wrangler preview` (the PR preview builds) needs this block; Preview bindings come from here.
+  "previews": {
+    "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats_preview" }]
+  }
 }
