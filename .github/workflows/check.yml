@@ -19,7 +19,7 @@ jobs:
     # postcard snapshots (scripts/check.mjs). Read-only: it never writes to the repo.
     name: Game check
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 75 # ~55 postcards at 30-40 s each on software WebGL; Actions minutes are free on public repos
     steps:
       - uses: actions/checkout@v7
 
