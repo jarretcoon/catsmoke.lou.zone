@@ -1,6 +1,6 @@
 // Game check (runs on every pull request, and locally with `bun run check`).
 //
-// 1. Checks the live build in dist/: no JavaScript chunk over the size budget.
+// 1. Checks the live build in dist/: no file over Cloudflare's 25 MiB static-asset limit (sizes are only reported).
 // 2. Serves the check build in dist-check/ (`bun run build:check`, the live build plus the dev hooks),
 //    opens it in headless Chromium with software WebGL (GitHub's machines have no GPU), and checks it
 //    reaches "Ready" with no console errors.
@@ -46,7 +46,10 @@ const liveFiles = listFiles(LIVE).map((f) => ({ name: path.relative(LIVE, f).rep
 // The Draco decoder is three.js's own prebuilt file (a worker loads it), not a chunk we build.
 const chunks = liveFiles.filter((f) => f.name.endsWith('.js') && !/draco_/.test(f.name)).sort((a, b) => b.kb - a.kb);
 const totalKB = liveFiles.reduce((s, f) => s + f.kb, 0);
-for (const c of chunks) if (c.kb > cfg.maxChunkKB) failures.push(`${c.name} is ${fmt(c.kb)} KB, over the ${cfg.maxChunkKB} KB chunk budget`);
+// No size budget on our own chunks or assets (Jarret, 11/26: "i want detail no limits on size"); sizes are
+// only reported. The one hard limit is the platform's: Cloudflare Workers static assets take files up to 25 MiB.
+const CF_MAX_FILE_KB = (25 * 1024 * 1024) / 1000;
+for (const f of liveFiles) if (f.kb > CF_MAX_FILE_KB) failures.push(`${f.name} is ${fmt(f.kb / 1000, 1)} MB, over Cloudflare's 25 MiB per-file limit for static assets (split it, or serve it from R2)`);
 
 // ---------------------------------------------------------------- 2. serve the check build
 const TYPES = {
