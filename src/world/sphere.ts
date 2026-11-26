@@ -1219,13 +1219,14 @@ function buildBowl(b: WorldBuilder): { group: THREE.Group; update: (dt: number, 
       seats.push({ x, y: rowY(k), z, yaw: Math.atan2(z, 30 - x), k });
     }
   }
+  // The first is the one the PR check's "sphere-seat" postcard sits in (row 11: the most screen in the frame).
   const rideTargets: Array<[number, number]> = [
+    [10, -2.0],
+    [10, 2.0],
     [6, -3.1],
     [6, 3.1],
     [8, -5.2],
     [8, 5.2],
-    [10, -2.0],
-    [10, 2.0],
     [12, -4.2],
     [12, 4.2],
   ];
@@ -1244,10 +1245,10 @@ function buildBowl(b: WorldBuilder): { group: THREE.Group; update: (dt: number, 
     });
     if (best < 0) continue;
     reserved.add(best);
-    // Keep the seats right behind free so the over-the-shoulder camera has somewhere to be
+    // Keep the seats right behind free so the seat camera (a row up, a seat over) has a clear view
     const bz = seats[best].z;
     seats.forEach((s, i) => {
-      if (s.k === k + 1 && Math.abs(s.z - bz) < 1.0) empty.add(i);
+      if (s.k === k + 1 && Math.abs(s.z - bz) < 1.5) empty.add(i);
     });
   }
 
@@ -1343,6 +1344,24 @@ function buildBowl(b: WorldBuilder): { group: THREE.Group; update: (dt: number, 
     const wz = CZ + s.z;
     const fwdX = Math.cos(s.yaw);
     const fwdZ = -Math.sin(s.yaw);
+    // Seat camera: a row up and a seat over (toward the outer wall), like the show over a neighbour's shoulder.
+    // The giant screen fills the frame with its horizon up top, the crowd's heads along the bottom and Lou small
+    // in the corner. The steep rake means anything behind Lou is well above him, so the lens widens and aims
+    // 12 degrees down at the screen to keep him in shot. Orbit numbers are about the camera's pivot, 0.75 m above
+    // Lou's feet; the camera skips its wall test here (the seats round him are not walls).
+    const camBack = 1.5;
+    const camSide = 1.0;
+    const camUp = 1.9;
+    const louYaw = Math.atan2(fwdX, fwdZ);
+    const camH = Math.hypot(camBack, camSide);
+    const camYaw = louYaw + Math.PI + (Math.sign(s.z) || 1) * Math.atan2(camSide, camBack);
+    const camPitch = Math.atan2(camUp - 0.75, camH);
+    const camDist = Math.hypot(camH, camUp - 0.75);
+    const camX = wx + Math.sin(camYaw) * camH;
+    const camY = s.y + 0.5 + camUp;
+    const lookY = camY - (CX + 20 - camX) * Math.tan(THREE.MathUtils.degToRad(12));
+    // Lou watches the show: the middle of the screen, a little above his eye line
+    const focus = new THREE.Vector3(CX + 22, s.y + 0.5 + 0.75 + 5, CZ + s.z * 0.4);
     const r: Rideable = {
       id: `sphere-seat-${si}`,
       kind: 'seat',
@@ -1359,10 +1378,10 @@ function buildBowl(b: WorldBuilder): { group: THREE.Group; update: (dt: number, 
       view: () => {
         const tt = performance.now() / 1000;
         const rum = st.rumble * 0.06 + st.bolt * 0.03;
-        look.set(CX + 22, 15.5, CZ + s.z * 0.4);
+        look.set(CX + 20, lookY, CZ + s.z * 0.35);
         look.x += Math.sin(tt * 37) * rum;
         look.y += Math.sin(tt * 43 + 1.3) * rum + Math.sin(tt * 11) * rum * 0.5;
-        return { yaw: -Math.PI / 2 + s.yaw * 0.6, pitch: 0.5, dist: 1.45, look };
+        return { yaw: camYaw, pitch: camPitch, dist: camDist, look, free: true, fov: 74, focus };
       },
     };
     b.rideables.push(r);
