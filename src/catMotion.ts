@@ -133,6 +133,7 @@ export class CatMotion {
   private snackAt = 0;
   private snackKind: 'snack' | 'pounce' | 'none' = 'none';
   private sitAt = 0;
+  private groomAt = 0;
   private flopAt = 0;
   // procedural body pose
   private pitch = 0;
@@ -198,6 +199,12 @@ export class CatMotion {
       up.act.timeScale = act.timeScale;
       up.act.play();
     }
+  }
+
+  /** Sitting and washing (catLook bends the head down to the chest): a few seconds now and then while he sits. */
+  get grooming(): boolean {
+    const s = this.idleTime - this.groomAt;
+    return this.pose === 'sit' && this.lock <= 0 && s >= 0 && s % 10 < 3.6;
   }
 
   /** True while a one-shot holds the body. */
@@ -470,6 +477,7 @@ export class CatMotion {
     this.snackAt = 3.2 + Math.random() * 2;
     this.snackKind = r < 0.5 ? 'snack' : r < 0.75 ? 'pounce' : 'none';
     this.sitAt = 7.5 + Math.random() * 2.5;
+    this.groomAt = this.sitAt + 2.5 + Math.random() * 3;
     this.flopAt = this.sitAt + 15 + Math.random() * 8;
   }
 }
