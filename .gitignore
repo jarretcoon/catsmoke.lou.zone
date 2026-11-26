@@ -7,3 +7,7 @@ dist/
 .env
 .env.*
 .dev.vars
+
+# Blender build outputs (rebuild with blender/build_tabby_cat.py)
+blender/*.blend
+blender/preview.png
