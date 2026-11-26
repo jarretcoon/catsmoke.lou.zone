@@ -332,7 +332,8 @@ export function crystalsFront(b: WorldBuilder): void {
     },
     true
   );
-  const glass = new THREE.MeshStandardMaterial({ map: glassTex, roughness: 0.15, metalness: 0.55, emissive: 0xcfe2ff, emissiveMap: glassTex, emissiveIntensity: 0 });
+  // after dark the real shards' glazing glows teal from the atrium lighting
+  const glass = new THREE.MeshStandardMaterial({ map: glassTex, roughness: 0.15, metalness: 0.55, emissive: 0x5fd6dc, emissiveMap: glassTex, emissiveIntensity: 0 });
   b.nightGlow(glass, 0, 0.45);
   const seam = mat(0x59626c, 0.6);
 
