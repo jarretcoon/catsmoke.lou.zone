@@ -24,6 +24,7 @@ import type { Rideable } from './rides';
 import { SmokeSystem, VapeTrick } from './smoke';
 import { CosmeticId, defaultState, GameState, localSaveBackend } from './state';
 import { buildVegasStripWorld, PlatformBox, TimePreset } from './vegasWorld';
+import { INDOOR_ZONE } from './world/builder';
 import { STRIP } from './world/strip';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -1923,7 +1924,7 @@ function step(now: number, render = true): void {
   wanted.update(dt, elapsed, catHolder.position, {
     riding: !!riding && riding.kind === 'deuce',
     inCar: driving.active,
-    indoors: /Casino|Lounge|Chandelier|ABC Stores|Conservatory|Forum Shops/.test(zoneNow),
+    indoors: INDOOR_ZONE.test(zoneNow),
   });
 
   // Animation state

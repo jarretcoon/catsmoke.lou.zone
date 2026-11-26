@@ -4,7 +4,7 @@ import type { MapFeature, MapMarker } from './minimap';
 import type { CrowdConfig } from './npcs';
 import type { Rideable } from './rides';
 import { buildBackdrop } from './world/backdrop';
-import { CigPickup, GamblingSpot, PlatformBox, ShopSpot, viewer, WorldBuilder } from './world/builder';
+import { CigPickup, GamblingSpot, INDOOR_ZONE, PlatformBox, ShopSpot, viewer, WorldBuilder } from './world/builder';
 import { buildEastSide } from './world/eastSide';
 import type { RestaurantDef } from './world/food';
 import { buildFoodAndShops } from './world/foodAndShops';
@@ -153,6 +153,8 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   const sunDir = new THREE.Vector3();
   const tmpC = new THREE.Color();
   const atmosphere: AtmosphereState = { day: 1, sunset: 0, night: 0, sunDir, top: cTop, horizon: cHorizon };
+  /** 0 outdoors → 1 inside a casino/shop, eased so walking through a door adapts like eyes do. */
+  let indoor = 0;
 
   const applyAtmosphere = (focus: THREE.Vector3, t: number) => {
     let day = 0;
@@ -195,7 +197,16 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     sun.position.copy(focus).addScaledVector(sunDir, 120);
     sun.target.position.copy(focus);
 
-    for (const nm of b.nightMaterials) nm.mat.emissiveIntensity = THREE.MathUtils.lerp(nm.day, nm.night, night);
+    // Indoors the eyes adjust: no sun through the roof, less sky in the reflections, warm house light,
+    // and a casino's own lights read the same at noon as at midnight (there are no clocks or windows).
+    if (indoor > 0.001) {
+      sun.intensity *= 1 - 0.8 * indoor;
+      scene.environmentIntensity *= 1 - 0.4 * indoor;
+      hemi.color.lerp(tmpC.setHex(0xffd6a6), 0.55 * indoor);
+      hemi.groundColor.lerp(tmpC.setHex(0x5a3424), 0.5 * indoor);
+    }
+    const glow = Math.max(night, 0.85 * indoor);
+    for (const nm of b.nightMaterials) nm.mat.emissiveIntensity = THREE.MathUtils.lerp(nm.day, nm.night, glow);
     for (const l of b.lights) l.light.intensity = THREE.MathUtils.lerp(l.day, l.night, night);
   };
 
@@ -213,6 +224,8 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
 
   const update = (dt: number, elapsed: number, focus: THREE.Vector3, camera: THREE.Camera) => {
     if (timePreset === 'auto') phase = (phase + dt * 0.006) % 1; // ~2.8 min per full day
+    viewer.zone = b.zoneAt(focus.x, focus.z);
+    indoor = THREE.MathUtils.lerp(indoor, INDOOR_ZONE.test(viewer.zone) ? 1 : 0, Math.min(1, dt * 2.5));
     applyAtmosphere(focus, elapsed);
     sky.follow(camera);
     cullTimer -= dt;
@@ -226,7 +239,6 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     }
     viewer.cam.copy(camera.position);
     viewer.cat.copy(focus);
-    viewer.zone = b.zoneAt(focus.x, focus.z);
     for (const fn of b.updaters) fn(dt, elapsed, night);
     for (const p of b.cigPickups) {
       if (p.stolenCooldown > 0) {
