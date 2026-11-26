@@ -12,11 +12,12 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-  // Cloudflare Workers Analytics Engine: the dataset is created on the first write. See worker/index.ts for the fields.
-  "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats" }],
-  // Required by `wrangler preview` (the PR preview builds). Previews don't inherit bindings: their stats go to a
-  // separate dataset so PR previews never write into the real numbers. Assets and compat settings stay top-level.
-  "previews": {
-    "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats_preview" }]
-  }
+  // The stats need Workers Analytics Engine, which has to be switched on once for the account (Cloudflare
+  // dashboard > Storage & Databases > Analytics Engine); deploys fail with "You need to enable Analytics
+  // Engine" until it is. Until then there's no binding and worker/index.ts accepts reports and drops them.
+  // Once it's on, add the binding here and in "previews" (previews get their own dataset):
+  //   "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats" }],
+  //   "previews": { "analytics_engine_datasets": [{ "binding": "STATS", "dataset": "catsmoke_stats_preview" }] }
+  // Required by `wrangler preview` (the PR preview builds). Empty = previews use no bindings of their own.
+  "previews": {}
 }
