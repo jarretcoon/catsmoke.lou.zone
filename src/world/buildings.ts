@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import type { WorldBuilder } from './builder';
-import { FacadeSpec, makeFacadeTextures } from './textures';
-import { basic, mat, mesh } from './props';
+import { FacadeSpec, makeFacadeTextures, rng } from './textures';
+import { mat, mesh } from './props';
 
-const facadeCache = new Map<string, { map: THREE.CanvasTexture; emissiveMap: THREE.CanvasTexture }>();
+type FacadeTex = ReturnType<typeof makeFacadeTextures>;
+const facadeCache = new Map<string, FacadeTex>();
 
-function facadeTextures(spec: FacadeSpec) {
+function facadeTextures(spec: FacadeSpec): FacadeTex {
   const key = JSON.stringify(spec);
   let t = facadeCache.get(key);
   if (!t) {
@@ -15,28 +16,104 @@ function facadeTextures(spec: FacadeSpec) {
   return t;
 }
 
+/** Glass reads glossy and a bit metallic; `metal`/`rough` scale the per-texel roughness/metalness map. */
+function facadeParams(spec: FacadeSpec, opts: { metal?: number; rough?: number }): THREE.MeshStandardMaterialParameters {
+  const metal = opts.metal ?? 0.1;
+  const rough = opts.rough ?? 0.6;
+  const lit = new THREE.Color(spec.lit);
+  return {
+    emissive: new THREE.Color(0xffffff).lerp(lit, 0.35),
+    emissiveIntensity: 0.05,
+    roughness: THREE.MathUtils.clamp(rough / 0.6, 0.35, 1.2),
+    metalness: THREE.MathUtils.clamp(0.35 + metal * 0.75, 0, 1),
+  };
+}
+
 /** Tower skin material whose windows glow at night. Texture repeats follow real floor sizes. */
 export function facadeMaterial(b: WorldBuilder, spec: FacadeSpec, w: number, h: number, opts: { metal?: number; rough?: number; glow?: number } = {}): THREE.MeshStandardMaterial {
   const t = facadeTextures(spec);
   const map = t.map.clone();
   const em = t.emissiveMap.clone();
+  const rmap = t.roughnessMap.clone();
   // ~3.2 m per floor and ~3.6 m per window bay
   const rx = Math.max(1, (w / 3.6) / spec.cols);
   const ry = Math.max(1, (h / 3.2) / spec.rows);
-  map.repeat.set(rx, ry);
-  em.repeat.set(rx, ry);
-  map.needsUpdate = true;
-  em.needsUpdate = true;
-  const m = new THREE.MeshStandardMaterial({
-    map,
-    emissiveMap: em,
-    emissive: new THREE.Color(spec.lit),
-    emissiveIntensity: 0.05,
-    roughness: opts.rough ?? 0.6,
-    metalness: opts.metal ?? 0.1,
-  });
+  for (const tx of [map, em, rmap]) {
+    tx.repeat.set(rx, ry);
+    tx.needsUpdate = true;
+  }
+  const m = new THREE.MeshStandardMaterial({ map, emissiveMap: em, roughnessMap: rmap, metalnessMap: rmap, ...facadeParams(spec, opts) });
   b.nightGlow(m, 0.04, opts.glow ?? 1.25);
   return m;
+}
+
+/**
+ * Shared skin for tower walls whose UVs are already in facade-tile units (see towerWalls), so every
+ * tower with the same skin uses ONE material and the static batcher can merge them.
+ */
+const sharedFacades = new WeakMap<WorldBuilder, Map<string, THREE.MeshStandardMaterial>>();
+function sharedFacade(b: WorldBuilder, spec: FacadeSpec, opts: { metal?: number; rough?: number }): THREE.MeshStandardMaterial {
+  let cache = sharedFacades.get(b);
+  if (!cache) {
+    cache = new Map();
+    sharedFacades.set(b, cache);
+  }
+  const key = `${JSON.stringify(spec)}|${opts.metal ?? ''}|${opts.rough ?? ''}`;
+  let m = cache.get(key);
+  if (!m) {
+    const t = facadeTextures(spec);
+    m = new THREE.MeshStandardMaterial({ map: t.map, emissiveMap: t.emissiveMap, roughnessMap: t.roughnessMap, metalnessMap: t.roughnessMap, ...facadeParams(spec, opts) });
+    b.nightGlow(m, 0.04, 1.25);
+    cache.set(key, m);
+  }
+  return m;
+}
+
+/**
+ * Four tower walls (no top/bottom) with UVs in facade tiles: u runs along each face from its left edge,
+ * v climbs from the tower base, so floors line up across a setback.
+ */
+function towerWalls(w: number, h: number, d: number, y0: number, vFrom: number, cols: number, rows: number, uJitter: number): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  const su = 1 / (3.6 * cols);
+  const sv = 1 / (3.2 * rows);
+  const faces: Array<[number, number, number]> = [
+    [0, 1, w],
+    [1, 0, d],
+    [0, -1, w],
+    [-1, 0, d],
+  ];
+  faces.forEach(([nx, nz, len], fi) => {
+    const half = nx !== 0 ? w / 2 : d / 2;
+    const rx = nz;
+    const rz = -nx;
+    const sx = nx * half - rx * (len / 2);
+    const sz = nz * half - rz * (len / 2);
+    const base = pos.length / 3;
+    // Whole-bay shifts so each face shows different rooms lit while windows stay on the bay grid
+    const u0 = Math.floor(uJitter * cols * (fi + 1)) / cols;
+    const corners: Array<[number, number, number, number]> = [
+      [sx, y0, sz, 0],
+      [sx + rx * len, y0, sz + rz * len, 1],
+      [sx + rx * len, y0 + h, sz + rz * len, 1],
+      [sx, y0 + h, sz, 0],
+    ];
+    corners.forEach(([x, y, z, along], k) => {
+      pos.push(x, y, z);
+      nor.push(nx, 0, nz);
+      uv.push(u0 + along * len * su, (vFrom + (k < 2 ? 0 : h)) * sv);
+    });
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
 }
 
 export interface TowerOpts {
@@ -72,28 +149,41 @@ function glowMaterial(b: WorldBuilder, color: number, base: number, day: number,
   return m;
 }
 
-function addBody(g: THREE.Group, b: WorldBuilder, o: TowerOpts, w: number, d: number, h: number, y: number, roofMat: THREE.Material): void {
-  const side = facadeMaterial(b, o.facade, w, h, { metal: o.metal, rough: o.rough });
-  const end = facadeMaterial(b, o.facade, d, h, { metal: o.metal, rough: o.rough });
-  // BoxGeometry material order: +x, -x, +y, -y, +z, -z
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [end, end, roofMat, roofMat, side, side]);
-  body.position.y = y + h / 2;
-  body.castShadow = o.cast ?? true;
-  body.receiveShadow = true;
-  g.add(body);
+/** One blinking red aviation-obstruction light material shared by every rooftop on the Strip. */
+const beacons = new WeakMap<WorldBuilder, THREE.MeshBasicMaterial>();
+export function beaconMaterial(b: WorldBuilder): THREE.MeshBasicMaterial {
+  let m = beacons.get(b);
+  if (!m) {
+    const bm = new THREE.MeshBasicMaterial({ color: 0xff2a1a });
+    b.every((_dt, t, night) => {
+      const on = t % 1.5 < 0.35;
+      const k = on ? 1 + night * 2.2 : 0.18 + night * 0.1;
+      bm.color.setRGB(k, k * 0.07, k * 0.04);
+    });
+    beacons.set(b, bm);
+    m = bm;
+  }
+  return m;
 }
 
 /**
- * A hotel tower: storefront podium, optional setback, corner fins, a crown LED band that
- * glows after dark, and rooftop mechanicals — so nothing reads as a plain box.
+ * A hotel tower: storefront podium, optional setback, floor ledges and cornices, corner fins, a crown
+ * LED band that glows after dark, a parapet, and a rooftop of penthouse, HVAC, water tank, antennas
+ * and blinking aviation lights — so nothing reads as a plain box.
  */
 export function tower(b: WorldBuilder, o: TowerOpts): THREE.Group {
   const g = new THREE.Group();
   const y = o.y ?? 0;
+  const style = o.facade.style ?? 0;
+  const R = rng((o.facade.seed ?? 7) * 97 + Math.round(o.x * 13 + o.z * 7 + o.h));
   const roofMat = mat(o.roof ?? 0x3a3a40, 0.7);
   const accent = o.accent ?? new THREE.Color(o.facade.lit).getHex();
   const wallColor = new THREE.Color(o.facade.wall);
   const finColor = new THREE.Color(o.facade.mullion).getHex();
+  const trim = mat(wallColor.clone().lerp(new THREE.Color(0xffffff), 0.28).getHex(), 0.65, 0.05);
+  const modern = style === 2 || (o.metal ?? 0) >= 0.5;
+  const skin = sharedFacade(b, o.facade, { metal: o.metal, rough: o.rough });
+  const cast = o.cast ?? true;
 
   // Podium: darker plinth + glowing storefront band + canopy ledge
   if (!o.minimal && y === 0) {
@@ -106,33 +196,109 @@ export function tower(b: WorldBuilder, o: TowerOpts): THREE.Group {
   // Body, with a setback crown on the tall ones
   const setback = !o.noSetback && !o.minimal && o.h > 30;
   const h1 = setback ? o.h * 0.8 : o.h;
-  addBody(g, b, o, o.w, o.d, h1, y, roofMat);
+  const uJ = R();
+  g.add(mesh(towerWalls(o.w, h1, o.d, y, 0, o.facade.cols, o.facade.rows, uJ), skin, 0, 0, 0, cast));
   const tw = setback ? o.w * 0.82 : o.w;
   const td = setback ? o.d * 0.82 : o.d;
   if (setback) {
-    g.add(mesh(new THREE.BoxGeometry(o.w + 0.3, 0.5, o.d + 0.3), roofMat, 0, y + h1 + 0.25, 0));
-    addBody(g, b, o, tw, td, o.h - h1, y + h1, roofMat);
+    // Cornice at the setback + the upper block
+    g.add(mesh(new THREE.BoxGeometry(o.w + 0.9, 0.55, o.d + 0.9), trim, 0, y + h1 + 0.1, 0));
+    g.add(mesh(new THREE.BoxGeometry(o.w - 0.2, 0.3, o.d - 0.2), roofMat, 0, y + h1 - 0.1, 0));
+    g.add(mesh(towerWalls(tw, o.h - h1, td, y + h1, h1, o.facade.cols, o.facade.rows, uJ), skin, 0, 0, 0, cast));
+  }
+  // Roof slab
+  g.add(mesh(new THREE.BoxGeometry(tw - 0.05, 0.3, td - 0.05), roofMat, 0, y + o.h - 0.15, 0));
+
+  // Floor ledges every few floors (masonry towers) / slab edges (ribbon towers)
+  if (!o.minimal && style !== 2) {
+    const every = style === 1 ? 4 : 6 + Math.floor(R() * 5);
+    const step = every * 3.2;
+    let n = 0;
+    for (let ly = step; ly < h1 - 4 && n < 8; ly += step, n++) {
+      g.add(mesh(new THREE.BoxGeometry(o.w + 0.36, 0.22, o.d + 0.36), trim, 0, y + ly, 0));
+    }
   }
 
-  // Corner fins run the full height of the lower body
+  // Corner fins run the full height of the lower body; modern towers get LED fins mid-face too
   if (!o.minimal) {
     const fin = mat(finColor, 0.4, 0.5);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.4, h1, 0.4), fin, (sx * o.w) / 2, y + h1 / 2, (sz * o.d) / 2));
+    if (modern) {
+      const led = glowMaterial(b, accent, 0x1a1c22, 0.04, 1.9);
+      const nW = o.w > 20 ? 2 : 1;
+      for (const sz of [-1, 1]) {
+        for (let k = 1; k <= nW; k++) {
+          const fx = -o.w / 2 + (o.w * k) / (nW + 1);
+          g.add(mesh(new THREE.BoxGeometry(0.22, h1 * 0.92, 0.3), led, fx, y + h1 * 0.5, sz * (o.d / 2 + 0.12)));
+        }
+      }
+    }
   }
 
-  // Crown: LED band + cap
+  // Crown: LED band + projecting cornice cap + parapet
   const top = y + o.h;
   g.add(mesh(new THREE.BoxGeometry(tw + 0.35, 1.3, td + 0.35), glowMaterial(b, accent, wallColor.getHex(), 0.06, 2.4), 0, top - 0.65, 0));
-  g.add(mesh(new THREE.BoxGeometry(tw + 0.5, 0.8, td + 0.5), roofMat, 0, top + 0.4, 0));
+  g.add(mesh(new THREE.BoxGeometry(tw + 0.7, 0.5, td + 0.7), trim, 0, top + 0.25, 0));
+  const parH = 1.1;
+  for (const s of [-1, 1]) {
+    g.add(mesh(new THREE.BoxGeometry(tw + 0.3, parH, 0.25), roofMat, 0, top + 0.5 + parH / 2, s * (td / 2 + 0.02)));
+    g.add(mesh(new THREE.BoxGeometry(0.25, parH, td + 0.3), roofMat, s * (tw / 2 + 0.02), top + 0.5 + parH / 2, 0));
+  }
 
-  // Rooftop mechanicals + antenna with a red aviation light
+  // Rooftop: penthouse + louvres, HVAC units, a water tank on the older towers, antennas + beacons
+  const beacon = beaconMaterial(b);
+  const beaconGeo = new THREE.SphereGeometry(0.32, 8, 6);
   if (!o.minimal) {
     const mech = mat(0x8a8d93, 0.6, 0.3);
-    g.add(mesh(new THREE.BoxGeometry(tw * 0.35, 2.2, td * 0.3), mech, -tw * 0.15, top + 1.9, td * 0.1, true));
-    g.add(mesh(new THREE.BoxGeometry(tw * 0.2, 1.4, td * 0.25), mech, tw * 0.25, top + 1.5, -td * 0.15));
+    const dark = mat(0x4a4d52, 0.7, 0.2);
+    const phW = tw * (0.3 + R() * 0.15);
+    const phD = td * (0.28 + R() * 0.12);
+    const phX = (R() - 0.5) * tw * 0.3;
+    const phZ = (R() - 0.5) * td * 0.25;
+    const phH = 3 + R() * 1.6;
+    g.add(mesh(new THREE.BoxGeometry(phW, phH, phD), mech, phX, top + 0.5 + phH / 2, phZ, true));
+    g.add(mesh(new THREE.BoxGeometry(phW + 0.3, 0.25, phD + 0.3), dark, phX, top + 0.5 + phH + 0.12, phZ));
+    for (let k = 0; k < 3; k++) g.add(mesh(new THREE.BoxGeometry(phW * 0.8, 0.12, 0.06), dark, phX, top + 1.2 + k * 0.5, phZ + phD / 2 + 0.03));
+    const units = 2 + Math.floor(R() * 3);
+    for (let k = 0; k < units; k++) {
+      const ux = (R() - 0.5) * (tw - 3);
+      const uz = (R() - 0.5) * (td - 3);
+      if (Math.abs(ux - phX) < phW / 2 + 1 && Math.abs(uz - phZ) < phD / 2 + 1) continue;
+      const uw = 1.4 + R() * 1.6;
+      g.add(mesh(new THREE.BoxGeometry(uw, 1.1, uw * 0.8), mech, ux, top + 1.05, uz));
+      g.add(mesh(new THREE.CylinderGeometry(uw * 0.28, uw * 0.28, 0.12, 10), dark, ux, top + 1.66, uz));
+    }
+    if (style === 0 && R() < 0.75) {
+      // Timber-style water tank on legs with a conical lid
+      const tx = tw * (R() < 0.5 ? -0.3 : 0.3);
+      const tz = td * (R() < 0.5 ? -0.25 : 0.25);
+      const tank = mat(0x6a5444, 0.85);
+      for (const lx of [-0.7, 0.7]) for (const lz of [-0.7, 0.7]) g.add(mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 5), dark, tx + lx, top + 1.3, tz + lz));
+      g.add(mesh(new THREE.CylinderGeometry(1.15, 1.15, 2.4, 12), tank, tx, top + 3.3, tz, true));
+      g.add(mesh(new THREE.ConeGeometry(1.3, 0.9, 12), dark, tx, top + 4.95, tz));
+    }
     if (o.h > 25) {
-      g.add(mesh(new THREE.CylinderGeometry(0.08, 0.12, 7, 6), mat(0xb8bcc6, 0.3, 0.8), tw * 0.3, top + 4.3, td * 0.2));
-      g.add(mesh(new THREE.SphereGeometry(0.22, 8, 6), basic(0xff2020), tw * 0.3, top + 7.9, td * 0.2));
+      const steel = mat(0xb8bcc6, 0.3, 0.8);
+      const mastH = 6 + R() * 6;
+      const ax = phX + phW * 0.25;
+      const az = phZ;
+      const base = top + 0.5 + phH;
+      g.add(mesh(new THREE.CylinderGeometry(0.07, 0.13, mastH, 6), steel, ax, base + mastH / 2, az));
+      for (let k = 1; k <= 2; k++) g.add(mesh(new THREE.BoxGeometry(1.2 - k * 0.3, 0.05, 0.05), steel, ax, base + mastH * (0.4 + k * 0.2), az));
+      g.add(mesh(beaconGeo, beacon, ax, base + mastH + 0.2, az));
+      if (R() < 0.6) {
+        const m2 = 3 + R() * 3;
+        g.add(mesh(new THREE.CylinderGeometry(0.05, 0.08, m2, 5), steel, phX - phW * 0.3, base + m2 / 2, phZ + phD * 0.2));
+      }
+    }
+  }
+  // Corner beacons on tall towers (also on the curved segments that skip the clutter)
+  if (o.h > 40) {
+    for (const [cx, cz] of [
+      [-1, -1],
+      [1, 1],
+    ]) {
+      g.add(mesh(beaconGeo, beacon, (cx * tw) / 2, top + 1.85, (cz * td) / 2));
     }
   }
   g.position.set(o.x, 0, o.z);

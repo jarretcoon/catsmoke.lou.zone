@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Rideable } from '../rides';
 import { bakeGroup } from '../meshBake';
 import type { WorldBuilder } from './builder';
-import { makeBoulevardTexture, makeCrossStreetTexture, makeGlowTexture, makePaverTexture } from './textures';
+import { makeBoulevardMaps, makeCrossStreetTexture, makeGlowTexture, makeGravelTexture, makePaverTexture, makeRoadPaintTexture, rng } from './textures';
 import {
   ashUrn,
   basic,
@@ -10,6 +10,7 @@ import {
   bollard,
   car,
   CarKind,
+  desertPlantKit,
   deuceBus,
   fireHydrant,
   mat,
@@ -17,6 +18,8 @@ import {
   neonSign,
   newsRack,
   palmTree,
+  signalLamps,
+  streetLampGlass,
   stripLightPole,
   trafficSignal,
   trashCan,
@@ -133,23 +136,28 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   const clock = () => performance.now() / 1000;
 
   // --- Ground: plaza pavers across the resort corridor ---
-  const paver = new THREE.MeshStandardMaterial({ map: makePaverTexture('#9a9085', '#776e64', 8), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
+  const paver = new THREE.MeshStandardMaterial({ map: makePaverTexture('#9a9085', '#776e64', 8, 512), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 });
   const groundW = STRIP.flamingoEast - STRIP.flamingoWest;
   paver.map!.repeat.set(groundW / 6, len / 6);
   b.floor((STRIP.flamingoEast + STRIP.flamingoWest) / 2, midZ, groundW, len, paver, 0.0);
 
+  // Curbside band: darker running-bond pavers along both Strip sidewalks (sits under district plazas)
+  const bandTex = makePaverTexture('#6f625a', '#4a403a', 8, 256, 'running');
+  const band = new THREE.MeshStandardMaterial({ map: bandTex, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  for (const s of [-1, 1]) b.add(mesh(worldUvPlane(1.6, len, s * (half + 1.1), 0.006, midZ, 2), band));
+
   // --- Las Vegas Blvd ---
-  const road = new THREE.Mesh(
-    new THREE.PlaneGeometry(half * 2, len),
-    new THREE.MeshStandardMaterial({ map: makeBoulevardTexture(len, half, [4.8, 8.2, 11.6], STRIP.medianHalf), roughness: 0.82 })
-  );
+  const roadMaps = makeBoulevardMaps(len, half, [4.8, 8.2, 11.6], STRIP.medianHalf);
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, len), new THREE.MeshStandardMaterial({ map: roadMaps.map, roughnessMap: roadMaps.roughnessMap, roughness: 1 }));
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0.03, midZ);
   road.receiveShadow = true;
   b.add(road);
   b.feature({ kind: 'road', x: 0, z: midZ, w: half * 2, d: len, color: '#3b3a40' });
 
-  const curbMat = mat(0xc9c2b6, 0.8);
+  // Curb: concrete face with a pale weathered top edge (the gutter pan is painted into the road)
+  const curbMat = mat(0xb4ada1, 0.8);
+  const curbTop = mat(0xd4cec2, 0.75);
   for (const s of [-1, 1]) {
     for (const [z0, z1] of [
       [STRIP.north, -STRIP.flamingoHalf],
@@ -157,6 +165,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
       [STRIP.tropicanaZ + STRIP.flamingoHalf, STRIP.south],
     ]) {
       b.add(mesh(new THREE.BoxGeometry(0.3, 0.16, z1 - z0), curbMat, s * (half + 0.15), 0.08, (z0 + z1) / 2));
+      b.add(mesh(new THREE.BoxGeometry(0.36, 0.025, z1 - z0), curbTop, s * (half + 0.17), 0.165, (z0 + z1) / 2));
     }
   }
 
@@ -174,14 +183,40 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     cursor = Math.max(cursor, cut.z1);
   }
   if (cursor < STRIP.south - 4) medianRuns.push([cursor, STRIP.south - 4]);
+  // Desert-landscaped median: concrete curb, decomposed-granite gravel, palms, agave, sage and boulders.
   const medianMat = mat(0xb8ad9c, 0.85);
-  const medianTop = mat(0x5f7d45, 0.95);
+  const gravel = new THREE.MeshStandardMaterial({ map: makeGravelTexture(), roughness: 0.97 });
+  const kit = desertPlantKit();
+  const rockMats = [mat(0x8a6e58, 0.95), mat(0xa38b72, 0.95), mat(0x6e5a4c, 0.95)];
+  const agaveMat = mat(0x6f8f7a, 0.75);
+  const shrubMats = [mat(0x56693e, 0.92), mat(0x7f8460, 0.92)];
+  const R = rng(2024);
+  const inner = STRIP.medianHalf - 0.35;
+  const plant = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, z: number, sc: number, cast = false) => {
+    const me = mesh(geo, m, x, 0.26, z, cast);
+    me.rotation.y = R() * Math.PI * 2;
+    me.scale.setScalar(sc);
+    b.add(me);
+  };
   let palmI = 0;
   for (const [z0, z1] of medianRuns) {
     const zc = (z0 + z1) / 2;
     b.box(0, 0, zc, STRIP.medianHalf * 2, 0.22, z1 - z0, medianMat, false, false);
-    b.add(mesh(new THREE.BoxGeometry(STRIP.medianHalf * 2 - 0.3, 0.05, z1 - z0 - 0.3), medianTop, 0, 0.245, zc));
-    for (let z = z0 + 6; z < z1 - 4; z += 15) b.add(palmTree(8 + (palmI % 3) * 0.8, false, palmI++), 0, 0.22, z);
+    b.add(mesh(worldUvPlane(STRIP.medianHalf * 2 - 0.3, z1 - z0 - 0.3, 0, 0.255, zc, 2.5), gravel));
+    for (let z = z0 + 6; z < z1 - 4; z += 15) {
+      b.add(palmTree(8 + (palmI % 3) * 0.8, false, palmI++), 0, 0.22, z);
+      for (let k = 0; k < 3; k++) {
+        const a = k * 2.1 + R();
+        plant(kit.rocks[k % 3], rockMats[k % 3], Math.cos(a) * 0.6, z + Math.sin(a) * 0.6, 0.7 + R() * 0.5);
+      }
+      for (const dz of [-4.2, 4.2]) if (z + dz > z0 + 1 && z + dz < z1 - 1) plant(kit.agave[palmI % 2], agaveMat, (R() - 0.5) * 0.5, z + dz, 0.75 + R() * 0.2);
+      for (const dz of [-7.5, 7.5]) {
+        if (z + dz <= z0 + 1 || z + dz >= z1 - 1) continue;
+        plant(kit.shrub[0], shrubMats[0], -inner * 0.45, z + dz + (R() - 0.5), 0.8 + R() * 0.3);
+        plant(kit.shrub[1], shrubMats[1], inner * 0.45, z + dz + (R() - 0.5), 0.8 + R() * 0.3);
+      }
+      for (let k = 0; k < 2; k++) plant(kit.rocks[(k + palmI) % 3], rockMats[(k + 1) % 3], (R() - 0.5) * inner * 1.4, z + 9 + R() * 4, 0.35 + R() * 0.3);
+    }
   }
 
   // --- Flamingo Rd ---
@@ -217,7 +252,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     }
   }
 
-  const white = basic(0xf2f0ea);
+  // Lit, worn thermoplastic paint (an unlit white MeshBasic blew out to glare under night bloom)
+  const white = new THREE.MeshStandardMaterial({ map: makeRoadPaintTexture(), color: 0xd8d6cf, roughness: 0.62, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   for (const s of [-1, 1]) {
     const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.5), white, s * ((half + STRIP.medianHalf) / 2), 0.055, -s * (STRIP.flamingoHalf + 1.2));
     bar.rotation.x = -Math.PI / 2;
@@ -232,13 +268,15 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     [half + 1, -STRIP.flamingoHalf - 1.5, -Math.PI / 2, 'ew'],
     [-half - 1, STRIP.flamingoHalf + 1.5, Math.PI / 2, 'ew'],
   ];
+  // Signals that always show the same phase share one set of lamp materials (fewer draw calls).
+  const lampSets = { fns: signalLamps(), few: signalLamps(), tns: signalLamps(), tew: signalLamps() };
   for (const [x, z, rot, axis] of flamingoDefs) {
-    const sig = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1);
+    const sig = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1, axis === 'ns' ? lampSets.fns : lampSets.few);
     b.add(sig.group, x, 0, z, rot);
     b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, 7, true);
     signals.push({ sig, read: () => flamingoPhase(clock())[axis] });
     const tz = z + STRIP.tropicanaZ;
-    const sig2 = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1);
+    const sig2 = trafficSignal(axis === 'ns' ? half : STRIP.flamingoHalf + 1, axis === 'ns' ? lampSets.tns : lampSets.tew);
     b.add(sig2.group, x, 0, tz, rot);
     b.collider(x - 0.25, x + 0.25, tz - 0.25, tz + 0.25, 0, 7, true);
     signals.push({ sig: sig2, read: () => tropicanaPhase(clock())[axis] });
@@ -250,29 +288,33 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   }
 
   // --- Mid-block signalised crosswalks ---
+  const stripeGeo = new THREE.PlaneGeometry(0.6, 4.0);
   for (const cw of CROSSWALKS) {
-    for (let x = -half + 0.6; x < half - 0.4; x += 1.4) {
-      const stripe = mesh(new THREE.PlaneGeometry(0.75, 4.2), white, x, 0.055, cw.z);
+    // Continental bars, symmetric about the centreline, clear of the gutter pans
+    const nBars = Math.floor((half - 0.9) / 1.2);
+    for (let i = -nBars; i <= nBars; i++) {
+      const stripe = mesh(stripeGeo, white, i * 1.2, 0.055, cw.z);
       stripe.rotation.x = -Math.PI / 2;
       b.add(stripe);
     }
+    const lamps = signalLamps();
+    const ped = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
+    b.every(() => {
+      ped.color.setHex(crosswalkPhase(clock(), cw.offset) === 'stop' ? 0xf4f4f0 : 0xff7a1a);
+    });
     for (const s of [-1, 1]) {
       const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.45), white, s * ((half + STRIP.medianHalf) / 2), 0.055, cw.z - s * 4.2);
       bar.rotation.x = -Math.PI / 2;
       b.add(bar);
-      const sig = trafficSignal(5.5);
+      const sig = trafficSignal(5.5, lamps);
       const sx = s * (half + 0.9);
       const sz = cw.z - s * 3.4;
       b.add(sig.group, sx, 0, sz, s < 0 ? 0 : Math.PI);
       b.collider(sx - 0.25, sx + 0.25, sz - 0.25, sz + 0.25, 0, 7, true);
       signals.push({ sig, read: () => crosswalkPhase(clock(), cw.offset) });
       // Pedestrian head: white walking figure when cars are stopped
-      const ped = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
       b.add(mesh(new THREE.BoxGeometry(0.36, 0.36, 0.1), mat(0x1b1d22, 0.6), sx, 3.1, cw.z + s * 1.6));
       b.add(mesh(new THREE.PlaneGeometry(0.28, 0.28), ped, sx, 3.1, cw.z + s * 1.6 + 0.06));
-      b.every(() => {
-        ped.color.setHex(crosswalkPhase(clock(), cw.offset) === 'stop' ? 0xf4f4f0 : 0xff7a1a);
-      });
     }
     b.zone(`${cw.name} Crosswalk`, -half, half, cw.z - 3, cw.z + 3);
   }
@@ -318,6 +360,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.every((_dt, _t, night) => {
     glowMat.opacity = night * 0.55;
   });
+  b.nightGlow(streetLampGlass, 0.2, 2.6);
 
   // --- Deuce stop shelters ---
   const shelterGlass = new THREE.MeshStandardMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.35, roughness: 0.1 });
@@ -501,6 +544,17 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   });
 
   return { buses, cars };
+}
+
+/** Flat ground patch whose UVs are world metres / `scale`, so one shared material tiles seamlessly. */
+function worldUvPlane(w: number, d: number, x: number, y: number, z: number, scale: number): THREE.BufferGeometry {
+  const g = new THREE.PlaneGeometry(w, d, 1, Math.max(1, Math.round(d / 40)));
+  g.rotateX(-Math.PI / 2);
+  g.translate(x, y, z);
+  const p = g.attributes.position as THREE.BufferAttribute;
+  const uv = g.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / scale, p.getZ(i) / scale);
+  return g;
 }
 
 function buildSkybridges(b: WorldBuilder, zc: number, labels: [string, string, string, string] | string[], sideName: string, zoneName: string): void {

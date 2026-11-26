@@ -8,6 +8,7 @@ import { LedBoard, makePaverTexture } from './textures';
 import type { FacadeSpec } from './textures';
 import { basic, car, mat, mesh, neonSign, planter } from './props';
 import type { CarKind } from './props';
+import { palmPieces } from './props';
 import { xFromO, zFromS } from './strip';
 
 /**
@@ -179,28 +180,12 @@ function ledPylon(b: WorldBuilder, led: LedBoard, x: number, z: number, w: numbe
   b.every((_dt, t) => led.draw(t));
 }
 
-/** A palm into a merger (trunk + 8 fronds → shares 2 meshes with every other palm in the batch). */
+/** A palm into a merger (shared palm pieces: ringed trunk, alpha-tested frond crown, dates). */
 function palmInto(mg: Merger, x: number, z: number, h: number, seed: number, y0 = 0): void {
-  const trunk = mat(0x6b5038, 0.95);
-  const frond = mat(0x2f7a3a, 0.8, 0, { side: THREE.DoubleSide });
-  const lean = ((seed % 5) - 2) * 0.035;
-  const la = seed * 1.7;
-  const top = v3(x + Math.cos(la) * Math.sin(lean) * h, y0 + h, z + Math.sin(la) * Math.sin(lean) * h);
-  mg.beam(trunk, v3(x, y0, z), top, 0.27, 7, 0.17, true);
-  mg.add(new THREE.SphereGeometry(0.32, 7, 5).translate(top.x, top.y + 0.05, top.z), mat(0x4a3a20, 0.8));
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2 + seed;
-    const droop = 0.35 + (i % 3) * 0.22;
-    const len = 2.9 + (i % 2) * 0.5;
-    const tip = v3(top.x + Math.cos(a) * Math.cos(droop) * len, top.y - Math.sin(droop) * len, top.z + Math.sin(a) * Math.cos(droop) * len);
-    const g = new THREE.ConeGeometry(0.42, len, 4, 1);
-    g.scale(1, 1, 0.2);
-    g.translate(0, len / 2, 0);
-    _dir.subVectors(tip, top).normalize();
-    _q.setFromUnitVectors(UP, _dir);
-    g.applyQuaternion(_q);
-    g.translate(top.x, top.y, top.z);
-    mg.add(g, frond);
+  for (const p of palmPieces(h, false, seed)) {
+    const g = p.geo.clone().applyMatrix4(p.matrix);
+    g.translate(x, y0, z);
+    mg.add(g, p.mat, p.cast);
   }
 }
 
