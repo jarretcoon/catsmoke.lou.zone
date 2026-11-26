@@ -15,7 +15,7 @@ import { buildCaesarsCasinoDressing, buildForumShops, caesarsCasinoRoof } from '
 import { caesarsMarquee, caesarsStatuary, caesarsTempleFront, caesarsTowerCrown, forumEntrance } from './caesarsFront';
 import { uplights } from './stripFronts';
 import { buildTiSign, tiCove, tiShipLights, tiTowerLetters } from './tiFront';
-import { bellagioLakeFront, cosmoBeacon } from './westExtras';
+import { bellagioLakeFront, bellagioLakeVillage, cosmoBeacon } from './westExtras';
 import { ariaMarquee, crystalsTenants, veerTowers } from './cityCenterFront';
 import { buildGuitarHotel, hardRockBanner } from './guitarHotel';
 import { crystalsFront, forumPlanting, forumWall } from './stripFronts';
@@ -289,16 +289,20 @@ function buildBellagio(b: WorldBuilder): void {
   b.pickup(-19.6, 1.25, 52, 2, 'Fountain Balustrade Smokes', false);
   b.pickup(-19.6, 1.25, 88, 2, 'Ash-Stand Pack by the Fountains', false);
 
-  // F1 Grand Prix teardown (late Nov 2026): half-dismantled grandstand + barriers along the lake front
+  // F1 Grand Prix teardown (late Nov 2026): the Fountain Club grandstand over the lake edge is coming down;
+  // its top tiers are already gone (crews take it apart until mid-December), the lower ones and bare posts remain
   const steel = mat(0x6d737c, 0.4, 0.7);
   const tier = mat(0x30343c, 0.6, 0.4);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     const y = 1.4 + i * 1.1;
     const x = -24 - i * 1.6;
-    b.box(x, y, 66, 1.6, 0.25, i < 3 ? 30 : 14, tier);
+    b.box(x, y, i < 2 ? 66 : 72, 1.6, 0.25, i < 2 ? 30 : 12, tier);
   }
   for (let z = 52; z <= 80; z += 4) {
-    for (let i = 0; i < 5; i++) b.add(mesh(new THREE.BoxGeometry(0.12, 1.4 + i * 1.1, 0.12), steel, -24 - i * 1.6, (1.4 + i * 1.1) / 2, z));
+    for (let i = 0; i < 3; i++) {
+      if (i === 2 && z < 66) continue;
+      b.add(mesh(new THREE.BoxGeometry(0.12, 1.4 + i * 1.1, 0.12), steel, -24 - i * 1.6, (1.4 + i * 1.1) / 2, z));
+    }
   }
   b.add(neonSign('F1 TEARDOWN', '#101010', '#ff3b1f', 6, 1.1, 'CREWS WORKING • GRANDSTAND CLOSED', 0.1), -20.6, 3.2, 44, -Math.PI / 2);
   const jersey = mat(0xd9d6cf, 0.85);
@@ -306,7 +310,7 @@ function buildBellagio(b: WorldBuilder): void {
     if (Math.abs(z - 60) < 3) continue;
     b.box(-12.15, 0, z, 0.55, 0.85, 3.6, jersey, false, false);
   }
-  b.pickup(-28.8, 6.2, 60, 3, 'Grandstand Crew Pack', false);
+  b.pickup(-27.2, 4.6, 72, 3, 'Grandstand Crew Pack', false);
 
   // North walkway from the corner (bridge stairs land here) to the casino
   const trav = travertine();
@@ -367,6 +371,14 @@ function buildBellagio(b: WorldBuilder): void {
 
   // Conservatory & Botanical Gardens — "Postcards From Christmas" (Nov 13 2026 – Jan 2 2027)
   buildConservatory(b);
+  // The Lake Como village front across the lake: ochre and cream stucco, arched loggias, terracotta roofs,
+  // two little towers and Italian stone pines (westExtras.ts)
+  bellagioLakeVillage(b, -79.9, [
+    [18, 21.5, 11],
+    [30.5, 62, 11],
+    [66, 77, 9],
+    [87, 98, 9],
+  ]);
 
   // Bellagio Dr (main drive, signalised at the Strip) + porte-cochère at the lobby doors
   const drive = mat(0x2b2b30, 0.85);
