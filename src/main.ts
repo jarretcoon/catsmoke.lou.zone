@@ -8,6 +8,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { AbcItem, AbcShopController } from './abcShop';
 import { SoundFX } from './audio';
 import { CasinoController } from './casino';
+import { CatLook, setFurQuality } from './catLook';
 import { DegenScore, PropPhysics, WantedSystem } from './chaos';
 import { IntroComic } from './intro';
 import { MissionCtx, MissionEvent, MissionManager } from './missions';
@@ -131,6 +132,7 @@ function applyQuality(): void {
   }
   world.setDrawDistance(quality === 'low' ? 0.6 : quality === 'medium' ? 0.85 : 1);
   dynCullScale = quality === 'low' ? 0.7 : 1;
+  setFurQuality(quality);
   composer?.setPixelRatio(renderer.getPixelRatio());
   composer?.setSize(window.innerWidth, window.innerHeight);
   btnQuality.textContent = `Graphics: ${quality === 'high' ? 'High (bloom)' : quality === 'medium' ? 'Medium' : 'Low (fast)'}`;
@@ -585,7 +587,8 @@ let activeAction: THREE.AnimationAction | null = null;
 let cigTipObj: THREE.Object3D | null = null;
 let vapeTipObj: THREE.Object3D | null = null;
 let cigEmberMat: THREE.MeshStandardMaterial | null = null;
-const emberLight = new THREE.PointLight(0xff6b1a, 1.3, 3.6, 2.0);
+// A small, soft glow: enough to light the smoke and the pavement under his chin, not to dye Lou orange.
+const emberLight = new THREE.PointLight(0xff8a3c, 0.4, 1.5, 2.0);
 scene.add(emberLight);
 
 function fadeToAction(next: THREE.AnimationAction | null, duration = 0.18): void {
@@ -611,6 +614,7 @@ function getTipWorld(preferVape: boolean, out = new THREE.Vector3()): THREE.Vect
 }
 
 // Lou's model is Draco-compressed with WebP textures; three bundles the glTF Draco decoder (hashed, so it caches forever).
+let catLook: CatLook | null = null;
 const dracoLoader = new DRACOLoader().setDecoderPath(DRACO_GLTF_CONFIG);
 new GLTFLoader().setDRACOLoader(dracoLoader).load(
   `${import.meta.env.BASE_URL}models/tabby_cat.glb`,
@@ -632,6 +636,8 @@ new GLTFLoader().setDRACOLoader(dracoLoader).load(
     });
     catHolder.add(model);
     catModel = model;
+    // shell fur, matte coat, wet eyes with light-following pupils, blinks/twitches/glances
+    catLook = new CatLook(model);
     restaurants.burger.position.set(0, 0.68, 0.58);
     catHolder.add(restaurants.burger);
     wardrobe = new CatWardrobe(model);
@@ -1883,6 +1889,7 @@ function step(now: number, render = true): void {
   }
   if (crowd.anyChasing() || wanted.stars > 0) stateEl.textContent = wanted.stars > 0 ? `WANTED ${'★'.repeat(wanted.stars)}` : 'ON THE RUN!';
   mixer?.update(dt);
+  catLook?.update(dt, { night: world.getNight(), idle: activeAction === actions.Idle || activeAction === actions.Sit, camera: camera.position, tourists: crowd.tourists });
 
   // Ember + smoke
   const useVape = S.deviceMode === 'vape';
@@ -1890,11 +1897,11 @@ function step(now: number, render = true): void {
   const isPuffing = puffTimer > 0.2;
   const flicker = 0.85 + Math.sin(elapsed * 19) * 0.12 + Math.cos(elapsed * 31) * 0.08;
   const cigActive = S.deviceMode === 'cig' && S.isLit;
-  // The glow sits ~30 cm out in front of the tip: right at the tip it was 5 cm from Lou's white chest and
-  // washed his whole face orange. Out here it still paints the sidewalk and passers-by at night.
-  emberLight.position.set(Math.sin(catYaw) * 0.3, 0.06, Math.cos(catYaw) * 0.3).add(tipPos);
-  emberLight.color.setHex(useVape ? 0x35e6ff : 0xff6b1a);
-  emberLight.intensity = cigActive ? 0.5 * flicker * (isPuffing ? 2.2 : 1) : useVape && isPuffing ? 1.2 : 0;
+  // The glow sits ~40 cm out in front of the tip, small and dim: right at the tip it was 5 cm from Lou's white
+  // chest and washed his whole face orange. Out here it still warms the smoke and the sidewalk at night.
+  emberLight.position.set(Math.sin(catYaw) * 0.42, 0.04, Math.cos(catYaw) * 0.42).add(tipPos);
+  emberLight.color.setHex(useVape ? 0x35e6ff : 0xff8a3c);
+  emberLight.intensity = cigActive ? 0.16 * flicker * (isPuffing ? 2.0 : 1) : useVape && isPuffing ? 0.5 : 0;
   if (cigEmberMat) cigEmberMat.emissiveIntensity = cigActive ? 5 * flicker * (isPuffing ? 2.4 : 1) : 0;
   smokeSystem.update(dt, tipPos, catVelocity, cigActive, isPuffing);
   if (Math.random() < dt * 4.5) {

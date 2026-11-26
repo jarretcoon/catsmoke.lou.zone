@@ -13,6 +13,9 @@ Game contract kept from the first model (src/ relies on it):
   meshes named Cig* / Vape*, material CigEmber, empties CigTip / VapeTip on the Head bone,
   cat faces -Y (glTF +Z), feet at z=0, head centre (0,-0.262,0.542), eyes (+-0.053,-0.352,0.556),
   collar ring z 0.415 around y -0.218 (r 0.084), tag (0,-0.306,0.382).
+src/catLook.ts also uses: CatBody, CatFurShell (low-poly skinned copy of the body for shell fur),
+  materials TabbyFur / LidFur / EarFur / CatEye / NoseLeather, bones Lid_L/R Ear_L/R Tail3/4 Belly,
+  and draws the pupil itself (the exported iris texture has none).
 """
 
 import math
@@ -713,13 +716,13 @@ def paint_lou(P, N, AO, M, roots):
     theta = np.arctan2(ax, z - zc)                      # 0 on the spine, pi under the belly
 
     tick = np.clip(0.5 + 1.7 * strand + 0.12 * fine + 0.25 * clump, 0.0, 1.0)
-    # agouti ground: warm brown-grey ticked, darker along the back
-    dark_hair = col("#2a221c")
-    light_hair = col("#9f8f79")
+    # agouti ground: cool brown-grey ticked (Lou is grey-brown, not ginger), darker along the back
+    dark_hair = col("#25211d")
+    light_hair = col("#908779")
     ground = lerp(dark_hair, light_hair, tick)
     back_dark = (1.0 - sstep(0.25, 1.25, theta)) * w["torso"]
     ground *= (1.0 + 0.09 * big - 0.16 * back_dark)[:, None]
-    stripe_col = lerp(col("#0f0c0a"), col("#33271e"), np.clip(tick * 0.8, 0, 1))
+    stripe_col = lerp(col("#0e0c0b"), col("#2c2722"), np.clip(tick * 0.8, 0, 1))
     dark = np.zeros(n, np.float32)
 
     def lines(phase, hw, soft=0.05):
@@ -870,22 +873,22 @@ def paint_lou(P, N, AO, M, roots):
     # ---- compose
     rgb = ground.copy()
     head_warm = w_head * (~ear)
-    rgb = lerp(rgb, rgb * np.array([1.06, 0.98, 0.90], np.float32), head_warm)
+    rgb = lerp(rgb, rgb * np.array([1.02, 1.0, 0.975], np.float32), head_warm)
     rgb = lerp(rgb, stripe_col, np.clip(dark, 0, 1))
-    cream = lerp(col("#9f8a6c"), col("#d8c8ab"), tick)
+    cream = lerp(col("#9c9384"), col("#d8d0c2"), tick)
     rgb = lerp(rgb, cream, np.clip(belly * (1.0 - 0.6 * dark), 0, 1))
-    peach_col = lerp(col("#a77650"), col("#dcb894"), tick)
+    peach_col = lerp(col("#9b8676"), col("#d3c4b5"), tick)
     rgb = lerp(rgb, peach_col, np.clip(peach * (1.0 - 0.8 * head_dark), 0, 1))
-    white_col = lerp(col("#d7d0c6"), col("#f4f1ec"), np.clip(tick + 0.3, 0, 1))
+    white_col = lerp(col("#d9d7d3"), col("#f6f5f2"), np.clip(tick + 0.3, 0, 1))
     rgb = lerp(rgb, white_col, np.clip(white, 0, 1))
     # ears: brown-grey backs with darker rims, pink furred insides
-    ear_back = lerp(col("#2a221b"), col("#7d6b56"), tick)
+    ear_back = lerp(col("#24221f"), col("#76716a"), tick)
     rgb = np.where(ear[:, None], ear_back, rgb)
     furnish = np.clip(0.5 + 3.0 * aniso(260.0, 30.0, 51, 1), 0, 1)
     pink = lerp(col("#b9827b"), col("#e2b1a8"), np.clip(1.0 - inner_ear * 0.2, 0, 1))
     pink = lerp(pink, col("#efe4dc"), furnish * 0.30 * sstep(0.3, 0.9, inner_ear))
     rgb = lerp(rgb, pink, inner_ear)
-    rgb = lerp(rgb, col("#2a1e19"), dots * 0.9 * (~ear))
+    rgb = lerp(rgb, col("#25211f"), dots * 0.9 * (~ear))
     rgb = lerp(rgb, col("#20171a"), mouth * (~ear))
     # baked occlusion for creases (mouth, toes, ear cups)
     ao = np.clip(AO, 0.0, 1.0)
@@ -902,7 +905,7 @@ def paint_lou(P, N, AO, M, roots):
     for s in (1, -1):
         de = np.linalg.norm(P - np.array(EYE_C[s], np.float32), axis=1)
         near |= (de > 0.025) & (de < 0.032) & (dark < 0.3)
-    lid_col = rgb[near].mean(0) if near.any() else col("#9a8468")
+    lid_col = rgb[near].mean(0) if near.any() else col("#8d877e")
     return rgb.astype(np.float32), height.astype(np.float32), lid_col
 
 
@@ -1024,11 +1027,11 @@ def bake_and_paint(body, roots):
     fur.use_nodes = True
     nt = fur.node_tree
     bsdf = nt.nodes.get("Principled BSDF")
-    bsdf.inputs["Roughness"].default_value = 0.80
-    bsdf.inputs["Specular IOR Level"].default_value = 0.28
+    bsdf.inputs["Roughness"].default_value = 0.93      # fur is matte: no plastic sheen under the env map
+    bsdf.inputs["Specular IOR Level"].default_value = 0.10
     bsdf.inputs["Sheen Weight"].default_value = 0.35
     bsdf.inputs["Sheen Roughness"].default_value = 0.5
-    bsdf.inputs["Sheen Tint"].default_value = (0.82, 0.76, 0.68, 1.0)
+    bsdf.inputs["Sheen Tint"].default_value = (0.78, 0.77, 0.75, 1.0)
     t_alb = nt.nodes.new("ShaderNodeTexImage")
     t_alb.image = albedo
     t_nrm = nt.nodes.new("ShaderNodeTexImage")
@@ -1046,7 +1049,9 @@ def bake_and_paint(body, roots):
 # ---------------------------------------------------------------------------------------------
 # 3. Face & accessories
 # ---------------------------------------------------------------------------------------------
-def make_iris_image(size=512):
+def make_iris_image(size=512, pupil=True, name="LouIris"):
+    """Iris texture. The game draws the pupil itself (slit by day, round at night: src/catLook.ts),
+    so the exported texture has none; the pupil version only dresses the Cycles preview."""
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
     x = (xx + 0.5) / size * 2.0 - 1.0
     y = (yy + 0.5) / size * 2.0 - 1.0
@@ -1065,20 +1070,21 @@ def make_iris_image(size=512):
     rgb *= (1.0 - 0.55 * sstep(0.68, 0.87, r))[..., None]               # limbal ring
     sclera = col("#cbc39e")
     rgb = np.where((r > 0.88)[..., None], sclera * (1.0 - 0.2 * sstep(0.88, 1.0, r))[..., None], rgb)
-    # vertical slit pupil (squinty daylight pupil)
-    ph = 0.76
-    pw = 0.085 * np.clip(1.0 - (y / ph) ** 2, 0, 1)
-    pup = 1.0 - sstep(-0.012, 0.012, np.abs(x) - pw)
-    pup *= (np.abs(y) < ph)
-    halo = (1.0 - sstep(0.0, 0.07, np.abs(x) - pw)) * (np.abs(y) < ph * 1.05)
-    rgb *= (1.0 - 0.25 * halo)[..., None]
-    rgb = lerp(rgb.reshape(-1, 3), col("#060505"), pup.ravel()).reshape(size, size, 3)
+    if pupil:
+        # vertical slit pupil (squinty daylight pupil)
+        ph = 0.76
+        pw = 0.085 * np.clip(1.0 - (y / ph) ** 2, 0, 1)
+        pup = 1.0 - sstep(-0.012, 0.012, np.abs(x) - pw)
+        pup *= (np.abs(y) < ph)
+        halo = (1.0 - sstep(0.0, 0.07, np.abs(x) - pw)) * (np.abs(y) < ph * 1.05)
+        rgb *= (1.0 - 0.25 * halo)[..., None]
+        rgb = lerp(rgb.reshape(-1, 3), col("#060505"), pup.ravel()).reshape(size, size, 3)
     # painted depth: lid shadow on top, caustic glow at the bottom of the iris
     rgb *= (1.0 - 0.42 * sstep(-0.10, 0.62, y))[..., None]
     caus = np.exp(-(((x + 0.20) / 0.30) ** 2 + ((y + 0.48) / 0.20) ** 2)) * (r < 0.86)
     rgb += (caus * 0.20)[..., None] * col("#e8f0a0")
     rgb = np.clip(rgb, 0, 1)
-    img = bpy.data.images.new("LouIris", size, size, alpha=False)
+    img = bpy.data.images.new(name, size, size, alpha=False)
     img.colorspace_settings.name = "sRGB"
     px = np.ones((size, size, 4), np.float32)
     px[..., :3] = rgb
@@ -1088,7 +1094,8 @@ def make_iris_image(size=512):
 
 
 def build_eyes():
-    iris = make_iris_image(256 if FAST else 512)
+    iris = make_iris_image(256 if FAST else 512, pupil=False)
+    make_iris_image(256 if FAST else 512, pupil=True, name="LouIrisPreview")
     mat = bpy.data.materials.new("CatEye")
     mat.use_nodes = True
     nt = mat.node_tree
@@ -1301,7 +1308,7 @@ def build_whiskers(body, roots):
 
 
 def build_ear_fur(ears):
-    mat = make_mat("EarFur", srgb_to_lin((0.84, 0.80, 0.74)), roughness=0.85, spec=0.25)
+    mat = make_mat("EarFur", srgb_to_lin((0.84, 0.82, 0.79)), roughness=0.93, spec=0.1)
     bm = bmesh.new()
     rnd = np.random.default_rng(3)
     for s, mw in ears.items():
@@ -2334,6 +2341,27 @@ def skin(body, arm, details):
     arm.data.pose_position = "POSE"
 
 
+def build_fur_shell(body, arm):
+    """Low-poly copy of the skinned body for the game's shell fur (src/catLook.ts): same bones, UVs
+    and material at ~6k triangles (the body is ~33k), so 16 shells cost about 3 full-res copies."""
+    shell = body.copy()
+    shell.data = body.data.copy()
+    shell.name = shell.data.name = "CatFurShell"
+    link(shell)
+    for m in list(shell.modifiers):
+        shell.modifiers.remove(m)
+    dec = shell.modifiers.new("Decimate", "DECIMATE")
+    dec.decimate_type = "COLLAPSE"
+    dec.ratio = 0.18
+    dec.use_collapse_triangulate = True
+    apply_mod(shell, dec)
+    mod = shell.modifiers.new("Armature", "ARMATURE")
+    mod.object = arm
+    shell.hide_render = True
+    log("fur shell", len(shell.data.polygons), "tris (body", len(body.data.polygons), "faces)")
+    return shell
+
+
 def tip_empty(name, arm, pos):
     arm.data.pose_position = "REST"
     e = bpy.data.objects.new(name, None)
@@ -2410,7 +2438,7 @@ def build_scene():
     unwrap_body(body)
     fur, lid_col = bake_and_paint(body, roots)
     rim_mat = make_mat("LidRim", srgb_to_lin((0.05, 0.04, 0.04)), roughness=0.4)
-    lid_mat = make_mat("LidFur", srgb_to_lin(lid_col), roughness=0.8, spec=0.3, sheen=0.3)
+    lid_mat = make_mat("LidFur", srgb_to_lin(lid_col), roughness=0.93, spec=0.1, sheen=0.3)
     eyes, glints = build_eyes()
     lid_up, lid_lo = build_lids(lid_mat, rim_mat)
     nose = build_nose()
@@ -2432,6 +2460,7 @@ def build_scene():
                (ear_fur, None), (pads, None), (collar, "Neck"), (tag, "Neck"), (tag_text, "Neck")]
     details += [(o, "Head") for o in cig_vape]
     skin(body, arm, details)
+    build_fur_shell(body, arm)
     tip_empty("CigTip", arm, p_ember)
     tip_empty("VapeTip", arm, VAPE_ROOT)
     log("skinned")
@@ -2466,6 +2495,9 @@ def build_scene():
     log("exported", GLB_OUT, "%.2f MB" % (os.path.getsize(GLB_OUT) / 1e6))
 
     if not NO_RENDER:
+        for node in bpy.data.materials["CatEye"].node_tree.nodes:
+            if node.type == "TEX_IMAGE":
+                node.image = bpy.data.images["LouIrisPreview"]
         setup_render_scene()
         solo_track(arm, "Idle")
         bpy.context.scene.frame_set(1)
