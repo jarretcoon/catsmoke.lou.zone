@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { viewer, type WorldBuilder } from './builder';
 import { LedBoard } from './textures';
-import { mat } from './props';
 import { letterFace } from './signKit';
 import { ArtCanvas } from './cosmoArt';
 
@@ -222,7 +221,7 @@ export function buildBellagioGateway(b: WorldBuilder, gx = -22.8, zc = 105.5): v
   wall.translate(0, 0, -D / 2);
   wall.rotateY(-Math.PI / 2); // shape x → world z (mirrored is fine: it's symmetric), extrusion → x
   const st = new Pieces();
-  st.geo(wall.toNonIndexed(), gx, 0, zc);
+  st.geo(wall, gx, 0, zc);
   // the screen storey above, a little narrower
   const upH = 9.6;
   st.box(gx, wallTop + upH / 2, zc, D - 0.3, upH, W - 1.6);

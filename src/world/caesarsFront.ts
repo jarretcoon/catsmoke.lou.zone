@@ -98,7 +98,7 @@ function pedimentGeo(w: number, h: number, d: number): THREE.BufferGeometry {
   const s = new THREE.Shape([new THREE.Vector2(-w / 2, 0), new THREE.Vector2(w / 2, 0), new THREE.Vector2(0, h)]);
   const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: false });
   g.translate(0, 0, -d / 2);
-  return g.toNonIndexed();
+  return g; // ExtrudeGeometry is already non-indexed
 }
 
 /** The 2026 Caesars Palace marquee at the Flamingo corner (faces ±z). */
