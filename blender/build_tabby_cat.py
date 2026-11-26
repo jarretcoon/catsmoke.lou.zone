@@ -966,7 +966,7 @@ def paint_lou(P, N, AO, M, roots):
         de = np.linalg.norm(P - np.array(EYE_C[s], np.float32), axis=1)
         near |= (de > 0.027) & (de < 0.034) & (dark < 0.3)
     lid_col = rgb[near].mean(0) if near.any() else col("#8d877e")
-    lid_col = lid_col * 0.55 + col("#2a221b") * 0.45      # the lid edges read as Lou's dark eyeliner
+    lid_col = lid_col * 0.85 + col("#2a221b") * 0.15      # a shade darker: the lid sits in the socket's shadow
     return rgb.astype(np.float32), height.astype(np.float32), lid_col
 
 
@@ -1202,7 +1202,7 @@ def build_eyes():
     bm = bmesh.new()
     for s in (1, -1):
         fwd, u_ax, up = eye_frame(s)
-        p = EYE_C[s] + (fwd * 0.97 - up * 0.07 + u_ax * 0.20).normalized() * (EYE_R + 0.0019)
+        p = EYE_C[s] + (fwd * 0.97 - up * 0.07 + u_ax * 0.20).normalized() * (EYE_R + 0.0016)
         tmp = bmesh.ops.create_uvsphere(bm, u_segments=8, v_segments=6, radius=0.0016)
         for v in tmp["verts"]:
             v.co = p + Vector((v.co.x * 1.15, v.co.y * 0.2, v.co.z * 0.9))   # flat: it hides under a closed lid
@@ -1261,9 +1261,11 @@ def build_lids(lid_mat, rim_mat):
         for s in (1, -1):
             n_up, b_up, n_lo, b_lo = lid_axes(s)
             if part == "upper":
-                cap_mesh(bm, EYE_C[s], n_up, b_up, EYE_R + 0.0007, rings=10, segs=32)
+                _, rows_f = cap_mesh(bm, EYE_C[s], n_up, b_up, EYE_R + 0.0007, rings=12, segs=32)
             else:
-                cap_mesh(bm, EYE_C[s], n_lo, b_lo, EYE_R + 0.0005, rings=8, segs=32)
+                _, rows_f = cap_mesh(bm, EYE_C[s], n_lo, b_lo, EYE_R + 0.0005, rings=10, segs=32)
+            for f in rows_f[-1]:      # a dark band along each lid edge: Lou's eyeliner (fur-coloured lid behind it)
+                f.material_index = 1
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         # outward normals: flip if pointing to the eye centre
         for f in bm.faces:
