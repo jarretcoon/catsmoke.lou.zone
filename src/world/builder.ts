@@ -61,7 +61,7 @@ export interface NightMaterial {
 }
 
 export interface LightAnchor {
-  light: THREE.PointLight;
+  light: THREE.PointLight | THREE.SpotLight;
   day: number;
   night: number;
 }
@@ -169,6 +169,19 @@ export class WorldBuilder {
     const l = new THREE.PointLight(color, intensity, distance, 1.3);
     l.position.set(x, y, z);
     this.scene.add(l);
+    this.lights.push({ light: l, day: intensity * dayScale, night: intensity });
+    return l;
+  }
+
+  /**
+   * A flood aimed at a point (sign faces, statues): unlike a point light it doesn't also light the
+   * pavement and the people standing around its base. `angle` is the cone half-angle in radians.
+   */
+  spot(color: number, intensity: number, distance: number, from: THREE.Vector3, to: THREE.Vector3, angle: number, penumbra = 0.6, dayScale = 1): THREE.SpotLight {
+    const l = new THREE.SpotLight(color, intensity, distance, angle, penumbra, 1.3);
+    l.position.copy(from);
+    l.target.position.copy(to);
+    this.scene.add(l, l.target);
     this.lights.push({ light: l, day: intensity * dayScale, night: intensity });
     return l;
   }
