@@ -31,7 +31,11 @@ type Painter = {
 };
 type Slot = { mat: THREE.MeshStandardMaterial; u0: number; v0: number; u1: number; v1: number };
 
-/** Shelf-packed canvas pages (2048 x 1024, night-glow mask at half size); a new page opens when one fills up. */
+/**
+ * Shelf-packed canvas pages (2048 x 2048, night-glow mask at half size; a new page opens if one fills up).
+ * Slots are painted at `k` scale: painters draw in their own pixel units, the atlas stores them smaller, so the
+ * whole frontage fits one page (one material, ~21 MB) instead of four.
+ */
 class Atlas {
   private page!: { color: HTMLCanvasElement; glow: HTMLCanvasElement; mat: THREE.MeshStandardMaterial };
   private x = 0;
@@ -40,8 +44,9 @@ class Atlas {
   readonly materials: THREE.MeshStandardMaterial[] = [];
   constructor(
     private readonly W = 2048,
-    private readonly H = 1024,
-    private readonly glowScale = 0.5
+    private readonly H = 2048,
+    private readonly glowScale = 0.5,
+    private readonly k = 0.75
   ) {
     this.newPage();
   }
@@ -67,21 +72,24 @@ class Atlas {
   }
   /** Reserve a w×h pixel region and paint it twice (day colours, then the night glow mask). */
   slot(w: number, h: number, draw: (p: Painter) => void): Slot {
-    if (this.x + w > this.W) {
+    const pw = Math.ceil(w * this.k);
+    const ph = Math.ceil(h * this.k);
+    if (this.x + pw > this.W) {
       this.x = 0;
       this.y += this.rowH + 4;
       this.rowH = 0;
     }
-    if (this.y + h > this.H) this.newPage();
+    if (this.y + ph > this.H) this.newPage();
     const sx = this.x;
     const sy = this.y;
-    this.x += w + 4;
-    this.rowH = Math.max(this.rowH, h);
+    this.x += pw + 4;
+    this.rowH = Math.max(this.rowH, ph);
     for (const glow of [false, true]) {
       const ctx = (glow ? this.page.glow : this.page.color).getContext('2d')!;
       ctx.save();
       if (glow) ctx.scale(this.glowScale, this.glowScale);
       ctx.translate(sx, sy);
+      ctx.scale(this.k, this.k);
       ctx.beginPath();
       ctx.rect(0, 0, w, h);
       ctx.clip();
@@ -96,7 +104,7 @@ class Atlas {
       draw(p);
       ctx.restore();
     }
-    return { mat: this.page.mat, u0: sx / this.W, u1: (sx + w) / this.W, v0: 1 - (sy + h) / this.H, v1: 1 - sy / this.H };
+    return { mat: this.page.mat, u0: sx / this.W, u1: (sx + pw) / this.W, v0: 1 - (sy + ph) / this.H, v1: 1 - sy / this.H };
   }
   /** A w×h plane showing a slot (faces +z before rotY). */
   plane(s: Slot, w: number, h: number): THREE.PlaneGeometry {
