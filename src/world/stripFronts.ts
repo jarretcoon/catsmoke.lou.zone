@@ -620,3 +620,106 @@ export function casinoRoyaleFront(b: WorldBuilder, x: number, z0: number, z1: nu
   proud(b, -1, x, 0.5, zc, len + 0.8, h - 0.6, 0.6, cream, true);
   proud(b, -1, x, 0.56, zc, len + 0.9, h - 0.68, 0.1, gold);
 }
+
+// ---------------------------------------------------------------- The Venetian: Doge's Palace front
+
+/**
+ * The Doge's Palace face on the Strip (the palace wall faces −x at x = `x`, z0…z1, roof at `h`): over
+ * the ground-floor arcade (venue code) goes the upper loggia — slim white columns with pointed arch
+ * heads and a balustrade on the arcade beam (`beamTop`, z a0…a1) — then the famous rose-and-white
+ * lozenge wall with big pointed windows, and the white Gothic cresting along the roof line.
+ */
+export function dogesPalaceFront(b: WorldBuilder, x: number, z0: number, z1: number, h: number, beamTop: number, a0: number, a1: number): void {
+  const ivory = mat(0xf3ece0, 0.6);
+  const shade = mat(0x6b5a55, 0.9);
+  const loggiaTop = beamTop + 3.6;
+  // loggia: shadowed back wall, slim columns, balustrade, arch-head band and the slab above
+  const back = mesh(new THREE.PlaneGeometry(a1 - a0, loggiaTop - beamTop), shade, x - 0.04, (beamTop + loggiaTop) / 2, (a0 + a1) / 2);
+  back.rotation.y = -Math.PI / 2;
+  b.add(back);
+  const colX = x - 2.6;
+  const col = new THREE.CylinderGeometry(0.14, 0.17, 2.9, 8);
+  for (let z = a0 + 0.85; z < a1; z += 1.7) {
+    b.add(mesh(col, ivory, colX, beamTop + 1.45, z));
+    b.add(mesh(new THREE.BoxGeometry(0.4, 0.2, 0.4), ivory, colX, beamTop + 2.95, z));
+  }
+  balustrade(b, colX, a0, a1, beamTop, ivory, 0.85);
+  b.add(mesh(new THREE.BoxGeometry(0.5, 0.7, a1 - a0), ivory, colX, beamTop + 3.35, (a0 + a1) / 2));
+  b.add(mesh(new THREE.BoxGeometry(x - colX + 0.4, 0.3, a1 - a0), ivory, (x + colX) / 2, loggiaTop + 0.15, (a0 + a1) / 2, true));
+  // the rose lozenge wall with pointed windows (6 m tiles), lit from inside at night
+  const TW = 256;
+  const TH = 288;
+  const paint = (lit: boolean) => (ctx: CanvasRenderingContext2D, w: number, hh: number) => {
+    ctx.fillStyle = lit ? '#000000' : '#e6b3a6';
+    ctx.fillRect(0, 0, w, hh);
+    if (!lit) {
+      // lozenges: alternating rose and cream diamonds on a fine grid
+      const s = 16;
+      for (let yy = -s; yy < hh + s; yy += s) {
+        for (let xx = -s; xx < w + s; xx += s) {
+          const odd = ((xx + yy) / s) % 2 === 0;
+          ctx.fillStyle = odd ? '#f2e4da' : '#d89c90';
+          ctx.beginPath();
+          ctx.moveTo(xx + s / 2, yy);
+          ctx.lineTo(xx + s, yy + s / 2);
+          ctx.lineTo(xx + s / 2, yy + s);
+          ctx.lineTo(xx, yy + s / 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
+    // a tall pointed window in a white stone frame
+    const cx = w / 2;
+    const ww = 64;
+    const top = 70;
+    const bot = 250;
+    const arch = (pad: number) => {
+      ctx.beginPath();
+      ctx.moveTo(cx - ww / 2 - pad, bot + pad);
+      ctx.lineTo(cx - ww / 2 - pad, top + 30);
+      ctx.quadraticCurveTo(cx - ww / 2 - pad, top - pad, cx, top - 26 - pad);
+      ctx.quadraticCurveTo(cx + ww / 2 + pad, top - pad, cx + ww / 2 + pad, top + 30);
+      ctx.lineTo(cx + ww / 2 + pad, bot + pad);
+      ctx.closePath();
+    };
+    if (!lit) {
+      ctx.fillStyle = '#f6f0e6';
+      arch(10);
+      ctx.fill();
+    }
+    ctx.fillStyle = lit ? '#ffcf8a' : '#3a3036';
+    arch(0);
+    ctx.fill();
+    // mullion + transom
+    ctx.fillStyle = lit ? '#000000' : '#f6f0e6';
+    ctx.fillRect(cx - 3, top, 6, bot - top);
+    ctx.fillRect(cx - ww / 2, 150, ww, 6);
+    // balcony sill
+    if (!lit) {
+      ctx.fillStyle = '#f6f0e6';
+      ctx.fillRect(cx - ww / 2 - 16, bot + 8, ww + 32, 12);
+    }
+  };
+  const map = canvasTex(TW, TH, paint(false), true);
+  const em = canvasTex(TW, TH, paint(true), true);
+  const wallMat = new THREE.MeshStandardMaterial({ map, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: 0.02, roughness: 0.8 });
+  b.nightGlow(wallMat, 0.02, 0.7);
+  const wy0 = loggiaTop + 0.3;
+  const wy1 = h - 0.6;
+  const len = z1 - z0;
+  const geo = new THREE.PlaneGeometry(len, wy1 - wy0);
+  const uv = geo.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * (len / 6));
+  const wall = mesh(geo, wallMat, x - 0.03, (wy0 + wy1) / 2, (z0 + z1) / 2);
+  wall.rotation.y = -Math.PI / 2;
+  b.add(wall);
+  // white string course under the cresting, and the cresting itself
+  b.add(mesh(new THREE.BoxGeometry(0.4, 0.6, len + 0.4), ivory, x - 0.2, h - 0.3, (z0 + z1) / 2));
+  const merlon = new THREE.BoxGeometry(0.35, 0.9, 0.7);
+  const tip = new THREE.ConeGeometry(0.22, 0.6, 4);
+  for (let z = z0 + 0.6; z < z1; z += 1.6) {
+    b.add(mesh(merlon, ivory, x - 0.2, h + 0.45, z));
+    b.add(mesh(tip, ivory, x - 0.2, h + 1.2, z));
+  }
+}

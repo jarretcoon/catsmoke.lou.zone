@@ -9,7 +9,7 @@ import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
 import { flamingoSigns, harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, parisBalloonGlow, planetHollywoodSigns, venetianSigns } from './stripSigns';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
-import { casinoRoyaleFront, palazzoFront } from './stripFronts';
+import { casinoRoyaleFront, dogesPalaceFront, palazzoFront } from './stripFronts';
 
 /**
  * East side of Las Vegas Blvd, south → north:
@@ -799,6 +799,8 @@ function buildVenetian(b: WorldBuilder): void {
     b.collider(42.8, 43.6, z - 0.4, z + 0.4, 0, 6, true);
   }
   b.box(41.5, 6, -276, 5, 1.2, 50, stone);
+  // Upper loggia on the arcade, the rose lozenge wall with pointed windows, Gothic cresting (stripFronts.ts)
+  dogesPalaceFront(b, 43.4, -291.4, -246, 18, 7.2, -300.5, -251.5);
   venetianSigns(b); // marquee by the campanile + gold Roman lettering on the palace and tower (stripSigns.ts)
 
   // Gondolas with gondoliers, rideable end to end

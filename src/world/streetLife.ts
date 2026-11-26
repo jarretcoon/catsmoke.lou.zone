@@ -4,6 +4,7 @@ import { BX, CY, K, part, signs } from './backOfHouse';
 import { car, mat } from './props';
 import { litterGeometry, litterMaterial, mistMaterial, registerStreetTick, signGeometry, wetSheenMaterial } from './streetTextures';
 import { CROSSWALKS, STRIP } from './strip';
+import { buildCornerRails } from './stripRails';
 import { rng } from './textures';
 
 /**
@@ -22,6 +23,7 @@ export function buildStreetLife(b: WorldBuilder): void {
   buildPorteCocheres(b);
   buildMisters(b, R);
   buildSidewalkTrade(b, R);
+  buildCornerRails(b); // no at-grade crossing at the bridge intersections (stripRails.ts)
 }
 
 // ---------------------------------------------------------------- ambient walkers (instanced)
