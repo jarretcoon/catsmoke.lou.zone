@@ -19,12 +19,7 @@ export function buildBackdrop(b: WorldBuilder): void {
   ground.receiveShadow = true;
   b.add(ground);
 
-  // ---- West: I-15 + the off-Strip resorts ----
-  const freeway = mat(0x5a5a60, 0.85);
-  b.add(mesh(new THREE.BoxGeometry(30, 1.2, 2400), freeway, -230, 8, 80));
-  for (let z = -1100; z < 1280; z += 40) b.add(mesh(new THREE.CylinderGeometry(1.2, 1.4, 8, 8), mat(0x8a8a90, 0.8), -230, 4, z));
-  const fwLights = basic(0xfff0c8);
-  for (let z = -1100; z < 1280; z += 20) b.add(mesh(new THREE.SphereGeometry(0.6, 6, 4), fwLights, -217, 13, z));
+  // ---- West: off-Strip resorts beyond Dean Martin Dr (interstate.ts builds playable I-15) ----
   tower(b, { x: -330, z: 40, w: 34, d: 18, h: 46, facade: { wall: '#2a4e9a', mullion: '#d8364a', glass: '#1a2e5a', lit: '#ffd0e0', cols: 10, rows: 24, style: 1, seed: 270 }, collide: false, cast: false }); // Rio
   tower(b, { x: -360, z: -60, w: 20, d: 30, h: 50, facade: { wall: '#c8b8a0', mullion: '#e0d4c0', glass: '#4a5560', lit: '#ffe6b0', cols: 10, rows: 26, seed: 280 }, collide: false, cast: false }); // Palms
   b.add(neonSign('RIO', '#140818', '#ff3b5c', 12, 4), -312.8, 40, 40, Math.PI / 2);
@@ -40,7 +35,11 @@ export function buildBackdrop(b: WorldBuilder): void {
   const zS = STRIP.south + 4;
   b.box((xW + xE) / 2, 0, zN, xE - xW, 0.8, 1.2, edgeMat, false, false);
   b.box((xW + xE) / 2, 0, zS, xE - xW, 0.8, 1.2, edgeMat, false, false);
-  b.box(xW, 0, (zN + zS) / 2, 1.2, 0.8, zS - zN, edgeMat, false, false);
+  // The west edge opens into T-Mobile Arena, I-15 bridges & Dean Martin Dr's bay (deanMartin.ts walls it)
+  const bayWN = -196;
+  const bayWS = 605;
+  b.box(xW, 0, (zN + bayWN) / 2, 1.2, 0.8, bayWN - zN, edgeMat, false, false);
+  b.box(xW, 0, (bayWS + zS) / 2, 1.2, 0.8, zS - bayWS, edgeMat, false, false);
   // The east edge opens into the Sphere district's bay (Sands Ave, Manhattan St, Hughes Center: sphereDistrict.ts walls it)
   const bayN = -425;
   const bayS = -55;
@@ -48,7 +47,8 @@ export function buildBackdrop(b: WorldBuilder): void {
   b.box(xE, 0, (bayS + zS) / 2, 1.2, 0.8, zS - bayS, edgeMat, false, false);
   b.collider(xW - 50, xE + 50, zN - 50, zN - 0.6, 0, 60, true);
   b.collider(xW - 50, xE + 50, zS + 0.6, zS + 50, 0, 60, true);
-  b.collider(xW - 50, xW - 0.6, zN - 50, zS + 50, 0, 60, true);
+  b.collider(xW - 50, xW - 0.6, zN - 50, bayWN, 0, 60, true);
+  b.collider(-213.4, xW - 0.6, bayWS, zS + 50, 0, 60, true); // west of -214 is deanMartin.ts's walkable annex
   b.collider(xE + 0.6, xE + 50, zN - 50, bayN, 0, 60, true);
   b.collider(xE + 0.6, xE + 50, bayS, zS + 50, 0, 60, true);
 }

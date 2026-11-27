@@ -881,21 +881,21 @@ function bohGround(b: WorldBuilder, x0: number, x1: number, z0: number, z1: numb
 
 function buildWestBack(b: WorldBuilder, R: () => number): void {
   bohGround(b, -173, -156, -400, -11);
-  bohGround(b, -173, -156, 11, 400);
+  bohGround(b, -173, -156, 11, 354);
   bohGround(b, -156, -133, -400, -325);
   bohGround(b, -156, -140, -325, -186);
-  // ---- Frank Sinatra Dr (behind the west-side resorts, along the I-15 sound wall)
+  // ---- Frank Sinatra Dr (behind the west-side resorts, along the I-15 sound wall; continued south in tmobileArena.ts)
   const X = -166.5;
   for (const [z0, z1] of [
     [-399, -11],
-    [11, 398],
+    [11, 354],
   ]) serviceRoad(b, X - 0.01, z0, X + 0.01, z1, z0 < 0 ? 'Frank Sinatra Dr' : undefined);
-  b.zone('Frank Sinatra Dr', X - 5, X + 5, -399, 398);
+  b.zone('Frank Sinatra Dr', X - 5, X + 5, -399, 354);
   // east sidewalk + street lights over the road, west: sound wall with pilasters
   b.add(new THREE.Mesh(worldPlane(2.0, 388, X + 5.8, 0.04, -205, 1, 1), K.concrete));
-  b.add(new THREE.Mesh(worldPlane(2.0, 388, X + 5.8, 0.04, 205, 1, 1), K.concrete));
-  for (let z = -390; z < 395; z += 38) {
-    if (Math.abs(z) < 14) continue;
+  b.add(new THREE.Mesh(worldPlane(2.0, 343, X + 5.8, 0.04, 182.5, 1, 1), K.concrete));
+  for (let z = -390; z < 350; z += 38) {
+    if (Math.abs(z) < 16 || Math.abs(z - 221) < 14) continue;
     const l = cobraLight(b);
     l.position.set(X + 5.4, 0, z);
     l.rotation.y = Math.PI;
@@ -904,8 +904,9 @@ function buildWestBack(b: WorldBuilder, R: () => number): void {
     lightPool(b, X + 2.6, z, 12);
   }
   for (const [z0, z1] of [
-    [-402, -12],
-    [12, 402],
+    [-402, -18],
+    [18, 210],
+    [232, 353],
   ]) {
     const zc = (z0 + z1) / 2;
     b.box(-172.4, 0, zc, 0.5, 4.2, z1 - z0, mat(0xb4a48c, 0.9), true, false);
@@ -914,16 +915,6 @@ function buildWestBack(b: WorldBuilder, R: () => number): void {
   streetName(b, 'sinatra', X + 5.2, -12.5, Math.PI / 2);
   streetName(b, 'sinatra', X + 5.2, 12.5, Math.PI / 2);
   streetName(b, 'sinatra', X + 5.2, -397, Math.PI / 2);
-  // south end: cul-de-sac barriers
-  for (const dx of [-3, 0, 3]) b.add(jersey(), X + dx, 0, 399.5, Math.PI / 2);
-  b.collider(X - 4.5, X + 4.5, 399, 400, 0, 0.8, true);
-  // I-15 frontage beyond the wall (looks only): lamps marching along it
-  ground(serviceRoadMaterial(), roadStripGeometry(-190, -700, -190, 900, 0.0, 11));
-  for (let z = -690; z < 900; z += 45) {
-    const l = cobraLight(b);
-    l.position.set(-183.5, 0, z);
-    b.add(l);
-  }
   // berms with oleanders where the resorts leave room
   berm(b, X + 7.7, -396, -335, 11);
   berm(b, X + 7.7, 125, 180, 13);
@@ -998,9 +989,8 @@ function buildWestBack(b: WorldBuilder, R: () => number): void {
   surfaceLot(b, -156, -104, 122, 178, 103, 0.62, 'Cosmopolitan Lot');
   chainFence(b, -156, 121.5, -104, 121.5);
   b.add(transformerBox(), -107, 0, 180.5);
-  // ---- behind NYNY / Park MGM: garage + lot
+  // ---- behind NYNY / Park MGM: garage (Arena & Toshiba Plaza built in tmobileArena.ts)
   parkingGarage(b, -158, -120, 304, 352, 4, 'Park MGM • NYNY Parking', '+x', 202);
-  surfaceLot(b, -158, -104, 362, 396, 104, 0.5, 'Event Parking');
 }
 
 function buildEastBack(b: WorldBuilder, R: () => number): void {

@@ -153,10 +153,10 @@ function buildParkMGM(b: WorldBuilder): void {
   const zEnd = 370.6;
   const mg = new Merger();
   const cream: FacadeSpec = { wall: '#e8dcc4', mullion: '#f4ead6', glass: '#6c757c', lit: '#ffe6b0', cols: 10, rows: 20, style: 0, seed: 301 };
-  tower(b, { x: -70, z: 355, w: 13, d: 22, h: 38, facade: cream, accent: 0xa8f0c0 });
-  sign(b, 'PARK MGM', '#0d1f16', '#e9f7e4', 11, 2.2, -63.25, 27.4, 355, Math.PI / 2);
-  sign(b, 'NoMad', '#0d0d0d', '#f4ead6', 5, 1.3, -63.25, 24.4, 355, Math.PI / 2, 'LAS VEGAS', 0.2);
-  b.building(-70, 355, 13, 22, '#e8dcc4', 'Park MGM');
+  tower(b, { x: -70, z: 330, w: 13, d: 22, h: 38, facade: cream, accent: 0xa8f0c0 });
+  sign(b, 'PARK MGM', '#0d1f16', '#e9f7e4', 11, 2.2, -63.25, 27.4, 330, Math.PI / 2);
+  sign(b, 'NoMad', '#0d0d0d', '#f4ead6', 5, 1.3, -63.25, 24.4, 330, Math.PI / 2, 'LAS VEGAS', 0.2);
+  b.building(-70, 330, 13, 22, '#e8dcc4', 'Park MGM');
 
   // The Park: shaded walkway between Park MGM and NYNY toward T-Mobile Arena
   paving(b, -19, -63.5, z0, zEnd, '#cbb89c', '#a8957a');
@@ -169,7 +169,7 @@ function buildParkMGM(b: WorldBuilder): void {
   for (const [tx, tz] of [
     [-26, 349],
     [-27, 364],
-    [-50, 349],
+    [-50, 352],
     [-55.5, 361],
   ]) {
     mg.beam(steel, v3(tx, 0, tz), v3(tx, 6.2, tz), 0.26, 8, 0.18, true);
@@ -182,15 +182,15 @@ function buildParkMGM(b: WorldBuilder): void {
       const g = new THREE.CylinderGeometry(1.75, 1.75, 0.08, 6);
       g.rotateX(0.18 * Math.cos(a * 2));
       g.rotateZ(0.15 * Math.sin(a * 3));
-      mg.at(perf, g, tx + Math.cos(a) * 1.6, 6.5 + (k % 2) * 0.35, tz + Math.sin(a) * 1.6, 0, true);
+      mg.at(perf, g, tx + Math.cos(a) * 1.6, 6.5 + (k % 2) * 0.35, tz + Math.sin(a * 1) * 1.6, 0, true);
     }
     b.collider(tx - 0.3, tx + 0.3, tz - 0.3, tz + 0.3, 0, 6.2, true);
   }
 
-  // Basalt water wall along the north edge
-  b.box(-41, 0, 346.2, 30, 1.5, 0.8, mat(0x2b2a2e, 0.55, 0.1), true);
+  // Basalt water wall along the north edge (between Top Round & Luke's Lobster so Eataly opens cleanly)
+  b.box(-46, 0, 346.2, 13, 1.5, 0.8, mat(0x2b2a2e, 0.55, 0.1), true);
   const sheet = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.3, emissive: 0x2a6a9a, emissiveIntensity: 0.4 });
-  b.add(mesh(new THREE.PlaneGeometry(29.6, 1.4), sheet, -41, 0.75, 346.62));
+  b.add(mesh(new THREE.PlaneGeometry(12.6, 1.4), sheet, -46, 0.75, 346.62));
 
   // Desert beds + palo verdes along the frontage
   for (const [pz, i] of [
@@ -200,7 +200,7 @@ function buildParkMGM(b: WorldBuilder): void {
   ]) agaveBed(mg, -22.6, pz, 2.6, 4.4, i);
   desertTreeInto(mg, -31, 368, 4.4, 1);
   desertTreeInto(mg, -45, 365, 4.0, 2);
-  desertTreeInto(mg, -60, 350, 4.6, 3);
+  desertTreeInto(mg, -62, 355, 4.6, 3);
   for (const bx of [-30, -44]) b.add(benchSeat(), bx, 0, 352.8);
 
   // Monument sign at the sidewalk
@@ -210,7 +210,7 @@ function buildParkMGM(b: WorldBuilder): void {
 
   b.pickup(-35.2, 1.35, 356.5, 2, 'Bliss Dance Pedestal Pack', false);
   b.zone('The Park • Bliss Dance', -63.5, -19, z0, zEnd);
-  b.zone('Park MGM', -80, -63.5, z0, 368);
+  b.zone('Park MGM', -80, -63.5, 318, 344);
   b.crowd.tourists.push(
     { pts: [[-24, 350.5], [-57, 350.5]], prop: 'camera' },
     { pts: [[-56, 363], [-24, 362]], prop: 'cig' },
@@ -464,20 +464,20 @@ function buildNYNY(b: WorldBuilder): void {
   top = stack(-51, 408, [[8, 8, 18]], skin('#d0c0a4', 317), podium.top);
   mg.at(copper, new THREE.CylinderGeometry(1.6, 2.4, 3, 8), -51, top + 1.5, 408);
   mg.at(gold, new THREE.ConeGeometry(1.6, 2.2, 8), -51, top + 4.1, 408);
-  // Municipal building (from the ground, west of the podium) with its wedding-cake lantern
-  tower(b, { x: -92, z: 384, w: 9, d: 9, h: 36, facade: skin('#cfc2a8', 318), minimal: true });
-  b.add(mesh(new THREE.BoxGeometry(9.8, 3.8, 9.8), mat(0x6a5a48, 0.6, 0.2), -92, 1.9, 384, true));
-  for (let i = 0; i < 3; i++) mg.at(i % 2 ? gold : mat(0xe8dcc4, 0.6), new THREE.CylinderGeometry(2.6 - i * 0.7, 3.0 - i * 0.7, 2.2, 10), -92, 37 + i * 2.2, 384);
-  mg.beam(gold, v3(-92, 43.6, 384), v3(-92, 46.5, 384), 0.25, 6, 0.08);
+  // Municipal building (on NYNY's west podium edge, clear of Toshiba Plaza) with its wedding-cake lantern
+  tower(b, { x: -82, z: 398, w: 9, d: 9, h: 36, facade: skin('#cfc2a8', 318), minimal: true });
+  b.add(mesh(new THREE.BoxGeometry(9.8, 3.8, 9.8), mat(0x6a5a48, 0.6, 0.2), -82, 1.9, 398, true));
+  for (let i = 0; i < 3; i++) mg.at(i % 2 ? gold : mat(0xe8dcc4, 0.6), new THREE.CylinderGeometry(2.6 - i * 0.7, 3.0 - i * 0.7, 2.2, 10), -82, 37 + i * 2.2, 398);
+  mg.beam(gold, v3(-82, 43.6, 398), v3(-82, 46.5, 398), 0.25, 6, 0.08);
   b.building(-65, 400.5, 42, 47, '#9a6a52', 'NYNY');
-  b.building(-92, 384, 9, 9, '#cfc2a8');
+  b.building(-82, 398, 9, 9, '#cfc2a8');
 
   buildBrooklynBridge(b, mg);
   buildLiberty(b, mg, -33, 409);
   mg.flush(b);
   buildBigAppleCoaster(b, podium);
 
-  b.zone('New York-New York', -115, -19, zN, TROP_N);
+  b.zone('New York-New York', -91, -19, zN, TROP_N);
   b.zone('Brooklyn Bridge (NYNY)', -26, -19, 390.5, 410.5);
   b.zone('Statue of Liberty (NYNY)', -37, -29, 405.5, 412.5);
   b.crowd.tourists.push(
@@ -623,14 +623,14 @@ function buildBigAppleCoaster(b: WorldBuilder, podium: { x0: number; x1: number;
     [-56, 1.2, 371],
     [-63, 1.25, 371],
     [-70, 2.6, 371],
-    [-86, 20, 371],
-    [-100, 37, 371],
-    [-107, 41, 373.5],
-    [-111.5, 37.5, 381.5],
-    [-109, 18, 392],
-    [-102, 7, 400.5],
-    [-94, 14, 410],
-    [-84, 24, 419.5],
+    [-77, 20, 371],
+    [-82, 37, 373],
+    [-85, 41, 377],
+    [-85.5, 37.5, 385],
+    [-85, 18, 395],
+    [-83, 7, 404],
+    [-80, 14, 412],
+    [-76, 24, 419.5],
     [-70, 20.5, 420.5],
     [-57, 16.5, 420],
     [-47, 15, 416.5],

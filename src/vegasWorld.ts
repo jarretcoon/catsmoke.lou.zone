@@ -17,6 +17,9 @@ import { SkyDome } from './world/sky';
 import { buildSkyLife } from './world/skyLife';
 import { bakeStatic } from './world/staticBatch';
 import { buildStrip, DeuceState, TrafficCar } from './world/strip';
+import { buildDeanMartin } from './world/deanMartin';
+import { buildInterstate } from './world/interstate';
+import { buildTMobileArea } from './world/tmobileArena';
 import { buildWestSide } from './world/westSide';
 
 export type { CigPickup, GamblingSpot, PlatformBox, ShopSpot } from './world/builder';
@@ -126,6 +129,9 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   buildSouthStrip(b);
   buildFoodAndShops(b);
   buildBackOfHouse(b);
+  buildTMobileArea(b);
+  buildInterstate(b);
+  buildDeanMartin(b);
   buildStreetShops(b);
   buildStreetLife(b);
   buildBackdrop(b);

@@ -256,9 +256,10 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     }
   }
 
-  // --- Flamingo Rd ---
-  const crossLen = STRIP.flamingoEast - STRIP.flamingoWest;
-  const crossMid = (STRIP.flamingoEast + STRIP.flamingoWest) / 2;
+  // --- Flamingo Rd (west surface stops at -148 where interstate.ts Flamingo overpass ramp starts) ---
+  const flamWest = -148;
+  const crossLen = STRIP.flamingoEast - flamWest;
+  const crossMid = (STRIP.flamingoEast + flamWest) / 2;
   // The cross streets catch the frontage glow too (the resorts on the corners light them)
   const crossGlow = { fill: 0.42, pools: 0, sheen: 0.14, lift: 0.013 };
   const crossMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 });
@@ -270,14 +271,18 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.add(cross);
   b.feature({ kind: 'road', x: crossMid, z: 0, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40' });
   b.zone('Flamingo Rd & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, -STRIP.flamingoWalk, STRIP.flamingoWalk);
-  const tropMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(crossLen), roughness: 0.82 });
+  // --- Tropicana Ave (west surface stops at -114 where interstate.ts Tropicana overpass ramp starts) ---
+  const tropWest = -114;
+  const tropLen = STRIP.flamingoEast - tropWest;
+  const tropMid = (STRIP.flamingoEast + tropWest) / 2;
+  const tropMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(tropLen), roughness: 0.82 });
   glow.apply(tropMat, crossGlow);
-  const trop = new THREE.Mesh(new THREE.PlaneGeometry(crossLen, STRIP.flamingoHalf * 2), tropMat);
+  const trop = new THREE.Mesh(new THREE.PlaneGeometry(tropLen, STRIP.flamingoHalf * 2), tropMat);
   trop.rotation.x = -Math.PI / 2;
-  trop.position.set(crossMid, 0.035, STRIP.tropicanaZ);
+  trop.position.set(tropMid, 0.035, STRIP.tropicanaZ);
   trop.receiveShadow = true;
   b.add(trop);
-  b.feature({ kind: 'road', x: crossMid, z: STRIP.tropicanaZ, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40', label: 'Tropicana Ave' });
+  b.feature({ kind: 'road', x: tropMid, z: STRIP.tropicanaZ, w: tropLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40', label: 'Tropicana Ave' });
   b.zone('Tropicana Ave & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, STRIP.tropicanaZ - STRIP.flamingoWalk, STRIP.tropicanaZ + STRIP.flamingoWalk);
   // Side-street stubs (two lanes each way) at the real cross streets
   const sideMat = new THREE.MeshStandardMaterial({ map: makeCrossStreetTexture(160), roughness: 0.82 });
@@ -498,10 +503,11 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     const dir: 1 | -1 = i % 2 === 0 ? 1 : -1; // +1 = eastbound (drives on the south half)
     const lane = i % 4 < 2 ? 3.1 : 6.5;
     const z = (i >= 4 ? STRIP.tropicanaZ : 0) + (dir === 1 ? lane : -lane);
+    const westLim = i >= 4 ? -114 : -148;
     const c = car(kind, color);
     bakeGroup(c.group);
     b.scene.add(c.group);
-    c.group.position.set(STRIP.flamingoWest + 30 + i * 80, 0, z);
+    c.group.position.set(westLim + 16 + i * 38, 0, z);
     c.group.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
     cars.push({ mesh: c.group, laneX: z, dir, speed: 10, cruise: 10 + i, halfLen: c.length / 2 + 0.3, axis: 'x' });
   });
@@ -587,9 +593,10 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
         if (c.dir === 1 && next > STRIP.south) c.mesh.position.z = STRIP.north;
         if (c.dir === -1 && next < STRIP.north) c.mesh.position.z = STRIP.south;
       } else {
+        const westLim = c.laneX > 200 ? -114 : -148;
         c.mesh.position.x = next;
-        if (c.dir === 1 && next > STRIP.flamingoEast) c.mesh.position.x = STRIP.flamingoWest;
-        if (c.dir === -1 && next < STRIP.flamingoWest) c.mesh.position.x = STRIP.flamingoEast;
+        if (c.dir === 1 && next > STRIP.flamingoEast) c.mesh.position.x = westLim;
+        if (c.dir === -1 && next < westLim) c.mesh.position.x = STRIP.flamingoEast;
       }
     }
 
