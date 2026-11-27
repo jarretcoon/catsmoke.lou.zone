@@ -78,7 +78,7 @@ export interface LightAnchor {
 export const viewer = { cam: new THREE.Vector3(), cat: new THREE.Vector3(), zone: '' };
 
 /** Zone names that count as indoors: police lose sight of Lou, and the lighting adapts to the room. */
-export const INDOOR_ZONE = /Casino|Lounge|Chandelier|ABC Stores|Conservatory|Forum Shops|Lobby|Shoppes|Atrium|Wizard of Oz|Adventuredome/;
+export const INDOOR_ZONE = /Casino|Lounge|Chandelier|ABC Stores|Conservatory|Forum Shops|Lobby|Shoppes|Atrium|Wizard of Oz|Adventuredome|Bonanza Gift Shop/;
 
 /** Shared state every district writes into while the world is assembled. */
 export class WorldBuilder {
