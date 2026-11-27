@@ -94,6 +94,8 @@
     { "id": "palazzo-casino", "label": "Palazzo casino: marble cross walk, domed coffers with crystal chandeliers, the atrium beyond (inside, night)", "time": "night", "tp": [34.3, 0.3, -342], "cam": [0, 0.2, 9], "maxCalls": 1270 },
     { "id": "ti-casino", "label": "Treasure Island casino: teak-deck walks, ship's-wheel chandeliers, the Mystère box office (inside, night)", "time": "night", "tp": [-82, 0.3, -374], "cam": [1.2, 0.22, 8], "maxCalls": 560 },
     { "id": "ti-cove-door-day", "label": "Treasure Island: the casino door in the Caribbean village front across Sirens' Cove (day)", "time": "day", "tp": [-66, 0.3, -372], "cam": [1.9, 0.2, 12], "maxCalls": 620 },
+    { "id": "mandalay-promenade", "label": "Mandalay Bay casino: the promenade from the porte-cochere, red marble columns, gold lanterns, the tropical garden (inside, night)", "time": "night", "tp": [-50, 0.3, 662], "cam": [1.5708, 0.2, 8], "maxCalls": 720 },
+    { "id": "mandalay-lobby", "label": "Mandalay Bay: the hotel desk under the big aquarium (inside, night)", "time": "night", "tp": [-51, 0.3, 659], "cam": [0, 0.15, 5], "maxCalls": 1700 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 340 },
     { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-0.95, 0.1, 8.5], "maxCalls": 1700 },
     { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 880 },

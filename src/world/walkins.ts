@@ -1,6 +1,7 @@
 import type { WorldBuilder } from './builder';
 import { buildEncoreWalkIn } from './encoreInterior';
 import { buildHarrahsWalkIn } from './harrahsInterior';
+import { buildMandalayWalkIn } from './mandalayInterior';
 import { buildPalazzoWalkIn } from './palazzoInterior';
 import { buildTIWalkIn } from './tiInterior';
 import { buildWynnWalkIn } from './wynnInterior';
@@ -12,4 +13,5 @@ export function buildWalkIns(b: WorldBuilder): void {
   buildHarrahsWalkIn(b);
   buildPalazzoWalkIn(b);
   buildTIWalkIn(b);
+  buildMandalayWalkIn(b);
 }

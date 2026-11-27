@@ -1442,15 +1442,7 @@ function buildMandalay(b: WorldBuilder): void {
   paving(b, -19, -46, zN + 0.3, zS - 0.3, '#d8c8a8', '#b7a584');
   const mg = new Merger();
 
-  // Casino base
-  const baseMat = facadeMaterial(b, { wall: '#c9a26a', mullion: '#e8c98a', glass: '#3a2a18', lit: '#ffd9a0', cols: 6, rows: 3, style: 1, seed: 411 }, 50, 12);
-  const roofM = mat(0x4a4038, 0.8);
-  const base = new THREE.Mesh(new THREE.BoxGeometry(38, 12, 50), [baseMat, baseMat, roofM, roofM, baseMat, baseMat]);
-  base.position.set(-65, 6, 673);
-  base.castShadow = true;
-  base.receiveShadow = true;
-  b.add(base);
-  b.collider(-84, -46, 648, 698, 0, 12, true);
+  // Casino base: the walk-in casino now (mandalayInterior.ts, x −84..−46, z 648..698, 12 m); the tower stands on it
   mg.box(mat(0xd4a640, 0.3, 0.8), -65, 11.8, 673, 38.6, 0.6, 50.6);
 
   // Gold Y tower (stepped wings)
@@ -1467,7 +1459,8 @@ function buildMandalay(b: WorldBuilder): void {
       [20, 28, 32],
     ]) {
       const rm = (r0 + r1) / 2;
-      tower(b, { x: tcx + Math.cos(a) * rm, z: tcz + Math.sin(a) * rm, w: r1 - r0, d: 11, h: hh, facade: { ...gold, seed: 412 + i * 3 + r0 }, rotY: -a, metal: 0.85, rough: 0.18, minimal: true, accent: 0xffe6a0, wash: 0xffc860, washZone: 18, washStrength: 1.0 });
+      // the wings start on the casino roof (12 m) so the casino under them is walkable
+      tower(b, { x: tcx + Math.cos(a) * rm, z: tcz + Math.sin(a) * rm, w: r1 - r0, d: 11, h: hh - 12, y: 12, facade: { ...gold, rows: Math.round((gold.rows ?? 26) * ((hh - 12) / hh)), seed: 412 + i * 3 + r0 }, rotY: -a, metal: 0.85, rough: 0.18, minimal: true, accent: 0xffe6a0, wash: 0xffc860, washZone: 18, washStrength: 1.0 });
     }
     for (const [r0, r1, hh] of [
       [0, 15, 46],
@@ -1496,7 +1489,6 @@ function buildMandalay(b: WorldBuilder): void {
     mg.add(new THREE.CylinderGeometry(0.35, 0.35, 4.6, 10).translate(-40.4, 2.3, z), mat(0xd4a640, 0.3, 0.8));
     b.collider(-40.8, -40, z - 0.4, z + 0.4, 0, 4.6, true);
   }
-  b.add(mesh(new THREE.BoxGeometry(0.15, 3.4, 8), basic(0xffd9a0), -45.95, 1.7, 662));
   ground(b, -24, -40, 655, 669, 0x2b2b30, L1, 0.85);
   mandalaySigns(b, -23.4, 650); // gold-leaf pylon under a pagoda cap (stripSigns.ts)
 

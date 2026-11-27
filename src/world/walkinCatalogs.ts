@@ -139,4 +139,29 @@ Object.assign(CATALOGS, {
       item('tm-popcorn', 'Snacks', 'Popcorn', 'Tips ×1.1 for 2 min.', 8, { tip: 1.1, secs: 120, icon: '🍿' }),
     ],
   },
+  // ---------------------------------------------------------------- Mandalay Bay
+  'mandalay-rhythm': {
+    title: 'Rhythm & Riffs',
+    sub: 'Live music lounge • Mandalay Bay casino',
+    greeting: 'The band’s on at ten. What can I get you?',
+    bye: 'Rock on',
+    items: [
+      drink('rr-mai-tai', 'Tropical Mai Tai', '🍹 for 2 min.', 18, 120),
+      drink('rr-bourbon', 'Bourbon on the Rocks', '🍹 for 2 min. Swag points for the blues.', 17, 120, { degen: [6, 'Blues Cat'] }),
+      drink('rr-beer', 'Bucket of Beers (one)', '🍹 for 90 s.', 10, 90),
+      food('rr-wings', 'Hot Wings', 'Tips ×1.25 for 2 min.', 16, 1.25, 1, 120, '🍗'),
+    ],
+  },
+  'mandalay-shark-reef': {
+    title: 'Shark Reef Aquarium',
+    sub: 'Sharks, rays, sea turtles • Mandalay Bay',
+    greeting: 'Two thousand animals and one very interested cat.',
+    bye: 'No fishing, please',
+    items: [
+      item('sr-ticket', 'Tickets', 'Shark Reef Admission', 'Lou presses his nose to the glass for an hour. Calm: the heat dies down (−1 wanted star).', 32, { heat: 1, degen: [12, 'Shark Week'] }, 'COOL DOWN'),
+      item('sr-plush', 'Souvenirs', 'Hammerhead Plush', 'Lou’s new nemesis. Collectible.', 22, { collect: true, degen: [8, 'Souvenir Hoarder'] }),
+      item('sr-tooth', 'Souvenirs', 'Shark Tooth Necklace', 'A real-looking tooth on a cord. Collectible.', 15, { collect: true }),
+      item('sr-tuna', 'Snacks', 'Tuna Snack Pack (for cats)', 'Not from the tank. Promise. A sprint for 2 min.', 6, { speed: 1.12, secs: 120, icon: '🐟' }),
+    ],
+  },
 });
