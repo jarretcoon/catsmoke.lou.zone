@@ -21,7 +21,7 @@ import './frontageCatalogs';
  *    (pink, outdoor bar), PBR Rock Bar & Grill at the Harmon end.
  */
 
-const A = new ShopAtlas('frontHarmonFlamingo', 2048, 1536);
+const A = new ShopAtlas('frontHarmonFlamingo', 2048, 2048);
 
 A.sign('fs:pfchangs', { text: "P.F. CHANG'S", style: 'serif', fg: '#f4e8d0', bg: '#141010', look: 'channel', w: 640, h: 128 });
 A.sign('fs:rosa', { text: 'Rosa Mexicano', sub: 'OUTDOOR BAR • MARGARITAS', style: 'script', fg: '#ff4fa8', bg: '#120810', look: 'neon', border: '#ffd0e8', w: 640, h: 160 });
