@@ -103,6 +103,6 @@ shown in it. Their names, signs and logos belong to their owners. The Sphere's s
 storm scene made for this game.
 
 Street layouts, building footprints and names in some districts (the Sphere district round Sands Ave,
-Koval Ln and Manhattan St) follow OpenStreetMap. Map data © OpenStreetMap contributors (ODbL).
+Koval Ln and Manhattan St, and T-Mobile Arena / The Park / I-15 / Dean Martin Dr) follow OpenStreetMap. Map data © OpenStreetMap contributors (ODbL).
 
 Copyright © 2026 Jarret Coon. All rights reserved.

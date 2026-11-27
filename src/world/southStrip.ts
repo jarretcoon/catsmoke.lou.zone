@@ -153,10 +153,10 @@ function buildParkMGM(b: WorldBuilder): void {
   const zEnd = 370.6;
   const mg = new Merger();
   const cream: FacadeSpec = { wall: '#e8dcc4', mullion: '#f4ead6', glass: '#6c757c', lit: '#ffe6b0', cols: 10, rows: 20, style: 0, seed: 301 };
-  tower(b, { x: -70, z: 355, w: 13, d: 22, h: 38, facade: cream, accent: 0xa8f0c0 });
-  sign(b, 'PARK MGM', '#0d1f16', '#e9f7e4', 11, 2.2, -63.25, 27.4, 355, Math.PI / 2);
-  sign(b, 'NoMad', '#0d0d0d', '#f4ead6', 5, 1.3, -63.25, 24.4, 355, Math.PI / 2, 'LAS VEGAS', 0.2);
-  b.building(-70, 355, 13, 22, '#e8dcc4', 'Park MGM');
+  tower(b, { x: -70, z: 330, w: 13, d: 22, h: 38, facade: cream, accent: 0xa8f0c0 });
+  sign(b, 'PARK MGM', '#0d1f16', '#e9f7e4', 11, 2.2, -63.25, 27.4, 330, Math.PI / 2);
+  sign(b, 'NoMad', '#0d0d0d', '#f4ead6', 5, 1.3, -63.25, 24.4, 330, Math.PI / 2, 'LAS VEGAS', 0.2);
+  b.building(-70, 330, 13, 22, '#e8dcc4', 'Park MGM');
 
   // The Park: shaded walkway between Park MGM and NYNY toward T-Mobile Arena
   paving(b, -19, -63.5, z0, zEnd, '#cbb89c', '#a8957a');
@@ -169,7 +169,7 @@ function buildParkMGM(b: WorldBuilder): void {
   for (const [tx, tz] of [
     [-26, 349],
     [-27, 364],
-    [-50, 349],
+    [-50, 352],
     [-55.5, 361],
   ]) {
     mg.beam(steel, v3(tx, 0, tz), v3(tx, 6.2, tz), 0.26, 8, 0.18, true);
@@ -182,15 +182,15 @@ function buildParkMGM(b: WorldBuilder): void {
       const g = new THREE.CylinderGeometry(1.75, 1.75, 0.08, 6);
       g.rotateX(0.18 * Math.cos(a * 2));
       g.rotateZ(0.15 * Math.sin(a * 3));
-      mg.at(perf, g, tx + Math.cos(a) * 1.6, 6.5 + (k % 2) * 0.35, tz + Math.sin(a) * 1.6, 0, true);
+      mg.at(perf, g, tx + Math.cos(a) * 1.6, 6.5 + (k % 2) * 0.35, tz + Math.sin(a * 1) * 1.6, 0, true);
     }
     b.collider(tx - 0.3, tx + 0.3, tz - 0.3, tz + 0.3, 0, 6.2, true);
   }
 
-  // Basalt water wall along the north edge
-  b.box(-41, 0, 346.2, 30, 1.5, 0.8, mat(0x2b2a2e, 0.55, 0.1), true);
+  // Basalt water wall along the north edge (between Top Round & Luke's Lobster so Eataly opens cleanly)
+  b.box(-46, 0, 346.2, 13, 1.5, 0.8, mat(0x2b2a2e, 0.55, 0.1), true);
   const sheet = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.3, emissive: 0x2a6a9a, emissiveIntensity: 0.4 });
-  b.add(mesh(new THREE.PlaneGeometry(29.6, 1.4), sheet, -41, 0.75, 346.62));
+  b.add(mesh(new THREE.PlaneGeometry(12.6, 1.4), sheet, -46, 0.75, 346.62));
 
   // Desert beds + palo verdes along the frontage
   for (const [pz, i] of [
@@ -200,7 +200,7 @@ function buildParkMGM(b: WorldBuilder): void {
   ]) agaveBed(mg, -22.6, pz, 2.6, 4.4, i);
   desertTreeInto(mg, -31, 368, 4.4, 1);
   desertTreeInto(mg, -45, 365, 4.0, 2);
-  desertTreeInto(mg, -60, 350, 4.6, 3);
+  desertTreeInto(mg, -62, 355, 4.6, 3);
   for (const bx of [-30, -44]) b.add(benchSeat(), bx, 0, 352.8);
 
   // Monument sign at the sidewalk
@@ -210,7 +210,7 @@ function buildParkMGM(b: WorldBuilder): void {
 
   b.pickup(-35.2, 1.35, 356.5, 2, 'Bliss Dance Pedestal Pack', false);
   b.zone('The Park • Bliss Dance', -63.5, -19, z0, zEnd);
-  b.zone('Park MGM', -80, -63.5, z0, 368);
+  b.zone('Park MGM', -80, -63.5, 318, 344);
   b.crowd.tourists.push(
     { pts: [[-24, 350.5], [-57, 350.5]], prop: 'camera' },
     { pts: [[-56, 363], [-24, 362]], prop: 'cig' },

@@ -18,10 +18,6 @@ import { LedBoard, makePaverTexture } from './textures';
 export function buildFoodAndShops(b: WorldBuilder): void {
   buildBlvd(b);
   b.restaurants.push(buildWhataburger(b, -40, 303, Math.PI / 2, 'Whataburger (3752 S Las Vegas Blvd)'));
-  b.restaurants.push(buildInNOut(b, -150, 423, Math.PI / 2, { name: 'In-N-Out (Dean Martin Dr)', standalone: true }));
-  // In-N-Out Company Store next door
-  b.box(-163, 0, 438, 14, 5, 7, mat(0xf7f5f0, 0.6), true);
-  b.add(neonSign('In-N-Out Company Store', '#d81e2a', '#ffffff', 10, 1.2, 'MERCH • HATS • SHIRTS', 0.1), -155.8, 3.6, 438, Math.PI / 2);
   b.restaurants.push(buildInNOut(b, -150, 819, Math.PI / 2, { name: 'In-N-Out (Russell Rd, across from Allegiant)', standalone: true }));
   buildAbcStore(b, 32, 361, -Math.PI / 2, { label: 'ABC Stores #104 (Showcase)', w: 22, d: 17 });
   buildAbcStore(b, -33, -423, Math.PI / 2, { label: 'ABC Stores #102 (Fashion Show)', w: 17, d: 18 });
