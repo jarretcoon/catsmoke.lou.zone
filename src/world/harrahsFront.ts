@@ -106,7 +106,7 @@ function globeTexture(): THREE.CanvasTexture {
  * The arch on the podium face at x (facing −x), centred at zc: the barrel vault of radius R springing
  * at `spring`, running `depth` back over the roof, the LED screen in its mouth, the crest on top.
  */
-export function harrahsArch(b: WorldBuilder, x: number, zc: number, R: number, spring: number, depth: number): void {
+export function harrahsArch(b: WorldBuilder, x: number, zc: number, R: number, spring: number, depth: number, walkIn = false): void {
   const sm = stripes(b);
   const navy = mat(0x3b2d78, 0.5, 0.2);
   const cream = mat(0xf0e4cc, 0.65);
@@ -166,7 +166,8 @@ export function harrahsArch(b: WorldBuilder, x: number, zc: number, R: number, s
   const glass = mat(0x2a2a3a, 0.15, 0.6, { emissive: 0xffd9a8, emissiveIntensity: 0.25 });
   const doors = mesh(new THREE.PlaneGeometry(R * 2 - 4.6, spring - 0.3), glass, x + 0.7, (spring - 0.3) / 2, zc);
   doors.rotation.y = -Math.PI / 2;
-  b.add(doors);
+  // a walk-in casino behind the arch (harrahsInterior.ts) leaves the doorway open
+  if (!walkIn) b.add(doors);
   b.add(mesh(new THREE.BoxGeometry(0.4, 0.4, R * 2 - 4.4), gold, x + 0.5, spring - 0.1, zc));
   // the crest: cream scrollwork with gold balls, the teal globe on top
   const top = spring + R;

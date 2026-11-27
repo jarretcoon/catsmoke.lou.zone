@@ -64,4 +64,29 @@ Object.assign(CATALOGS, {
       item('enc-macarons', 'Snacks', 'Box of Macarons', 'Tips ×1.2 for 2 min, and a sprint for 1 min.', 22, { tip: 1.2, speed: 1.1, secs: 120, icon: '🍬' }),
     ],
   },
+  // ---------------------------------------------------------------- Harrah's
+  'harrahs-piano-bar': {
+    title: "Piano Bar at Harrah's",
+    sub: 'Dueling pianos nightly • requests welcome',
+    greeting: 'Two pianos, one cat. What do you want to hear?',
+    bye: 'Tip the piano players!',
+    items: [
+      drink('hp-hurricane', 'Mardi Gras Hurricane', 'Rum, passion fruit, a bead necklace. 🍹 for 2 min.', 19, 120, { degen: [5, 'Krewe Member'] }),
+      drink('hp-beer', 'Draft Beer', '🍹 for 90 s.', 11, 90),
+      drink('hp-purple', 'Purple Rain Martini', 'The house colour. 🍹 for 2 min.', 18, 120),
+      item('hp-request', 'Requests', 'Request a Song ($20 tip)', 'They play "Piano Man" for Lou. The whole room sings. Tips ×1.3 for 3 min.', 20, { tip: 1.3, secs: 180, icon: '🎹', degen: [10, 'Piano Man'] }, 'FUN'),
+    ],
+  },
+  'harrahs-fulton': {
+    title: 'Fulton Street Food Hall',
+    sub: "Pizza • Bao • Ice cream • Coffee • Harrah's",
+    greeting: 'Order at the counter!',
+    bye: 'Enjoy',
+    items: [
+      food('fs-pizza', 'NY Slice', 'Tips ×1.2 for 2 min.', 7, 1.2, 1, 120, '🍕'),
+      food('fs-bao', 'Pork Belly Bao', 'Tips ×1.25 for 2 min.', 9, 1.25, 1, 120, '🥟'),
+      food('fs-icecream', 'Ice Cream Cone', 'A sprint for 90 s. Brain freeze included.', 6, 1, 1.15, 90, '🍦'),
+      food('fs-coffee', 'Cold Brew', 'A sprint for 2 min.', 6, 1, 1.12, 120, '☕'),
+    ],
+  },
 });

@@ -88,6 +88,8 @@
     { "id": "wynn-atrium-day", "label": "Wynn atrium: mosaic floor, flower balls, the flower balloon and the Esplanade shops (inside, day)", "time": "day", "tp": [57, 0.3, -491.1], "cam": [-1.5708, 0.12, 3.6], "maxCalls": 540 },
     { "id": "encore-casino", "label": "Encore casino: butterfly walkway, red shade chandeliers, the Eastside Lounge (inside, night)", "time": "night", "tp": [41, 0.3, -532], "cam": [-0.3, 0.4, 9], "maxCalls": 920 },
     { "id": "encore-esplanade-day", "label": "Encore Esplanade: lattice vault, jewelled chandeliers, red runner, boutiques (inside, day)", "time": "day", "tp": [53.1, 0.3, -530], "cam": [0, 0.2, 7], "maxCalls": 1030 },
+    { "id": "harrahs-lobby", "label": "Harrah's casino: purple starburst carpet, crown chandeliers, the lobby's ombre reef artwork (inside, night)", "time": "night", "tp": [52, 0.3, -172], "cam": [0, 0.15, 7], "maxCalls": 1280 },
+    { "id": "harrahs-piano-bar", "label": "Harrah's Piano Bar: two grand pianos on the stage, the purple bar (inside, night)", "time": "night", "tp": [54, 0.3, -152], "cam": [-0.9, 0.25, 6], "maxCalls": 740 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 340 },
     { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-0.95, 0.1, 8.5], "maxCalls": 1700 },
     { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 880 },

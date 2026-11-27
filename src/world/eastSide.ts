@@ -618,13 +618,13 @@ function buildHarrahs(b: WorldBuilder): void {
   b.crowd.performers.push({ kind: 'slapper', x: 16, z: -170, facing: -Math.PI / 2 });
 
   const harrahs = { wall: '#d9c4a0', mullion: '#ecdcbc', glass: '#7a4a3a', lit: '#ffe0a0', cols: 10, rows: 22, style: 0 as const, seed: 121 };
-  b.box(52, 0, -164, 16, 12, 42, mat(0xdcc8a6, 0.7), true);
+  // the low-rise in front of the tower is the walk-in casino now (harrahsInterior.ts, x 44..60.4)
   // violet neon parapet line: Harrah's has been lit purple after dark since June 2021
   const violet = new THREE.MeshStandardMaterial({ color: 0xb89ae0, emissive: 0x8a3cff, emissiveIntensity: 0.05, roughness: 0.5 });
   b.nightGlow(violet, 0.05, 0.9);
   b.add(mesh(new THREE.BoxGeometry(0.25, 0.3, 42), violet, 43.85, 11.3, -164));
   // the striped barrel arch with the LED screen and the globe crest over Carnaval Court (harrahsFront.ts)
-  harrahsArch(b, 43, -153, 7.2, 8.6, 8);
+  harrahsArch(b, 43, -153, 7.2, 8.6, 1.2, true);
   tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs, crownGlow: 0.5, wash: 0x8a3cff, washStrength: 0.6, washZone: 12 }); // purple wash; soft crown so the script reads
   harrahsSigns(b); // the burgundy-and-gold script marquee at the Strip + tower script (stripSigns.ts)
   b.building(62, -165, 40, 42, '#7a1c1c', "Harrah's");
