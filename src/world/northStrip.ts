@@ -12,7 +12,8 @@ import { ashUrn, barCounter, basic, bench, car, cypressTree, mat, mesh, neonSign
 import type { CarKind } from './props';
 import { STRIP, xFromO, zFromS } from './strip';
 import { buildEastStripMall, buildNorthNeighbours, buildPorteCochere, porteCochereWall, buildSouthNeighbours, bulbLetters, casinoEntranceClown, paved, redNeonGlow, towerValance } from './northBlock';
-import { fontainebleauSign, peppermillSign, resortsWorldPylonCrown, resortsWorldTowerSign, saharaSign, stratSign, wynnSignature } from './stripSigns';
+import { fontainebleauSign, peppermillSign, resortsWorldPylonCrown, resortsWorldTowerSign, wynnSignature } from './stripSigns';
+import { buildSaharaDistrict } from './saharaDistrict';
 import { bulbPath, bulbRect, letterFace, letters, neonPanel } from './signKit';
 
 /**
@@ -31,7 +32,7 @@ export function buildNorthStrip(b: WorldBuilder): void {
   buildSouthNeighbours(b, -671, -697);
   buildSlotsAFun(b);
   buildCircusCircus(b);
-  buildNorthNeighbours(b, Z_CCDR, STRIP.north);
+  buildNorthNeighbours(b, Z_CCDR, Z_SKY_N);
   buildAdventuredome(b);
   buildWynn(b);
   buildEncore(b);
@@ -41,7 +42,7 @@ export function buildNorthStrip(b: WorldBuilder): void {
   buildWestHall(b);
   buildMonorail(b);
   buildFontainebleau(b);
-  buildNorthBackdrop(b);
+  buildSaharaDistrict(b); // Sahara Ave, the Sahara, Bonanza, the Festival Grounds and the STRAT (saharaDistrict.ts)
   addSidewalkCrowds(b);
 }
 
@@ -55,6 +56,8 @@ const Z_CONV = zFromS(2180);
 const Z_CCENT = -735.3;
 /** Circus Circus Dr, north of the big top and Lucky (strip.ts CROSSWALKS; reserved for x < 0 within ±9 m). */
 const Z_CCDR = -797;
+/** North end of Sky Las Vegas (the old map edge); the Sahara district (saharaDistrict.ts) runs on from here. */
+const Z_SKY_N = -856;
 
 // =============================================================== helpers
 
@@ -1965,121 +1968,6 @@ function buildFontainebleau(b: WorldBuilder): void {
   b.building(58, -765, 14, 56, '#2c5a9a');
   b.zone('Fontainebleau Las Vegas', 19, 75, zN, zS);
   b.crowd.tourists.push({ pts: [[22, -733], [27, -795]], prop: 'yard-drink' }, { pts: [[29, -757], [21, -776]], prop: 'camera' });
-}
-
-// =============================================================== Backdrop past the north edge (no collisions)
-function buildNorthBackdrop(b: WorldBuilder): void {
-  // The Boulevard keeps going toward the STRAT
-  const z0 = STRIP.north - 4;
-  const z1 = -1090;
-  const len = z0 - z1;
-  const road = mesh(new THREE.PlaneGeometry(23.2, len), new THREE.MeshStandardMaterial({ map: makeBoulevardTexture(len, 11.6, [4.8, 8.2, 11.6], 1.4), roughness: 0.82 }), 0, 0.03, (z0 + z1) / 2);
-  road.rotation.x = -HALF_PI;
-  b.add(road);
-  for (const s of [-1, 1]) b.add(part(new THREE.PlaneGeometry(7.4, len), mat(0x9a9085, 0.85), s * 15.3, 0.02, (z0 + z1) / 2, 0, -HALF_PI));
-  // median, broken for Sahara Ave (z −928 … −944)
-  for (const [ma, mb] of [[z0, -927], [-945, z1]]) b.add(mesh(new THREE.BoxGeometry(2.8, 0.22, ma - mb), mat(0xb8ad9c, 0.85), 0, 0.11, (ma + mb) / 2));
-
-  // SAHARA (east side)
-  const sz0 = zFromS(3390);
-  const sz1 = zFromS(3685);
-  const sahara: FacadeSpec = { wall: '#efe6d8', mullion: '#ffffff', glass: '#6a5a4a', lit: '#ffe6b8', cols: 10, rows: 26, style: 1, seed: 501 };
-  tower(b, { x: 54, z: sz0 - 22, w: 14, d: 38, h: 34, facade: sahara, collide: false, cast: false });
-  tower(b, { x: 72, z: sz1 + 14, w: 38, d: 13, h: 30, facade: { ...sahara, seed: 503 }, collide: false, cast: false });
-  tower(b, { x: 38, z: sz1 + 10, w: 12, d: 24, h: 26, facade: { ...sahara, seed: 505 }, collide: false, cast: false });
-  b.add(mesh(new THREE.BoxGeometry(32, 10, 58), mat(0xd9cdb8, 0.7), 40, 5, (sz0 + sz1) / 2));
-  b.add(mesh(new THREE.BoxGeometry(1.6, 24, 1.6), mat(0x3a2a20, 0.5, 0.4), 22.5, 12, sz0 - 4));
-  b.add(saharaSign(b, 10, 3.2, true), 22.5, 24, sz0 - 4, -HALF_PI);
-  b.add(saharaSign(b, 12, 3, false), 46.7, 30, sz0 - 22, -HALF_PI);
-
-  // The STRAT (350 m real) with its thrill rides
-  const sx = xFromO(-46);
-  const szz = zFromS(4046);
-  const shaft = mat(0xe8e4dc, 0.6);
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + HALF_PI;
-    b.add(mesh(new THREE.CylinderGeometry(1.8, 3.2, 104, 6), shaft, sx + Math.cos(a) * 3.2, 52, szz + Math.sin(a) * 3.2));
-    b.add(mesh(new THREE.BoxGeometry(0.25, 96, 0.25), basic(0xfff4e0), sx + Math.cos(a) * 5.2, 52, szz + Math.sin(a) * 5.2));
-  }
-  b.add(mesh(new THREE.CylinderGeometry(2.2, 3.0, 104, 10), shaft, sx, 52, szz));
-  b.add(mesh(new THREE.CylinderGeometry(8.6, 4.6, 5, 28), mat(0xdcd6cc, 0.5, 0.3), sx, 106.5, szz));
-  b.add(mesh(new THREE.CylinderGeometry(9.2, 8.6, 3, 32), glassGlow(b, 0x2a3a4a, 0xffe6c0, 1.2), sx, 110.5, szz));
-  b.add(mesh(new THREE.CylinderGeometry(8.6, 9.2, 2.4, 32), mat(0xdcd6cc, 0.5, 0.3), sx, 113.2, szz));
-  b.add(mesh(new THREE.CylinderGeometry(6.2, 8.4, 2, 28), mat(0xcfc8bc, 0.5, 0.3), sx, 115.4, szz));
-  b.add(part(new THREE.TorusGeometry(9.35, 0.35, 6, 40), basic(0xff3355), sx, 109, szz, 0, HALF_PI));
-  b.add(mesh(new THREE.CylinderGeometry(0.9, 1.6, 26, 10), mat(0xaaaaaa, 0.4, 0.7), sx, 129.4, szz));
-  b.add(mesh(new THREE.SphereGeometry(0.5, 8, 6), basic(0xff2020), sx, 142.8, szz));
-  b.add(stratSign(b, 8, 1.8, 0x140404), sx, 110.5, szz + 9.5);
-  tower(b, { x: sx - 24, z: szz - 8, w: 14, d: 34, h: 26, facade: { wall: '#f2efe8', mullion: '#ffffff', glass: '#5a6a7a', lit: '#ffe6b8', cols: 10, rows: 20, seed: 511 }, collide: false, cast: false });
-  b.add(mesh(new THREE.BoxGeometry(18, 9, 22), mat(0xe2dccf, 0.7), sx - 2, 4.5, szz + 16));
-  b.add(stratSign(b, 9, 2.2, 0x140404), -21.5, 9, szz + 28, HALF_PI);
-  b.add(mesh(new THREE.BoxGeometry(1.2, 8, 1.2), mat(0x2a2a30, 0.5, 0.4)), -21.5, 4, szz + 28);
-  // Big Shot (up the needle), Insanity (spinning arm), X-Scream (see-saw)
-  const ridesMat = mat(0xf2c230, 0.5, 0.4);
-  const bigShot = new THREE.Group();
-  bigShot.add(part(new THREE.TorusGeometry(2.0, 0.35, 6, 20), ridesMat, 0, 0, 0, 0, HALF_PI));
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    bigShot.add(mesh(new THREE.BoxGeometry(0.6, 0.7, 0.6), mat(0x2a66cc, 0.5), Math.cos(a) * 2.4, 0, Math.sin(a) * 2.4));
-  }
-  bakeGroup(bigShot);
-  bigShot.position.set(sx, 118, szz);
-  b.scene.add(bigShot);
-  const insanity = new THREE.Group();
-  insanity.add(mesh(new THREE.BoxGeometry(12, 0.6, 0.8), mat(0xd8202a, 0.5, 0.4), 6, 0, 0));
-  const spinner = new THREE.Group();
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    spinner.add(mesh(new THREE.BoxGeometry(0.5, 0.8, 0.5), mat(0xf2c230, 0.5), Math.cos(a) * 1.6, -1.2, Math.sin(a) * 1.6));
-  }
-  spinner.add(mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.3, 12), mat(0xd8202a, 0.5, 0.4), 0, -0.4, 0));
-  bakeGroup(spinner);
-  spinner.position.set(12, 0, 0);
-  insanity.add(spinner);
-  insanity.position.set(sx, 117, szz);
-  b.scene.add(insanity);
-  const xscream = new THREE.Group();
-  xscream.add(mesh(new THREE.BoxGeometry(14, 0.5, 1.0), mat(0x2a66cc, 0.5, 0.4), 4, 0, 0));
-  xscream.add(mesh(new THREE.BoxGeometry(1.6, 1.0, 1.4), mat(0xf2c230, 0.5), 10.5, 0.6, 0));
-  bakeGroup(xscream);
-  xscream.position.set(sx, 117.5, szz);
-  xscream.rotation.y = Math.PI * 0.8;
-  b.scene.add(xscream);
-  b.every((_dt, t) => {
-    const c = t % 10;
-    bigShot.position.y = c < 1 ? 118 + 22 * c : c < 6 ? 140 - ((c - 1) / 5) * 22 + Math.sin(c * 6) * 0.6 * (6 - c) * 0.2 : 118;
-    insanity.rotation.y = t * 0.9;
-    spinner.rotation.y = t * 3.2;
-    insanity.rotation.z = -0.35 - 0.25 * Math.sin(t * 0.5);
-    xscream.rotation.z = -0.25 + 0.3 * Math.sin(t * 0.7);
-  });
-
-  // Hilton Grand Vacations on the Boulevard (39 floors) and the empty Festival Grounds up to Sahara Ave
-  tower(b, { x: -36, z: -874, w: 18, d: 15, h: 42, facade: { wall: '#ddd8ce', mullion: '#f2eee6', glass: '#3a4a5a', lit: '#ffe6b8', cols: 10, rows: 26, style: 1, seed: 521 }, collide: false, cast: false });
-  b.add(letters(b, 'HILTON GRAND VACATIONS', 14, 1.4, { style: 'sans', fill: '#ffffff' }), -26.9, 39.5, -874, HALF_PI);
-  b.add(mesh(new THREE.BoxGeometry(100, 0.02, 44), mat(0xa8926e, 0.98)), -70, 0.012, -906);
-  b.add(mesh(new THREE.BoxGeometry(0.06, 2.2, 44), mat(0x26352a, 0.95)), -19.6, 1.1, -906);
-  b.add(letters(b, 'LAS VEGAS FESTIVAL GROUNDS', 12, 3, { style: 'block', fill: '#ffffff', bg: '#1a1a2a', rule: '#ffd23a' }, 0.3), -24, 8.5, -926, 0);
-  for (const x of [-28, -20]) b.add(mesh(new THREE.BoxGeometry(0.4, 7, 0.4), mat(0x6a6e74, 0.4, 0.6)), x, 3.5, -926);
-  // Sahara Ave crossing the Boulevard
-  b.add(part(new THREE.PlaneGeometry(350, 16), mat(0x2d2d33, 0.9), 0, 0.045, -936, 0, -HALF_PI)); // over the Blvd plane (no z-fight)
-
-  // Bonanza "World's Largest Gift Shop" (west side, north of Sahara Ave)
-  const bz = -958;
-  b.add(mesh(new THREE.BoxGeometry(38, 8, 24), mat(0xe6dcc8, 0.7), -41, 4, bz));
-  b.add(mesh(new THREE.BoxGeometry(1.2, 12, 1.2), mat(0x3a2a20, 0.5, 0.4), -21.5, 6, bz + 9));
-  b.add(neonSign('BONANZA', '#3a1405', '#ffcf3a', 9, 2.8, "WORLD'S LARGEST GIFT SHOP"), -21.5, 13.5, bz + 9, HALF_PI);
-  b.add(neonSign('GIFTS • SOUVENIRS • T-SHIRTS', '#3a1405', '#ffffff', 16, 1.4, undefined, 0.2), -21.9, 6.6, bz, HALF_PI);
-
-  // Wedding chapels
-  const chapel = (x: number, z: number, wallC: number, name: string, sub: string, fg: string, faceX: number) => {
-    b.add(mesh(new THREE.BoxGeometry(9, 6, 12), mat(wallC, 0.7), x + faceX * -4.5, 3, z));
-    b.add(part(new THREE.ConeGeometry(1.2, 4, 4), mat(0xffffff, 0.6), x + faceX * -4.5, 8, z, Math.PI / 4));
-    b.add(mesh(new THREE.BoxGeometry(0.8, 9, 0.8), mat(0x2a2a30, 0.5, 0.4), x + faceX * 1.4, 4.5, z + 7));
-    b.add(neonSign(name, '#fff6fa', fg, 10, 1.7, sub, 0.25), x + faceX * 1.4, 9.8, z + 7, HALF_PI);
-  };
-  chapel(-26, -990, 0xfaf8f4, 'A LITTLE WHITE WEDDING CHAPEL', 'DRIVE-UP WEDDINGS • OPEN 24 HOURS', '#d81e5b', 1);
-  chapel(26, -1000, 0xffd6ea, 'VIVA LAS VEGAS WEDDING CHAPEL', 'ELVIS WEDDINGS DAILY', '#7a2cff', -1);
 }
 
 // =============================================================== Sidewalk crowds through the district
