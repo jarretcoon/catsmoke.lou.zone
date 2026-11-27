@@ -7,6 +7,7 @@ import { buildBackdrop } from './world/backdrop';
 import { buildBackOfHouse } from './world/backOfHouse';
 import { buildCrossRoads } from './world/crossRoads';
 import { buildStreetShops } from './world/streetShops';
+import { buildFrontageShops } from './world/frontageShops';
 import { buildStreetLife } from './world/streetLife';
 import { CigPickup, GamblingSpot, INDOOR_ZONE, PlatformBox, ShopSpot, viewer, WorldBuilder } from './world/builder';
 import { buildEastSide } from './world/eastSide';
@@ -139,6 +140,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   buildDeanMartin(b);
   buildWalkIns(b);
   buildStreetShops(b);
+  buildFrontageShops(b); // the real frontage shops and restaurants (map-audit section 3)
   buildStreetLife(b);
   buildBackdrop(b);
   buildSkyLife(b);

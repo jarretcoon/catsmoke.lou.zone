@@ -42,20 +42,8 @@ function buildBlvd(b: WorldBuilder): void {
   // Floor bands + vertical mullions on the Strip face
   for (const y of [5.6, 11.6]) b.add(mesh(new THREE.BoxGeometry(0.5, 0.5, z1 - z0 + 0.6), band, x0 - 0.2, y, (z0 + z1) / 2));
   for (let z = z0 + 3; z < z1; z += 4.5) b.add(mesh(new THREE.BoxGeometry(0.3, roofY, 0.25), band, x0 - 0.1, roofY / 2, z));
-  // Storefronts with lit windows along the remaining frontage
-  const lit = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, emissive: 0xffd9a0, emissiveIntensity: 0.15, roughness: 0.1 });
-  b.nightGlow(lit, 0.12, 0.85); // under the bloom threshold: lit glass, not a halo
-  const names: Array<[string, string]> = [
-    ['BLVD', '#ffffff'],
-    ['BURGER • TACOS • SUSHI', '#ffd24d'],
-    ['SNEAKERS', '#7dffb0'],
-    ['ROOFTOP DINING ↑', '#ff8ad8'],
-  ];
-  names.forEach(([n, col], i) => {
-    const z = 262 + i * 9.5;
-    b.add(mesh(new THREE.BoxGeometry(0.1, 3.2, 7.8), lit, x0 - 0.3, 1.9, z));
-    b.add(neonSign(n, '#0c0f14', col, 7, 0.8, undefined, 0.08), x0 - 0.35, 4.3, z, -Math.PI / 2);
-  });
+  // The ground-floor storefronts along the remaining frontage (JD Sports, H&M, MINISO, adidas,
+  // lululemon, Pandora, PUMA) are built in frontageTropHarmon.ts.
   // Big LED wall + giant BLVD letters on the roof edge
   const led = new LedBoard('BLVD', ['ROOFTOP IN-N-OUT NOW OPEN', '120,000 SQ FT OF ROOFTOP', 'ABC STORES • STREET LEVEL', 'EAT • DRINK • VEGAS'], ['#d81e2a', '#ffc72c', '#2c6bd1', '#ff2c8a'], 512, 256);
   const ledMesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 8), new THREE.MeshBasicMaterial({ map: led.tex }));
