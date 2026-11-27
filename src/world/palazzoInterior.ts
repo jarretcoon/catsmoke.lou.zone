@@ -51,6 +51,11 @@ const SLOT_ROWS: Row[] = [
   { x: 26.0, z: -330.3, count: 6, along: 'x', facing: 0 },
   { x: 26.0, z: -323.9, count: 6, along: 'x', facing: Math.PI },
   { x: 26.0, z: -322.8, count: 6, along: 'x', facing: 0 },
+  // wall rows down both long walls, behind the table pits
+  { x: 22.9, z: -360.2, count: 6, along: 'z', facing: Math.PI / 2 },
+  { x: 22.9, z: -349.2, count: 6, along: 'z', facing: Math.PI / 2 },
+  { x: 45.7, z: -360.2, count: 6, along: 'z', facing: -Math.PI / 2 },
+  { x: 45.7, z: -349.2, count: 6, along: 'z', facing: -Math.PI / 2 },
 ];
 
 // ---------------------------------------------------------------- textures

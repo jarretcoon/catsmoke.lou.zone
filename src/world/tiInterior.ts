@@ -44,7 +44,13 @@ const TABLES: Table[] = [
   { game: 'roulette', x: -91.6, z: -381.2, label: 'TI Roulette' },
   { game: 'craps', x: -91.6, z: -374.4, rot: Math.PI / 2, label: 'TI Craps' },
 ];
-const SLOT_ROWS: Row[] = [{ x: -74.9, z: -385, count: 5, along: 'z', facing: -Math.PI / 2 }];
+const SLOT_ROWS: Row[] = [
+  { x: -74.9, z: -385, count: 5, along: 'z', facing: -Math.PI / 2 },
+  // a row with its back to the Breeze Bar, facing the deck walk
+  { x: -79.6, z: -379.4, count: 7, along: 'x', facing: 0 },
+  // a row along the west wall south of the box office
+  { x: -96.7, z: -374.2, count: 4, along: 'z', facing: Math.PI / 2 },
+];
 
 // ---------------------------------------------------------------- textures
 let _carpet: THREE.CanvasTexture | null = null;
