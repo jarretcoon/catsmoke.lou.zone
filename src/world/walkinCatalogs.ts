@@ -114,4 +114,29 @@ Object.assign(CATALOGS, {
       item('pz-gelato', 'Snacks', 'Pistachio Gelato', 'A sprint for 90 s.', 9, { speed: 1.15, secs: 90, icon: '🍨' }),
     ],
   },
+  // ---------------------------------------------------------------- Treasure Island
+  'ti-breeze': {
+    title: 'Breeze Bar',
+    sub: 'The island bar on the TI casino floor',
+    greeting: 'Ahoy! What’ll it be?',
+    bye: 'Fair winds',
+    items: [
+      drink('tb-rum-punch', 'Pirate Rum Punch', '🍹 for 2 min. Arr.', 16, 120, { degen: [6, 'Pirate Cat'] }),
+      drink('tb-mai-tai', 'Mai Tai', '🍹 for 2 min.', 18, 120),
+      drink('tb-draft', '2-for-1 Draft Beer', 'The TV-commercial deal. 🍹 for 2 min.', 9, 120, {}, 'DEAL'),
+      food('tb-shrimp', 'Coconut Shrimp', 'Tips ×1.25 for 2 min.', 15, 1.25, 1, 120, '🍤'),
+    ],
+  },
+  'ti-mystere': {
+    title: 'Mystère Box Office',
+    sub: 'Cirque du Soleil at TI • since 1993',
+    greeting: 'Tickets for tonight? There are a few left up front.',
+    bye: 'Enjoy the show',
+    items: [
+      item('tm-ticket', 'Tickets', 'Mystère Ticket (tonight)', 'Lou watches the trampolines. Inspired: a sprint for 3 min.', 89, { speed: 1.2, secs: 180, icon: '🎪', degen: [12, 'Cirque Kitty'] }, 'TONIGHT'),
+      item('tm-program', 'Souvenirs', 'Show Programme', 'Glossy. Collectible.', 20, { collect: true }),
+      item('tm-plush', 'Souvenirs', 'Baby Bird Plush', 'The big baby from the show, tiny. Lou wrestles it. Collectible.', 30, { collect: true, degen: [8, 'Souvenir Hoarder'] }),
+      item('tm-popcorn', 'Snacks', 'Popcorn', 'Tips ×1.1 for 2 min.', 8, { tip: 1.1, secs: 120, icon: '🍿' }),
+    ],
+  },
 });
