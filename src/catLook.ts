@@ -13,13 +13,16 @@ import * as THREE from 'three';
  * chest ruff, cheeks, belly and tail).
  */
 
-export type FurQuality = 'low' | 'medium' | 'high';
-const SHELLS: Record<FurQuality, number> = { high: 16, medium: 10, low: 0 };
+export type FurQuality = 'low' | 'medium' | 'high' | 'ultra';
+const SHELLS: Record<FurQuality, number> = { ultra: 28, high: 16, medium: 10, low: 0 };
+/** Tufts per metre of the bind pose: Ultra's are finer and closer (1.5 mm apart instead of 1.9). */
+const DENSITY: Record<FurQuality, number> = { ultra: 1 / 0.0015, high: 1 / 0.0019, medium: 1 / 0.0019, low: 1 / 0.0019 };
 
 let furQuality: FurQuality = 'high';
+if (import.meta.env.DEV || import.meta.env.MODE === 'check') (window as unknown as { __fur: unknown }).__fur = { SHELLS, DENSITY };
 const instances = new Set<CatLook>();
 
-/** Called from applyQuality(): High 16 shells, Medium 10, Low none (the baked fur normal map only). */
+/** Called from applyQuality(): Ultra 28 finer shells, High 16, Medium 10, Low none (the baked fur normal map only). */
 export function setFurQuality(q: FurQuality): void {
   furQuality = q;
   for (const c of instances) c.applyQuality();
@@ -392,6 +395,7 @@ export class CatLook {
     this.shell.visible = n > 0;
     this.shellGeo.instanceCount = Math.max(1, n);
     this.furUniforms.uFurShells.value = Math.max(1, n);
+    this.furUniforms.uFurDensity.value = DENSITY[furQuality];
   }
 
   // ---------------------------------------------------------------- materials
