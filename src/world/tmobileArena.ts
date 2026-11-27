@@ -367,7 +367,9 @@ function drawTMobileWordmark(
   scale: number,
   color: string,
   includeSwoosh: boolean,
-  includeWelcome: boolean
+  includeWelcome: boolean,
+  /** Roof letters: "ARENA" stands as tall as "Mobile" (the LED screen sets it smaller and tracked). */
+  roofLetters = false
 ): void {
   ctx.save();
   ctx.fillStyle = color;
@@ -409,10 +411,10 @@ function drawTMobileWordmark(
   const mobileW = ctx.measureText('Mobile').width;
 
   // "ARENA" in tracked geometric uppercase sans-serif
-  ctx.letterSpacing = `${Math.round(12 * scale)}px`;
-  ctx.font = `600 ${Math.round(54 * scale)}px "Segoe UI", Arial, sans-serif`;
+  ctx.letterSpacing = `${Math.round((roofLetters ? 5 : 12) * scale)}px`;
+  ctx.font = roofLetters ? `bold ${Math.round(84 * scale)}px Georgia, "Times New Roman", serif` : `600 ${Math.round(54 * scale)}px "Segoe UI", Arial, sans-serif`;
   const arenaX = mobileX + mobileW + 28 * scale;
-  ctx.fillText('ARENA', arenaX, baselineY - 2 * scale);
+  ctx.fillText('ARENA', arenaX, baselineY - (roofLetters ? 0 : 2) * scale);
 
   // White curved swoosh arc sweeping from above Mobile/ARENA down the right side
   if (includeSwoosh) {
@@ -558,9 +560,9 @@ function makeRoofLettersTex(): THREE.CanvasTexture {
   return canvasTex(1024, 160, (ctx) => {
     ctx.clearRect(0, 0, 1024, 160);
     // Crisp dark return shadow for daytime legibility against clouds/sky
-    drawTMobileWordmark(ctx, 512 + 3, 124 + 3, 1.12, '#1f232c', false, false);
+    drawTMobileWordmark(ctx, 470 + 3, 124 + 3, 1.12, '#1f232c', false, false, true);
     // Bright brushed silver-white front face
-    drawTMobileWordmark(ctx, 512, 124, 1.12, '#f4f7fc', false, false);
+    drawTMobileWordmark(ctx, 470, 124, 1.12, '#f4f7fc', false, false, true);
   });
 }
 
@@ -1352,21 +1354,124 @@ function buildFrankSinatraArenaSection(b: WorldBuilder, mg: Merger): void {
   // Arena Dr (connecting Arena South dock & NYNY rear -> Frank Sinatra Dr at z = 425)
   flatRoad(b, -134, 425, 8.5, 54, 'x', 2, true, L1 + 0.005, 'Arena Dr');
 
-  // Sinatra Substation (architecturally screened enclosure west of Arena S-W, z = 408..420)
-  addBuilding(b, mg, { x: -157.5, z: 414.5, w: 4.5, d: 9.0, h: 4.5, wall: 0x8f887d, trim: 0x5c5850, label: 'Sinatra Substation' });
-  chainFenceInto(b, mg, -160.2, 409.5, -160.2, 419.5, 2.8);
+  buildArenaLoadingDock(b, mg, FS_X);
+}
 
-  // Event & Team Production Parking + Loading Dock south of Arena Dr (z = 428..434, x = -158..-118)
-  const lot = new ParkedLotBuilder();
-  lot.bays(-155, -118, 429, 434, 8, 2, 0, 0.68, 429);
-  lot.emit(b, -136, 431, 280);
-  b.zone('Arena Event Lot', -158, -116, 426, 436);
+/**
+ * The arena's back of house on Frank Sinatra Dr: the show trucks back into a row of dock doors on the west face
+ * (a guarded drive off Frank Sinatra), the utility yard sits fenced at the south-west corner, and the tour's
+ * semis and buses stage on the lot along Arena Dr. Concrete apron, dock bumpers, wall-pack lights, signs.
+ */
+function buildArenaLoadingDock(b: WorldBuilder, mg: Merger, FS_X: number): void {
+  const SRX = ARENA_RX + 1.0;
+  const SRZ = ARENA_RZ + 1.0;
+  const backX = (lz: number) => -SRX * Math.sqrt(Math.max(0, 1 - (lz / SRZ) ** 2));
+  const faceYaw = ARENA_YAW - Math.PI / 2; // +Z of a box/sign turned to face out of the arena's back (WSW)
+  const concrete = mat(0xb9b4aa, 0.9);
+  const door = new THREE.MeshStandardMaterial({ map: rollUpDoorTex(), roughness: 0.55, metalness: 0.35 });
+  const bumper = mat(0x141416, 0.85);
+  const yellow = mat(0xe2b21c, 0.55);
+  const packLamp = basic(0xfff0cc);
+  const darkMetal = mat(0x2c2d31, 0.5, 0.6);
 
-  // Arena production truck parked on Arena Dr
-  const truck = car('suv', 0x22252b);
-  truck.group.position.set(-148, 0, 419.5);
-  truck.group.rotation.y = Math.PI / 2;
-  b.add(truck.group);
+  // Concrete dock apron between the arena and Frank Sinatra Dr
+  const apronIn = arenaToWorld(backX(0) - 7, 0, 0);
+  mg.box(concrete, apronIn[0], L0 + 0.01, apronIn[2], 13, 0.02, 30, ARENA_YAW);
+
+  // Four dock doors with bumpers, a wall-pack light and two yellow bollards each
+  const pools = new Merger();
+  const poolMat = lightPoolMat(true);
+  for (const lz of [-10.5, -3.5, 3.5, 10.5]) {
+    const lx = backX(lz);
+    const [dx, , dz] = arenaToWorld(lx - 0.12, 0, lz);
+    mg.box(door, dx, 2.3, dz, 0.12, 4.4, 3.8, ARENA_YAW);
+    mg.box(darkMetal, dx, 4.65, dz, 0.3, 0.3, 4.3, ARENA_YAW); // header
+    for (const side of [-1.5, 1.5]) {
+      const [bx, , bz] = arenaToWorld(lx - 0.35, 0, lz + side);
+      mg.box(bumper, bx, 1.15, bz, 0.4, 0.5, 0.35, ARENA_YAW);
+      const [px, , pz] = arenaToWorld(lx - 1.6, 0, lz + side * 1.55);
+      mg.beam(yellow, v3(px, 0, pz), v3(px, 1.1, pz), 0.12, 8);
+      b.collider(px - 0.15, px + 0.15, pz - 0.15, pz + 0.15, 0, 1.1, true);
+    }
+    const [lxw, , lzw] = arenaToWorld(lx - 0.3, 0, lz);
+    mg.box(packLamp, lxw, 5.2, lzw, 0.25, 0.28, 0.7, ARENA_YAW);
+    const [plx, , plz] = arenaToWorld(lx - 4, 0, lz);
+    const p = new THREE.PlaneGeometry(6, 6);
+    p.rotateX(-Math.PI / 2);
+    p.translate(plx, L0 + 0.02, plz);
+    pools.add(p, poolMat);
+  }
+  pools.flush(b);
+  const [sx, , sz] = arenaToWorld(backX(0) - 0.35, 0, 0);
+  signBoard(b, 'T-MOBILE ARENA • LOADING DOCK', '#1c1d22', '#ffffff', 11, 1.1, sx, 6.0, sz, faceYaw, 'SHOW TRUCKS • DELIVERIES • CHECK IN AT GATE', 0.14);
+
+  // Guard booth and gate arm where the dock drive leaves Frank Sinatra Dr
+  const gx = FS_X + 7.6;
+  const gz = 381.5;
+  const boothWhite = mat(0xeeeae2, 0.6);
+  const boothGlass = new THREE.MeshStandardMaterial({ color: 0x24323c, emissive: 0xffe6b8, emissiveIntensity: 0.12, roughness: 0.1, metalness: 0.4 });
+  b.nightGlow(boothGlass, 0.12, 1.0);
+  mg.box(boothWhite, gx, 1.3, gz, 2.0, 2.6, 2.4, 0, true);
+  mg.box(boothGlass, gx - 1.02, 1.6, gz, 0.04, 1.1, 1.9);
+  mg.box(darkMetal, gx, 2.75, gz, 2.4, 0.2, 2.8);
+  b.collider(gx - 1.0, gx + 1.0, gz - 1.2, gz + 1.2, 0, 2.6, true);
+  const armRed = mat(0xc8202a, 0.5);
+  for (let i = 0; i < 5; i++) mg.box(i % 2 ? boothWhite : armRed, gx - 0.4, 1.05, gz + 1.9 + i * 1.0 + 0.5, 0.14, 0.14, 1.0);
+  mg.box(darkMetal, gx - 0.4, 0.5, gz + 1.5, 0.4, 1.0, 0.4);
+  mg.box(darkMetal, gx - 1.6, 1.3, gz - 2.2, 0.12, 2.6, 0.12);
+  signBoard(b, 'NO PUBLIC ACCESS', '#b5161e', '#ffffff', 2.6, 0.9, gx - 1.6, 2.7, gz - 2.2, -Math.PI / 2, 'DELIVERIES & CREDENTIALS ONLY', 0.08);
+
+  // Utility yard: fenced transformers on a pad at the south-west corner (it used to be a blank grey box)
+  const yard = { x0: -157.8, x1: -151.8, z0: 409.5, z1: 419.5 };
+  mg.box(concrete, (yard.x0 + yard.x1) / 2, L0 + 0.08, (yard.z0 + yard.z1) / 2, yard.x1 - yard.x0, 0.16, yard.z1 - yard.z0);
+  const xfmr = mat(0x5f6e5c, 0.6, 0.3);
+  const fins = mat(0x4c5a4a, 0.7, 0.3);
+  for (const tz of [411.6, 414.5, 417.4]) {
+    mg.box(xfmr, -154.8, 1.15, tz, 2.0, 2.0, 2.0, 0, true);
+    mg.box(fins, -155.9, 1.0, tz, 0.25, 1.6, 1.7);
+    mg.box(darkMetal, -154.8, 2.3, tz, 0.6, 0.3, 0.6);
+  }
+  b.collider(yard.x0, yard.x1, yard.z0, yard.z1, 0, 2.8, true);
+  chainFenceInto(b, mg, yard.x0, yard.z0, yard.x0, yard.z1, 2.8);
+  chainFenceInto(b, mg, yard.x0, yard.z0, yard.x1, yard.z0, 2.8);
+  chainFenceInto(b, mg, yard.x0, yard.z1, yard.x1, yard.z1, 2.8);
+  signBoard(b, 'DANGER • HIGH VOLTAGE', '#ffffff', '#c8141e', 2.4, 0.7, yard.x0 - 0.08, 1.7, 414.5, -Math.PI / 2, 'KEEP OUT', 0.05);
+  b.building(-154.8, 414.5, 6, 10, '#8f887d', 'Arena utility yard');
+
+  // Tour semis staged along Arena Dr (the lot south of the dock drive)
+  const trailerWhite = mat(0xf0eeea, 0.55);
+  const stripe = mat(0x1a1c22, 0.6);
+  const tire = mat(0x18181a, 0.9);
+  const cabs = [mat(0x1f2a44, 0.4, 0.5), mat(0x8a1a1e, 0.4, 0.5)];
+  [-150, -130].forEach((tx, i) => {
+    const tz = 431.6;
+    mg.box(trailerWhite, tx, 2.45, tz, 15.5, 3.6, 2.6, 0, true);
+    mg.box(stripe, tx, 1.45, tz, 15.5, 0.3, 2.62);
+    for (const ax of [-6.2, -5.0]) for (const sd of [-1, 1]) mg.box(tire, tx + ax, 0.5, tz + sd * 1.0, 1.0, 1.0, 0.5);
+    mg.box(cabs[i], tx + 9.6, 1.9, tz, 3.2, 3.0, 2.5, 0, true);
+    mg.box(cabs[i], tx + 8.6, 1.0, tz, 5.2, 0.9, 2.5);
+    for (const ax of [7.0, 10.3]) for (const sd of [-1, 1]) mg.box(tire, tx + ax, 0.5, tz + sd * 1.0, 1.0, 1.0, 0.5);
+    b.collider(tx - 7.8, tx + 11.3, tz - 1.35, tz + 1.35, 0, 4.3, true);
+  });
+  signBoard(b, 'PRODUCTION & TOUR BUS PARKING', '#1c1d22', '#ffd23a', 6.5, 0.9, -118.5, 2.4, 435.4, 0, 'T-MOBILE ARENA EVENT STAFF', 0.08);
+  mg.box(darkMetal, -118.5, 1.0, 435.5, 0.14, 2.0, 0.14);
+  b.zone('Arena Loading Dock', -162, -146, 384, 422);
+  b.zone('Arena Production Lot', -158, -116, 426, 436);
+}
+
+function rollUpDoorTex(): THREE.CanvasTexture {
+  return canvasTex(64, 128, (ctx) => {
+    ctx.fillStyle = '#9a9c9e';
+    ctx.fillRect(0, 0, 64, 128);
+    for (let y = 0; y < 128; y += 6) {
+      ctx.fillStyle = 'rgba(40,42,46,0.45)';
+      ctx.fillRect(0, y, 64, 1.5);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(0, y + 2, 64, 1);
+    }
+    ctx.fillStyle = '#2a2c30';
+    ctx.fillRect(26, 116, 12, 4); // handle
+  });
 }
 
 // ================================================================ Event-Night Arena Crowds

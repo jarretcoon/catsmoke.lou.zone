@@ -24,7 +24,8 @@ export function buildValleyViewBackdrop(b: WorldBuilder): void {
   // ---- Roads that really keep going west: Tropicana Ave, Flamingo Rd, and Valley View Blvd north-south
   flatRoad(b, (X_E + X_W) / 2, I15.tropZ, 21.0, X_E - X_W, 'x', 6, true, L1);
   flatRoad(b, (X_E + X_W) / 2, I15.flamingoZ, 19.5, X_E - X_W, 'x', 6, true, L1);
-  flatRoad(b, VALLEY_VIEW_X, 210, 16.0, 840, 'z', 4, true, L1);
+  flatRoad(b, VALLEY_VIEW_X, 370, 16.0, 1160, 'z', 4, true, L1);
+  flatRoad(b, (X_E + X_W) / 2, 807, 18.0, X_E - X_W, 'x', 6, true, L1); // W Russell Rd
   flatRoad(b, (X_E + VALLEY_VIEW_X) / 2, 530, 8.5, VALLEY_VIEW_X - X_E, 'x', 2, true, L1); // W Reno Ave
 
   // ---- Warehouse grid (deterministic): blocks between the roads, skipping the Rio and Palms sites
@@ -42,13 +43,14 @@ export function buildValleyViewBackdrop(b: WorldBuilder): void {
     [-376, -344, -82, -38], // Palms
     [-345, -312, 360, 400], // Sinclair truck stop
     [-410, -364, 446, 476], // La Quinta
+    [-340, -312, 652, 738], // Allegiant Stadium's west side
   ];
-  const roadsZ = [I15.flamingoZ, I15.tropZ, 530];
+  const roadsZ = [I15.flamingoZ, I15.tropZ, 530, 807];
   const packs: Array<[number, number]> = [];
   const clearOfRoads = (x0: number, x1: number, z0: number, z1: number) =>
     !roadsZ.some((rz) => z1 > rz - 12 && z0 < rz + 12) && !(x1 > VALLEY_VIEW_X - 10 && x0 < VALLEY_VIEW_X + 10);
   const clearOfSites = (x0: number, x1: number, z0: number, z1: number) => !avoid.some(([ax0, ax1, az0, az1]) => x1 > ax0 && x0 < ax1 && z1 > az0 && z0 < az1);
-  for (let z = -190; z < 640; ) {
+  for (let z = -190; z < 930; ) {
     const d = 12 + R() * 14;
     for (let x = X_E - 4; x > X_W + 10; ) {
       const w = 14 + R() * 22;

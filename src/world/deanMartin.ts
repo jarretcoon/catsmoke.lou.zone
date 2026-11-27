@@ -42,6 +42,9 @@ export const WEST_BAY = {
 };
 
 const DM_MAIN_X = -225;
+/** The walkable annex south of the bay: x WEST_BAY.xW .. ANNEX_XE (I-15's west wall), z WEST_BAY.zS .. ANNEX_ZS. */
+const ANNEX_XE = -214;
+const ANNEX_ZS = 912;
 const DM_FLAM_X = -248;
 const DM_TROP_X = -255;
 const JOEY_X = -219.5;
@@ -144,10 +147,23 @@ function buildBayGroundAndEdges(b: WorldBuilder, mg: Merger): void {
   const bayD = WEST_BAY.zS - WEST_BAY.zN;
   b.box(WEST_BAY.xW, 0, (WEST_BAY.zN + WEST_BAY.zS) / 2, 1.2, 0.8, bayD, edgeMat, false, false);
   b.box((WEST_BAY.xW + WEST_BAY.xE) / 2, 0, WEST_BAY.zN, bayW, 0.8, 1.2, edgeMat, false, false);
-  b.box((WEST_BAY.xW + WEST_BAY.xE) / 2, 0, WEST_BAY.zS, bayW, 0.8, 1.2, edgeMat, false, false);
-  b.collider(WEST_BAY.xW - 50, WEST_BAY.xW - 0.6, WEST_BAY.zN - 50, WEST_BAY.zS + 50, 0, 60, true);
+  // South of z = 605 the bay carries on as a walkable annex west of I-15 (Allegiant Stadium, Russell Rd and the
+  // Dean Martin hotel row down to Residence Inn 5875); only the I-15 strip is closed off there.
+  b.box((ANNEX_XE + WEST_BAY.xE) / 2, 0, WEST_BAY.zS, WEST_BAY.xE - ANNEX_XE, 0.8, 1.2, edgeMat, false, false);
+  b.box(WEST_BAY.xW, 0, (WEST_BAY.zS + ANNEX_ZS) / 2, 1.2, 0.8, ANNEX_ZS - WEST_BAY.zS, edgeMat, false, false);
+  b.box((WEST_BAY.xW + ANNEX_XE) / 2, 0, ANNEX_ZS, ANNEX_XE - WEST_BAY.xW, 0.8, 1.2, edgeMat, false, false);
+  b.box(ANNEX_XE, 0, (WEST_BAY.zS + ANNEX_ZS) / 2, 1.2, 0.8, ANNEX_ZS - WEST_BAY.zS, edgeMat, false, false);
+  b.collider(WEST_BAY.xW - 50, WEST_BAY.xW - 0.6, WEST_BAY.zN - 50, ANNEX_ZS + 50, 0, 60, true);
   b.collider(WEST_BAY.xW - 50, WEST_BAY.xE + 2, WEST_BAY.zN - 50, WEST_BAY.zN - 0.6, 0, 60, true);
-  b.collider(WEST_BAY.xW - 50, WEST_BAY.xE + 2, WEST_BAY.zS + 0.6, WEST_BAY.zS + 50, 0, 60, true);
+  b.collider(ANNEX_XE + 0.6, WEST_BAY.xE + 2, WEST_BAY.zS + 0.6, ANNEX_ZS + 50, 0, 60, true);
+  b.collider(WEST_BAY.xW - 50, ANNEX_XE + 0.6, ANNEX_ZS + 0.6, ANNEX_ZS + 50, 0, 60, true);
+  const annexPad = new THREE.Mesh(new THREE.PlaneGeometry(ANNEX_XE - WEST_BAY.xW + 2, ANNEX_ZS - WEST_BAY.zS + 2), mat(0x9a8c76, 0.96));
+  annexPad.rotation.x = -Math.PI / 2;
+  annexPad.position.set((ANNEX_XE + WEST_BAY.xW) / 2, L0 - 0.006, (WEST_BAY.zS + ANNEX_ZS) / 2);
+  annexPad.receiveShadow = true;
+  b.add(annexPad);
+  // Allegiant Stadium (southStrip.ts draws it) is solid now that you can walk up to it
+  b.collider(-321, -249, 664, 727, 0, 30, true);
 
   // Flamingo Wash (north of Flamingo) & Tropicana Wash (south of Home2 / Hampton Inn)
   const concrete = mat(0x8e8a80, 0.9);
@@ -1024,7 +1040,9 @@ function buildTommyRockersAndTwainCorridor(b: WorldBuilder, mg: Merger, lot: Par
 function buildVisualSouthExtension(b: WorldBuilder, mg: Merger): void {
   // Keeps roadway & south Stadium / Russell Rd Hotel Row continuous beyond walkable WEST_BAY.zS = 605
   // Note: strictly east of Allegiant Stadium (-285, z=695, outer x=-247, Torch at x=-241) and north/south clear
-  flatRoad(b, DM_MAIN_X, 735, 16.4, 262, 'z', 5, true, L1);
+  flatRoad(b, DM_MAIN_X, 758, 16.4, 308, 'z', 5, true, L1, 'Dean Martin Dr');
+  b.zone('Dean Martin Dr (Stadium & Russell)', DM_MAIN_X - 9, DM_MAIN_X + 9, 605, ANNEX_ZS);
+  b.zone('Allegiant Stadium', -323, -247, 660, 731);
   flatRoad(b, -238, 644, 12.0, 24, 'x', 4, true, L1); // Al Davis Way east approach into Allegiant Stadium
   flatRoad(b, -252, 807, 18.0, 62, 'x', 6, true, L1); // W Russell Rd continuation west of I-15
   const shoulderPad = mat(0x948670, 0.96);
@@ -1032,15 +1050,135 @@ function buildVisualSouthExtension(b: WorldBuilder, mg: Merger): void {
   // North visual continuation beyond Twain (-196..-260)
   angledRoadSeg(b, -215, -260, -222, -196, 16.4, 5, true);
 
-  // Decorative background Hotel Row silhouettes south of Russell Rd (outside walkable bay, no colliders)
-  const hotelSpec: FacadeSpec = { wall: '#c9bfb0', mullion: '#e8e0d2', glass: '#364656', lit: '#ffe0a8', cols: 8, rows: 5, style: 0, seed: 5735 };
-  for (const [hx, hz, hw, hd, hh, trimCol, name] of [
-    [-251, 827, 22, 14, 17, 0x244a72, 'Staybridge Suites (5735)'],
-    [-246, 847, 22, 14, 17, 0x1e3858, 'Fairfield Inn (5775)'],
-    [-241, 867, 22, 15, 18, 0x5c2632, 'Courtyard (5845)'],
-  ] as Array<[number, number, number, number, number, number, string]>) {
-    addBuilding(b, mg, { x: hx, z: hz, w: hw, d: hd, h: hh, wall: hotelSpec, trim: trimCol, label: name, collider: false });
+  buildRussellHotelRow(b, mg);
+}
+
+// ================================================================ South of Russell Rd: the stadium-area hotel row (west side)
+
+interface RowHotel {
+  addr: number;
+  name: string;
+  z: number;
+  w: number;
+  d: number;
+  h: number;
+  spec: FacadeSpec;
+  trim: number;
+  accent: number;
+  sign: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
+}
+
+function brandSign(bg: string, lines: Array<[string, string, string]>, mark?: (ctx: CanvasRenderingContext2D, h: number) => void) {
+  return (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    const x0 = mark ? h * 1.05 : w * 0.06;
+    if (mark) mark(ctx, h);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    lines.forEach(([text, font, color], i) => {
+      ctx.fillStyle = color;
+      ctx.font = font;
+      ctx.fillText(text, x0, h * (lines.length === 1 ? 0.52 : 0.36 + i * 0.36), w - x0 - 10);
+    });
+  };
+}
+
+/**
+ * OSM order south of W Russell Rd, all on the west side: 5735 Staybridge Suites, 5775 Fairfield Inn & Suites
+ * Stadium Area, 5845 Courtyard Stadium Area, 5875 Residence Inn Las Vegas South. Each gets its brand colours,
+ * a curb cut with a drive aisle, a parking field in front, a porte-cochère, landscaping and a lit pole sign.
+ */
+function buildRussellHotelRow(b: WorldBuilder, mg: Merger): void {
+  const lot = new ParkedLotBuilder();
+  const hotels: RowHotel[] = [
+    {
+      addr: 5735, name: 'Staybridge Suites', z: 829, w: 24, d: 13, h: 16,
+      spec: { wall: '#d9c6a4', mullion: '#a8784e', glass: '#34424e', lit: '#ffdca8', cols: 9, rows: 4, style: 0, seed: 5735 },
+      trim: 0x7a4a2a, accent: 0x1d3a6e,
+      sign: brandSign('#ffffff', [['STAYBRIDGE', 'bold 46px Georgia, serif', '#1d3a6e'], ['SUITES', '600 30px "Segoe UI", Arial, sans-serif', '#c7832c']], (ctx, h) => {
+        ctx.fillStyle = '#c7832c';
+        ctx.beginPath();
+        ctx.arc(h * 0.52, h * 0.5, h * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#1d3a6e';
+        ctx.fillRect(h * 0.36, h * 0.44, h * 0.32, h * 0.12);
+      }),
+    },
+    {
+      addr: 5775, name: 'Fairfield Inn & Suites', z: 851, w: 24, d: 13, h: 17.5,
+      spec: { wall: '#e4e1da', mullion: '#7d8a8e', glass: '#2e3c48', lit: '#ffe4b4', cols: 9, rows: 5, style: 1, seed: 5775 },
+      trim: 0x2b4a63, accent: 0x6aa5c8,
+      sign: brandSign('#ffffff', [['FAIRFIELD', 'bold 48px "Segoe UI", Arial, sans-serif', '#22384f'], ['BY MARRIOTT', '600 24px "Segoe UI", Arial, sans-serif', '#5b8fae']], (ctx, h) => {
+        ctx.strokeStyle = '#e6a531';
+        ctx.lineWidth = h * 0.05;
+        for (let i = 0; i < 7; i++) {
+          const a = Math.PI + (i / 6) * Math.PI;
+          ctx.beginPath();
+          ctx.moveTo(h * 0.52 + Math.cos(a) * h * 0.14, h * 0.66 + Math.sin(a) * h * 0.14);
+          ctx.lineTo(h * 0.52 + Math.cos(a) * h * 0.34, h * 0.66 + Math.sin(a) * h * 0.34);
+          ctx.stroke();
+        }
+      }),
+    },
+    {
+      addr: 5845, name: 'Courtyard', z: 873, w: 26, d: 14, h: 19,
+      spec: { wall: '#d4d7da', mullion: '#3f8f8a', glass: '#24343e', lit: '#fff0c8', cols: 10, rows: 5, style: 1, seed: 5845 },
+      trim: 0x2c6f6a, accent: 0x3f8f8a,
+      sign: brandSign('#14313a', [['COURTYARD', 'bold 50px "Segoe UI", Arial, sans-serif', '#ffffff'], ['Marriott', 'italic 26px Georgia, serif', '#8fd2c8']]),
+    },
+    {
+      addr: 5875, name: 'Residence Inn', z: 895, w: 24, d: 13, h: 15,
+      spec: { wall: '#d8c3a8', mullion: '#9a3a2e', glass: '#323e48', lit: '#ffdcae', cols: 9, rows: 4, style: 0, seed: 5875 },
+      trim: 0x8a2a24, accent: 0xb5332b,
+      sign: brandSign('#ffffff', [['Residence Inn', 'bold 44px Georgia, serif', '#a3262a'], ['BY MARRIOTT', '600 22px "Segoe UI", Arial, sans-serif', '#555a60']]),
+    },
+  ];
+
+  const curb = mat(0xbdb7ac, 0.85);
+  const drive = mat(0x4a4c52, 0.9);
+  const canopyMat = mat(0xece6da, 0.6);
+  const glassDoor = new THREE.MeshStandardMaterial({ color: 0x1e2a34, emissive: 0xffe2b0, emissiveIntensity: 0.1, roughness: 0.12, metalness: 0.4 });
+  b.nightGlow(glassDoor, 0.1, 0.9);
+  const poleMat = mat(0x3a3c42, 0.5, 0.5);
+  const HX = -266; // building centre line (set back behind its parking field)
+  const CURB_X = DM_MAIN_X - 9.4; // west curb of Dean Martin
+  // West sidewalk the whole way down the annex
+  mg.box(curb, CURB_X - 1.1, L1 * 0.5, 758, 2.2, L1, 308);
+  for (const ht of hotels) {
+    const accent = mat(ht.accent, 0.55);
+    addBuilding(b, mg, { x: HX, z: ht.z, w: ht.w, d: ht.d, h: ht.h, wall: ht.spec, trim: ht.trim, roof: 0x5a5650, label: `${ht.name} (${ht.addr} Dean Martin)` });
+    // Brand accent: a full-height entry tower on the street face
+    mg.box(accent, HX + ht.w / 2 + 0.35, ht.h / 2 + 0.6, ht.z, 0.7, ht.h + 1.2, 4.6, 0, true);
+    mg.box(glassDoor, HX + ht.w / 2 + 0.72, 1.5, ht.z, 0.06, 2.6, 3.4);
+    // Porte-cochère over the drop-off
+    mg.box(canopyMat, HX + ht.w / 2 + 3.6, 4.3, ht.z, 6.4, 0.45, 6.4, 0, true);
+    for (const dz of [-2.8, 2.8]) mg.box(accent, HX + ht.w / 2 + 6.4, 2.1, ht.z + dz, 0.45, 4.2, 0.45);
+    // Parking field between the hotel and Dean Martin, with its drive aisle and curb cut
+    paving(b, HX + ht.w / 2 + 0.2, CURB_X - 2.2, ht.z - 10, ht.z + 10, '#55575c', '#4a4c51', 4, L0);
+    mg.box(drive, (HX + ht.w / 2 + CURB_X) / 2, L0 + 0.012, ht.z + 8.4, CURB_X - (HX + ht.w / 2), 0.02, 3.2);
+    lot.bays(HX + ht.w / 2 + 8, CURB_X - 3.5, ht.z - 9.2, ht.z + 6.2, 3, 3, Math.PI / 2, 0.7, ht.addr);
+    // Landscaping strip on the curb and two palms by the drive
+    mg.box(mat(0x6a7a3e, 0.95), CURB_X - 2.8, L0 + 0.08, ht.z - 2, 1.0, 0.16, 14);
+    palmInto(mg, CURB_X - 2.8, ht.z - 7.5, 7.5, ht.addr);
+    palmInto(mg, CURB_X - 2.8, ht.z + 4.5, 6.8, ht.addr + 1);
+    // Lit pole sign at the curb, facing the street
+    mg.box(poleMat, CURB_X - 2.8, 2.8, ht.z + 6.0, 0.35, 5.6, 0.35);
+    addCanvasSignBox(b, 4.2, 1.6, CURB_X - 2.8, 6.3, ht.z + 6.0, Math.PI / 2, ht.sign, { depth: 0.3, twoSided: true, backing: 0x2a2c30 });
+    addCanvasSignBox(b, 0.9, 0.5, CURB_X - 2.8, 5.1, ht.z + 6.0, Math.PI / 2, (ctx, w, h) => {
+      ctx.fillStyle = '#1e2024';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(h * 0.62)}px "Segoe UI", Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(ht.addr), w / 2, h * 0.54);
+    }, { depth: 0.12, twoSided: true });
+    b.zone(`${ht.name} (${ht.addr} Dean Martin)`, HX - ht.w / 2 - 2, CURB_X, ht.z - 11, ht.z + 11);
   }
+  // A street light per hotel frontage on the west side
+  for (const ht of hotels) cobraPoleInto(mg, b, CURB_X - 0.6, ht.z - 11, Math.PI / 2, 9.2, 2.4);
+  lot.emit(b, -250, 862, 260);
 }
 
 // ================================================================ Freeway Billboards & Real Traffic Signals

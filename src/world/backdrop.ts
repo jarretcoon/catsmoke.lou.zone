@@ -48,7 +48,7 @@ export function buildBackdrop(b: WorldBuilder): void {
   b.collider(xW - 50, xE + 50, zN - 50, zN - 0.6, 0, 60, true);
   b.collider(xW - 50, xE + 50, zS + 0.6, zS + 50, 0, 60, true);
   b.collider(xW - 50, xW - 0.6, zN - 50, bayWN, 0, 60, true);
-  b.collider(xW - 50, xW - 0.6, bayWS, zS + 50, 0, 60, true);
+  b.collider(-213.4, xW - 0.6, bayWS, zS + 50, 0, 60, true); // west of -214 is deanMartin.ts's walkable annex
   b.collider(xE + 0.6, xE + 50, zN - 50, bayN, 0, 60, true);
   b.collider(xE + 0.6, xE + 50, bayS, zS + 50, 0, 60, true);
 }
