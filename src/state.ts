@@ -1,7 +1,7 @@
 import type { VapeFlavor } from './smoke';
 import type { TimePreset } from './vegasWorld';
 
-export type CosmeticId = 'aviators' | 'fedora' | 'gold-chain' | 'bowtie' | 'top-hat' | 'diamond-collar' | 'trucker-hat' | 'lei' | 'cheap-shades' | 'bandana';
+export type CosmeticId = 'aviators' | 'fedora' | 'gold-chain' | 'bowtie' | 'top-hat' | 'diamond-collar' | 'trucker-hat' | 'lei' | 'cheap-shades' | 'bandana' | 'cowboy-hat';
 
 export interface GameStats {
   cigsSmoked: number;

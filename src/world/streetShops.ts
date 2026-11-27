@@ -179,33 +179,8 @@ function chapelKiosk(b: WorldBuilder, x: number, z: number, rotY: number): void 
   b.collider(x - 1.5, x + 1.5, z - 1.5, z + 1.5, 0, 1.1, true);
 }
 
-/** Interior-mapped glass over the existing LINQ Promenade shopfronts (eastSide.ts builds the boxes). */
+/** The LINQ gateway sign at the promenade mouth (the storefronts themselves are in linqPromenade.ts). */
 function linqPromenadeWindows(b: WorldBuilder): void {
-  const glass = interiorMaterial();
-  const south: Array<[number, InteriorKind]> = [
-    [72, 'daiquiri'],
-    [92, 'shirts'],
-    [104, 'gallery'],
-    [116, 'foodcourt'],
-    [128, 'candy'],
-  ];
-  const north: Array<[number, InteriorKind]> = [
-    [64, 'liquor'],
-    [76, 'foodcourt'],
-    [88, 'slots'],
-    [124, 'racks'],
-  ];
-  const add = (x: number, z: number, kind: InteriorKind, rot: number) => {
-    for (let i = 0; i < 2; i++) {
-      const p = new THREE.Mesh(interiorPaneGeometry(interiorCell(kind, i)), glass);
-      p.position.set(x - 1.25 + i * 2.5, 0.2 + PANE.h / 2, z);
-      p.rotation.y = rot;
-      p.userData.clutter = true;
-      b.add(p);
-    }
-  };
-  for (const [x, k] of south) add(x, -97.07, k, Math.PI);
-  for (const [x, k] of north) add(x, -110.93, k, 0);
   b.add(new THREE.Mesh(signGeometry('linq', 9, 1.05, 0.12), signs(b)), 21.5, 7.6, -104, -Math.PI / 2);
 }
 

@@ -117,7 +117,7 @@ function burgerProp(): THREE.Group {
 // =====================================================================================
 // In-N-Out: spotless, slammed busy, the good one.
 // =====================================================================================
-export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number, opts: { name: string; standalone: boolean; w?: number; d?: number; y?: number; patio?: boolean }): RestaurantDef {
+export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number, opts: { name: string; standalone: boolean; w?: number; d?: number; y?: number; patio?: boolean; inLine?: boolean }): RestaurantDef {
   const y0 = opts.y ?? 0;
   const f = frame(x, z, rotY, y0);
   const W = opts.w ?? 18;
@@ -265,7 +265,9 @@ export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number,
   for (let i = 0; i < 4; i++) f.add(b, mesh(new THREE.BoxGeometry(0.9, 0.7, 0.04), mat([0x2a66cc, 0xffc72c, 0xd81e2a, 0x2a2a2a][i], 0.6)), -6 + i * 3.2, 2.6, -D / 2 + 0.24);
   b.light(0xfff6e8, 12, 20, x, y0 + H - 0.6, z, 0.9);
 
-  // Outside: the yellow arrow sign, crossed palms, patio, planters
+  // Outside: the yellow arrow sign, crossed palms, patio, planters (not for an in-line shop on a
+  // promenade: that one's front is dressed by its district)
+  if (!opts.inLine) {
   const pole = mesh(new THREE.CylinderGeometry(0.25, 0.3, 11, 10), mat(0xd81e2a, 0.4), 0, 5.5, 0, true);
   const sign = new THREE.Group();
   sign.add(pole);
@@ -297,6 +299,7 @@ export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number,
     const p = palmTree(8.5, false, s + 5);
     p.rotation.z = s * 0.32;
     f.add(b, p, -W / 2 - 2.2 + s * 0.8, 0, D / 2 + 1.5);
+  }
   }
   for (let i = 0; i < (opts.patio === false ? 0 : 4); i++) {
     const lx = -6 + i * 4;

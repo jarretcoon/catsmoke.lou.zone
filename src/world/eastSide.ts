@@ -4,7 +4,6 @@ import { stairs, tower } from './buildings';
 import { buildCasinoFloor } from './casinos';
 import { LedBoard, makePaverTexture } from './textures';
 import { buildAbcStore } from './abcStore';
-import { buildInNOut } from './food';
 import { buildVenetianInteriors } from './grandVenetian';
 import { buildSphereVenue } from './sphere';
 import { harrahsSigns, horseshoeSigns, linqSigns, palazzoSigns, venetianSigns } from './stripSigns';
@@ -15,6 +14,7 @@ import { carnavalTent, harrahsArch } from './harrahsFront';
 import { casinoRoyaleDressing, horseshoeLedTower, linqHexBox, linqPylon, soleiaLoungers, starburst, vanderpumpFront, venetianColumns } from './eastExtras';
 import { barCounter, basic, bench, blackjackTable, flamingoBird, mat, mesh, neonSign, palmTree, planter } from './props';
 import { casinoRoyaleFront, dogesPalaceFront, palazzoFront, parisFront } from './stripFronts';
+import { buildLinqPromenade } from './linqPromenade';
 
 /**
  * East side of Las Vegas Blvd, south → north:
@@ -40,16 +40,6 @@ function plaza(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, 
   const m = new THREE.MeshStandardMaterial({ map: makePaverTexture(base, joint, 4), roughness: 0.8 });
   m.map!.repeat.set(w / 4, d / 4);
   b.floor((x0 + x1) / 2, (z0 + z1) / 2, w, d, m, 0.01);
-}
-
-function storefront(b: WorldBuilder, x: number, z: number, w: number, d: number, h: number, wall: number, name: string, fg: string, bg: string, facing: number): void {
-  b.box(x, 0, z, w, h, d, mat(wall, 0.7), true);
-  const sign = neonSign(name, bg, fg, Math.min(w, d === 0 ? w : w) * 0.85, 1.0, undefined, 0.1);
-  const off = (facing === 0 ? d : facing === Math.PI ? d : w) / 2 + 0.08;
-  b.add(sign, x + Math.sin(facing) * off, h - 1.1, z + Math.cos(facing) * off, facing);
-  const glass = mesh(new THREE.PlaneGeometry(w * 0.7, 2.4), mat(0x1c2a3a, 0.1, 0.8, { emissive: 0xffd9a0, emissiveIntensity: 0.25 }), x + Math.sin(facing) * (off - 0.05), 1.4, z + Math.cos(facing) * (off - 0.05));
-  glass.rotation.y = facing;
-  b.add(glass);
 }
 
 // ---------------------------------------------------------------- Planet Hollywood / Miracle Mile (+ ABC Stores)
@@ -435,46 +425,10 @@ function buildFlamingo(b: WorldBuilder): void {
 
 // ---------------------------------------------------------------- LINQ Promenade, High Roller, LINQ Hotel
 function buildLinq(b: WorldBuilder): void {
-  const z0 = -98;
-  const z1 = -110;
-  const zc = (z0 + z1) / 2;
-  plaza(b, 19, 158, z0, z1, '#bfb4a4', '#9c917f');
-  b.feature({ kind: 'plaza', x: 88, z: zc, w: 138, d: 12, color: '#bfb4a4', label: 'LINQ Promenade' });
-
-  // Shops: Flamingo side (south) east of the casino, LINQ/O'Sheas side (north)
-  const south: Array<[number, string, string]> = [
-    [72, 'BREEZE DAIQUIRI', '#ff6ec7'],
-    [92, 'SOUVENIRS', '#ffd24d'],
-    [104, 'TATTOO', '#7dffb0'],
-    [116, 'PIZZA', '#ff8a3d'],
-    [128, 'ICE CREAM', '#9fe8ff'],
-  ];
-  for (const [x, name, col] of south) storefront(b, x, -94.5, 10, 5, 6, 0x3a3a44, name, col, '#111118', Math.PI);
-  const north: Array<[number, string, string]> = [
-    [64, "O'SHEAS", '#4dff7a'],
-    [76, 'BURGERS', '#ffcc33'],
-    [88, 'SPORTS BAR', '#3ab0ff'],
-    [124, 'KARAOKE', '#c77dff'],
-  ];
-  for (const [x, name, col] of north) storefront(b, x, -113.5, 10, 5, 6, 0x2c2f3a, name, col, '#0d0e14', 0);
-  // The LINQ Promenade In-N-Out (3545 S LVB, Ste L24) — famous for its line
-  b.restaurants.push(buildInNOut(b, 104, -121.5, 0, { name: 'In-N-Out (LINQ Promenade)', standalone: false, w: 16, d: 10, patio: false }));
-  b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(72, 0, -98.6), radius: 3, label: 'Breeze Daiquiri Bar' });
-  b.shopSpots.push({ kind: 'bar', position: new THREE.Vector3(64, 0, -109.8), radius: 3, label: "O'Sheas" });
-
-  // String lights across the promenade + planters + benches
-  const bulb = basic(0xffe2a0);
-  for (let x = 24; x < 150; x += 9) {
-    for (let i = 0; i <= 6; i++) {
-      const z = z0 - 0.5 - i * ((z0 - z1 - 1) / 6);
-      b.add(mesh(new THREE.SphereGeometry(0.11, 5, 4), bulb, x, 6.2 - Math.sin((i / 6) * Math.PI) * 0.7, z));
-    }
-  }
-  for (let x = 30; x < 150; x += 16) {
-    b.add(planter(2.2, 1.4, 0xff6aa2), x, 0, zc);
-    b.collider(x - 1.1, x + 1.1, zc - 0.7, zc + 0.7, 0, 0.6);
-    b.add(bench(), x + 5, 0, zc + 3.4);
-  }
+  // The promenade itself: real storefronts in their real order, patios, palms, the fountain, the
+  // In-N-Out at its real spot on the Flamingo side, working shops and bars (linqPromenade.ts)
+  buildLinqPromenade(b);
+  const zc = -104;
 
   // Fly LINQ zipline overhead (real): the launch tower, an open white steel frame topped by a glass box,
   // stands at the Strip end; riders fly east down the promenade to the landing tower at the wheel
@@ -503,14 +457,13 @@ function buildLinq(b: WorldBuilder): void {
   b.add(mesh(new THREE.BoxGeometry(4.6, 0.3, 4.6), white, LX, LH, zc));
   b.add(mesh(new THREE.BoxGeometry(4.2, 2.6, 4.2), new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.45, roughness: 0.05 }), LX, LH + 1.45, zc));
   b.add(mesh(new THREE.BoxGeometry(4.6, 0.3, 4.6), white, LX, LH + 2.9, zc));
-  b.add(mesh(new THREE.BoxGeometry(3, 6.5, 3), steel, 140, 3.25, zc, true));
-  b.collider(138.5, 141.5, zc - 1.5, zc + 1.5, 0, 6.5, true);
+  // the landing tower at the wheel end is built with the promenade (linqPromenade.ts)
   const riders: Array<{ g: THREE.Group; lane: number; t: number }> = [];
   for (let lane = 0; lane < 4; lane++) {
     const zz = zc - 1.5 + lane;
     const cable = mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 4), mat(0x222222, 0.5), 0, 0, 0);
     const a = new THREE.Vector3(LX + 1.8, LH + 0.6, zz);
-    const c = new THREE.Vector3(139, 6.2, zz);
+    const c = new THREE.Vector3(140, 6.8, zz);
     cable.position.copy(a).add(c).multiplyScalar(0.5);
     cable.scale.y = a.distanceTo(c);
     cable.lookAt(c);
@@ -526,7 +479,7 @@ function buildLinq(b: WorldBuilder): void {
       r.t = (r.t + dt * 0.09) % 1.3;
       const k = Math.min(1, r.t);
       r.g.visible = r.t < 1;
-      r.g.position.set(LX + 1.8 + (139 - LX - 1.8) * k, LH + 0.6 + (6.2 - LH - 0.6) * k, zc - 1.5 + r.lane);
+      r.g.position.set(LX + 1.8 + (140 - LX - 1.8) * k, LH + 0.6 + (6.8 - LH - 0.6) * k, zc - 1.5 + r.lane);
     }
   });
   for (const s of [-1, 1]) b.add(neonSign('FLY LINQ', '#eaf6ff', '#1a6ad8', 3.9, 0.9, 'ZIPLINE', 0.06), LX, LH + 1.45, zc + s * 2.15, s > 0 ? 0 : Math.PI);
@@ -630,15 +583,8 @@ function buildLinq(b: WorldBuilder): void {
   });
   b.pickup(wx - 3, stationY + 0.6, zc + 1.6, 3, 'High Roller Queue Pack', false);
   b.zone('High Roller', wx - 20, wx + 10, zc - 12, zc + 12);
-  b.zone('The LINQ Promenade', 19, 150, z1, z0);
   b.staticMarkers.push({ x: wx, z: zc, color: '#35e0ff', glyph: '◎', size: 3.4 });
-  b.crowd.performers.push({ kind: 'slapper', x: 16, z: -112, facing: -Math.PI / 2 }, { kind: 'elvis', x: 96, z: -101.5, facing: 0 });
-  b.crowd.tourists.push(
-    { pts: [[22, -103], [150, -103]], prop: 'yard-drink' },
-    { pts: [[148, -106], [24, -106]], prop: 'camera' },
-    { pts: [[40, -101], [120, -108]], prop: 'cig' },
-    { pts: [[110, -100], [30, -108]], prop: 'bag' }
-  );
+  b.crowd.performers.push({ kind: 'slapper', x: 16, z: -112, facing: -Math.PI / 2 });
 
   const linqSkin = { wall: '#e8ebef', mullion: '#ffffff', glass: '#4a6a8a', lit: '#e8f4ff', cols: 10, rows: 20, style: 1 as const, seed: 111 };
   tower(b, { x: 39, z: -128, w: 34, d: 20, h: 28, facade: linqSkin, crownGlow: 0.5, washStrength: 0.3, washZone: 5 }); // soft crown so the LINQ letters read
