@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { WorldBuilder } from './builder';
-import { crosswalk, junctionBox, layRoad, signal, stopBar, streetGarage, stripEnd, stripSidePhase, twoPhase, type LaneLayout, type P, type Phase } from './crossRoadKit';
+import { crosswalk, junctionBox, layRoad, pathTraffic, signal, stopBar, streetGarage, stripEnd, stripSidePhase, SIDE_CLOCK, type LaneLayout, type P, type Phase, type TrafficPath } from './crossRoadKit';
 import { mat } from './props';
 import { letters } from './signKit';
 import { Merger, palmInto } from './southKit';
@@ -45,13 +45,16 @@ function sign(b: WorldBuilder, text: string, w: number, h: number, x: number, y:
 
 export function buildSouthCrossRoads(b: WorldBuilder): void {
   const mg = new Merger();
-  buildReno(b, mg);
-  buildMandalayHacienda(b, mg);
+  const paths: TrafficPath[] = [];
+  buildReno(b, mg, paths);
+  buildMandalayHacienda(b, mg, paths);
   mg.flush(b);
+  // one instanced traffic set for all four streets (simulated and drawn only while the camera is near)
+  pathTraffic(b, paths, [0, 578], 330, 530);
 }
 
 // ================================================================ Reno Ave
-function buildReno(b: WorldBuilder, mg: Merger): void {
+function buildReno(b: WorldBuilder, mg: Merger, paths: TrafficPath[]): void {
   const name = 'Reno Ave';
   const side = sidePhase(name);
   const strip = stripPhase(name);
@@ -74,8 +77,8 @@ function buildReno(b: WorldBuilder, mg: Merger): void {
     zone: 'Reno Ave',
     mapLabel: 'W Reno Ave',
   });
-  const fsPh = twoPhase(34, 20, 3);
-  stripEnd(b, mg, { sgn: -1, pts: wPts, road: w, stripPhase: strip, sidePhase: side, stop: stopOf(name), inStops: [], outStops: [[w.len - 5, fsPh.main]], counts: [4, 3, 3, 3] }, [[-60, RENO_W_Z], 300], 530);
+  const fsPh = SIDE_CLOCK;
+  paths.push(...stripEnd(b, mg, { sgn: -1, pts: wPts, road: w, stripPhase: strip, sidePhase: side, stop: stopOf(name), inStops: [], outStops: [[w.len - 5, fsPh.main]], counts: [4, 3, 3, 3] }));
   stopBar(mg, w, w.len - 5, 0.4, 7);
   crosswalk(mg, w, w.len - 2.4);
   signal(b, FS_X + 6.5, RENO_W_Z - 8.2, 0, 1, 6.4, fsPh.main, 'Frank Sinatra Dr');
@@ -100,8 +103,8 @@ function buildReno(b: WorldBuilder, mg: Merger): void {
     zone: 'Reno Ave',
     mapLabel: 'E Reno Ave',
   });
-  const gate = twoPhase(38, 24, 11);
-  stripEnd(b, mg, { sgn: 1, pts: ePts, road: e, stripPhase: strip, sidePhase: side, stop: stopOf(name), outStops: [[GATE_X - CURB - 6, gate.main]], inStops: [[GATE_X - CURB + 6, gate.main]], counts: [4, 3, 4, 3] }, [[60, RENO_E_Z], 300], 531);
+  const gate = SIDE_CLOCK;
+  paths.push(...stripEnd(b, mg, { sgn: 1, pts: ePts, road: e, stripPhase: strip, sidePhase: side, stop: stopOf(name), outStops: [[GATE_X - CURB - 6, gate.main]], inStops: [[GATE_X - CURB + 6, gate.main]], counts: [4, 3, 4, 3] }));
   stopBar(mg, e, GATE_X - CURB - 6, 0.4, 6);
   stopBar(mg, e, GATE_X - CURB + 6, -6, -0.4);
   crosswalk(mg, e, GATE_X - CURB - 3.8);
@@ -156,7 +159,7 @@ function buildReno(b: WorldBuilder, mg: Merger): void {
 }
 
 // ================================================================ Mandalay Bay Rd / Hacienda Ave
-function buildMandalayHacienda(b: WorldBuilder, mg: Merger): void {
+function buildMandalayHacienda(b: WorldBuilder, mg: Merger, paths: TrafficPath[]): void {
   const name = 'Mandalay Bay Rd / Hacienda';
   const side = sidePhase(name);
   const strip = stripPhase(name);
@@ -182,8 +185,8 @@ function buildMandalayHacienda(b: WorldBuilder, mg: Merger): void {
     zone: 'Mandalay Bay Rd',
     mapLabel: 'Mandalay Bay Rd',
   });
-  const mbx = twoPhase(36, 22, 9);
-  stripEnd(b, mg, { sgn: -1, pts: wPts, road: w, stripPhase: strip, sidePhase: side, stop: stopOf(name), outStops: [[78, mbx.main]], inStops: [[90, mbx.main]], counts: [4, 3, 3, 3] }, [[-60, MBR_Z], 300], 612);
+  const mbx = SIDE_CLOCK;
+  paths.push(...stripEnd(b, mg, { sgn: -1, pts: wPts, road: w, stripPhase: strip, sidePhase: side, stop: stopOf(name), outStops: [[78, mbx.main]], inStops: [[90, mbx.main]], counts: [4, 3, 3, 3] }));
   stopBar(mg, w, 78, 0.4, 7);
   stopBar(mg, w, 90, -7, -0.4);
   signal(b, -84 - 6, MBR_Z + 8.2, 0, -1, 6.4, mbx.main, 'Mandalay Bay Rd');
@@ -219,7 +222,7 @@ function buildMandalayHacienda(b: WorldBuilder, mg: Merger): void {
     zone: 'Hacienda Ave',
     mapLabel: 'E Hacienda Ave',
   });
-  stripEnd(b, mg, { sgn: 1, pts: ePts, road: e, stripPhase: strip, sidePhase: side, stop: stopOf(name), counts: [3, 3, 3, 3], blade: 'Las Vegas Blvd S' }, [[60, HAC_Z], 300], 625);
+  paths.push(...stripEnd(b, mg, { sgn: 1, pts: ePts, road: e, stripPhase: strip, sidePhase: side, stop: stopOf(name), counts: [3, 3, 3, 3], blade: 'Las Vegas Blvd S' }));
 
   // ---- west frontage: Mandalay Bay's main entrance (south side), the W tower, the garage; Luxor's south doors
   const gold = mat(0xc9a14a, 0.35, 0.6);

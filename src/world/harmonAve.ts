@@ -14,7 +14,7 @@ import {
   stopBar,
   stripSidePhase,
   turn,
-  twoPhase,
+  SIDE_CLOCK,
   type P,
   type Phase,
   type TrafficPath,
@@ -50,11 +50,12 @@ const CURB = STRIP.curb;
 const KOVAL_X0 = 181.5;
 const KOVAL_X1 = 190.5;
 const MID_X = 131; // PH garage exit / Signature drive
+const PARADISE_X = 432; // Paradise Rd (xFromO(1880)): past the walkable edge at x 203, Harmon carries on as scenery
 
 /** East Harmon centreline (first point at the Boulevard curb, heading east; its right side is south). */
 const EAST: P[] = [
   [CURB, HARMON_Z],
-  [203, HARMON_Z],
+  [PARADISE_X - 7, HARMON_Z],
 ];
 /** West Harmon centreline (heading west from the Boulevard; its right side is north), jogging north round
  *  ARIA's crescent tip and then down onto the I-15 bridge deck at z 221. */
@@ -143,18 +144,19 @@ export function buildHarmonAve(b: WorldBuilder): void {
   const cross = harmonCross();
   signal(b, CURB + 6.2, HARMON_Z - 7.9, 0, 1, 6.6, cross, 'Las Vegas Blvd S'); // westbound, NE corner, arm south
   signal(b, -CURB - 6.2, HARMON_Z + 7.9, 0, -1, 6.6, cross, 'Las Vegas Blvd S'); // eastbound on the west side, SW corner
-  const mid = twoPhase(36, 22, 5);
+  const mid = SIDE_CLOCK;
   signal(b, MID_X - 6, HARMON_Z + 7.9, 0, -1, 6.6, mid.main, 'Harmon Ave'); // eastbound
   signal(b, MID_X + 6, HARMON_Z - 7.9, 0, 1, 6.6, mid.main, 'Harmon Ave'); // westbound
   signal(b, MID_X + 5.5, HARMON_Z + 8.2, -1, 0, 4.2, mid.cross); // the Signature drive coming out
   signal(b, MID_X - 5.5, HARMON_Z - 8.2, 1, 0, 4.2, mid.cross); // the PH garage coming out
-  const kov = twoPhase(40, 22, 13);
+  const kov = SIDE_CLOCK;
   signal(b, KOVAL_X0 - 1, HARMON_Z + 7.9, 0, -1, 6.6, kov.main, 'Koval Ln');
   signal(b, KOVAL_X1 + 1, HARMON_Z - 7.9, 0, 1, 6.6, kov.main, 'Koval Ln');
   signal(b, KOVAL_X1 + 1, HARMON_Z + 7.9, -1, 0, 5.4, kov.cross, 'Harmon Ave');
   signal(b, KOVAL_X0 - 1, HARMON_Z - 7.9, 1, 0, 5.4, kov.cross, 'Harmon Ave');
 
   buildHarmonFrontage(b, mg);
+  buildHarmonToParadise(b, mg);
   mg.flush(b);
   harmonTraffic(b, east.laneOffset, west.laneOffset, cross, mid.main, kov.main);
   b.zone('Harmon Ave & Koval Ln', KOVAL_X0 - 3, KOVAL_X1 + 3, HARMON_Z - 9, HARMON_Z + 9);
@@ -203,22 +205,22 @@ function harmonTraffic(
   const wbCurb = HARMON_Z + eOff(-1, 0);
   const wbIn = HARMON_Z + eOff(-1, 1);
   // eastbound: right turn in from the northbound curb lane; left turn in from the southbound inner lane
-  add([[L[2], 262], [L[2], 232], ...turn(L[2], 232, L[2], ebCurb, CURB + 6, ebCurb), [CURB + 6, ebCurb], [203, ebCurb]], 5, [
+  add([[L[2], 262], [L[2], 232], ...turn(L[2], 232, L[2], ebCurb, CURB + 6, ebCurb), [CURB + 6, ebCurb], [PARADISE_X - 9, ebCurb]], 5, [
     [MID_X - 6, ebCurb, mid],
     [KOVAL_X0 - 4.2, ebCurb, kov],
   ]);
-  add([[-L[1], 160], [-L[1], 203], ...turn(-L[1], 203, -L[1] + 2, ebIn, CURB + 2, ebIn), [CURB + 2, ebIn], [203, ebIn]], 4, [
+  add([[-L[1], 160], [-L[1], 203], ...turn(-L[1], 203, -L[1] + 2, ebIn, CURB + 2, ebIn), [CURB + 2, ebIn], [PARADISE_X - 9, ebIn]], 4, [
     [-L[1], 205.6, strip],
     [MID_X - 6, ebIn, mid],
     [KOVAL_X0 - 4.2, ebIn, kov],
   ]);
   // westbound: right turn out onto the northbound curb lane; left turn out onto the southbound inner lane
-  add([[203, wbCurb], [CURB + 6, wbCurb], ...turn(CURB + 6, wbCurb, L[2], wbCurb, L[2], 200), [L[2], 200], [L[2], 110]], 5, [
+  add([[PARADISE_X - 9, wbCurb], [CURB + 6, wbCurb], ...turn(CURB + 6, wbCurb, L[2], wbCurb, L[2], 200), [L[2], 200], [L[2], 110]], 5, [
     [KOVAL_X1 + 4.2, wbCurb, kov],
     [MID_X + 6, wbCurb, mid],
     [CURB + 5.4, wbCurb, cross],
   ]);
-  add([[203, wbIn], [CURB + 5.4, wbIn], ...turn(CURB + 5.4, wbIn, -L[1], wbIn, -L[1], 232), [-L[1], 232], [-L[1], 320]], 4, [
+  add([[PARADISE_X - 9, wbIn], [CURB + 5.4, wbIn], ...turn(CURB + 5.4, wbIn, -L[1], wbIn, -L[1], 232), [-L[1], 232], [-L[1], 320]], 4, [
     [KOVAL_X1 + 4.2, wbIn, kov],
     [MID_X + 6, wbIn, mid],
     [CURB + 5.4, wbIn, cross],
@@ -242,7 +244,7 @@ function harmonTraffic(
   add([...wEbIn.filter((p) => p[0] < -CURB - 5.4), [-CURB - 5.4, zE1], ...turn(-CURB - 5.4, zE1, L[1], zE1, L[1], 200), [L[1], 200], [L[1], 110]], 3, [
     [-CURB - 5.4, zE1, cross],
   ]);
-  pathTraffic(b, paths, [20, HARMON_Z], 320, 214);
+  pathTraffic(b, paths, [120, HARMON_Z], 420, 214);
 }
 
 // ================================================================ frontage
@@ -513,4 +515,74 @@ function buildHarmonFrontage(b: WorldBuilder, mg: Merger): void {
   // the construction fence along the Topgolf / Koval corner
   chainFenceInto(b, mg, 180.4, 226, 180.4, 236.6, 2.2);
   void zN;
+}
+
+/**
+ * East of Koval the walkable map ends (x 203), but the view down Harmon carries on to Paradise Rd as scenery
+ * (no colliders past the edge): the Las Vegas Grand Prix Plaza (the F1 paddock building, 2023) and the
+ * Harbor Island apartments on the north side; Wyndham Grand Desert, the Americana and the low Alexis Park on
+ * the south; Paradise Rd itself and Virgin Hotels (the old Hard Rock) on the far south-east corner.
+ */
+function buildHarmonToParadise(b: WorldBuilder, mg: Merger): void {
+  const pad = (x0: number, x1: number, z0: number, z1: number, color: number) => {
+    const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2).translate((x0 + x1) / 2, 0.012, (z0 + z1) / 2);
+    mg.add(g, mat(color, 0.95));
+  };
+  // ground either side of the road past the map edge (the desert plane sits lower)
+  pad(204, PARADISE_X + 80, 120, HARMON_Z - 8.6, 0x9c9488);
+  pad(204, PARADISE_X + 80, HARMON_Z + 11.6, 320, 0x9c9488);
+  // Paradise Rd: six lanes and a median, north-south
+  const par = layRoad(b, mg, {
+    name: 'Paradise Rd',
+    pts: [
+      [PARADISE_X, 110],
+      [PARADISE_X, 330],
+    ],
+    lanes: { each: 3, laneW: 3.3, median: 'raised', medianW: 2.4 },
+    walk: [2.4, 2.4],
+    medianCuts: [[HARMON_Z - 110 - 14, HARMON_Z - 110 + 14]],
+    palms: 12,
+    lights: { every: 30, first: 10 },
+    mapLabel: 'Paradise Rd',
+  });
+  void par;
+  junctionBox(b, PARADISE_X - 11, PARADISE_X + 11, HARMON_Z - 7, HARMON_Z + 7);
+  const pm = SIDE_CLOCK;
+  signal(b, PARADISE_X - 12.5, HARMON_Z + 7.9, 0, -1, 6.6, pm.cross, 'Paradise Rd');
+  signal(b, PARADISE_X + 12.5, HARMON_Z - 7.9, 0, 1, 6.6, pm.cross, 'Paradise Rd');
+  // north side: the Grand Prix Plaza (white paddock building, the F1 logo and the pit-building glass)
+  b.add(new THREE.Mesh(new THREE.BoxGeometry(82, 13, 46), mat(0xeeeeec, 0.6, 0.1)), 250, 6.5, 176);
+  mg.box(b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x1a2a36, roughness: 0.15, metalness: 0.4, emissive: 0xbfe4ff, emissiveIntensity: 0.08 }), 0.05, 0.7), 250, 7, 199.05, 80, 6, 0.1);
+  mg.box(mat(0xd8202a, 0.5), 250, 12.6, 199.1, 82, 0.8, 0.2);
+  sign(b, 'LAS VEGAS GRAND PRIX PLAZA', 22, 2.0, 236, 10.2, 199.2, S_FACE, { style: 'sans', fill: '#111111', spacing: 0.08 });
+  sign(b, 'F1', 5, 2.4, 276, 10.2, 199.2, S_FACE, { style: 'block', fill: '#e10600' });
+  b.building(250, 176, 82, 46, '#eeeeec', 'Las Vegas Grand Prix Plaza');
+  for (let x = 296; x < 360; x += 21) {
+    b.add(new THREE.Mesh(new THREE.BoxGeometry(18, 9, 24), mat(0xd8c7a8, 0.85)), x, 4.5, 190);
+    mg.box(mat(0x9a6a4a, 0.8), x, 9.3, 190, 18.6, 0.6, 24.6);
+  }
+  sign(b, 'HARBOR ISLAND', 6, 0.9, 317, 2.2, 202.6, S_FACE, { style: 'serif', fill: '#1a4a6a', bg: '#f2ead8', scale: 0.7 });
+  // south side: Wyndham Grand Desert (two stucco towers), the Americana, the Alexis Park's low villas
+  for (const [x, z, h] of [
+    [236, 246, 28],
+    [258, 262, 24],
+  ] as Array<[number, number, number]>) {
+    tower(b, { x, z, w: 16, d: 20, h, facade: { wall: '#d6c2a4', mullion: '#b8a284', glass: '#2e343c', lit: '#ffdca0', cols: 6, rows: 9, style: 0, seed: x }, collide: false, cast: false, ledFins: false, crownGlow: 0.4 });
+  }
+  sign(b, 'WYNDHAM GRAND DESERT', 8, 0.8, 236, 3.0, 235.9, N_FACE, { style: 'serif', fill: '#ffffff', bg: '#2a3a5a', scale: 0.7 });
+  b.add(new THREE.Mesh(new THREE.BoxGeometry(24, 10, 18), mat(0xc8b8a0, 0.85)), 300, 5, 240);
+  sign(b, 'AMERICANA', 5, 0.8, 300, 8.0, 230.9, N_FACE, { style: 'sans', fill: '#ffffff', bg: '#7a1a1a', scale: 0.7 });
+  for (let x = 324; x < 400; x += 16) {
+    b.add(new THREE.Mesh(new THREE.BoxGeometry(13, 6, 12), mat(0xf2efe8, 0.8)), x, 3, 238);
+    mg.box(mat(0xb5583a, 0.8), x, 6.3, 238, 13.6, 0.6, 12.6);
+  }
+  sign(b, 'ALEXIS PARK', 5.4, 0.8, 340, 2.4, 231.9, N_FACE, { style: 'serif', fill: '#2a2a2a', bg: '#f4ead8', scale: 0.7 });
+  // Virgin Hotels Las Vegas (2021, the old Hard Rock) on the south-east corner of Harmon and Paradise
+  tower(b, { x: 470, z: 262, w: 30, d: 22, h: 38, facade: { wall: '#2a2a30', mullion: '#4a4a52', glass: '#30343c', lit: '#ffd6c8', cols: 10, rows: 12, style: 1, seed: 4455 }, collide: false, cast: false, accent: 0xe10a0a, crownGlow: 1.4 });
+  tower(b, { x: 498, z: 290, w: 22, d: 22, h: 30, facade: { wall: '#34343a', mullion: '#4a4a52', glass: '#30343c', lit: '#ffd6c8', cols: 8, rows: 10, style: 1, seed: 4456 }, collide: false, cast: false, accent: 0xe10a0a, crownGlow: 1.2 });
+  b.add(new THREE.Mesh(new THREE.BoxGeometry(60, 12, 26), mat(0x2a2a30, 0.6)), 470, 6, 236);
+  sign(b, 'Virgin', 12, 4, 470, 34, 250.9, N_FACE, { style: 'script', fill: '#e10a0a', edge: '#ffffff' });
+  sign(b, 'VIRGIN HOTELS LAS VEGAS', 14, 1.4, 470, 9.0, 222.9, N_FACE, { style: 'sans', fill: '#ffffff', spacing: 0.12 });
+  palmInto(mg, PARADISE_X + 14, HARMON_Z + 14, 9, 11);
+  palmInto(mg, PARADISE_X + 14, HARMON_Z + 30, 8.5, 12);
 }

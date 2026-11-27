@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { WorldBuilder } from './builder';
-import { layRoad, signal, stopBar, crosswalk, stripEnd, stripSidePhase, twoPhase, type LaneLayout, type P, type Phase } from './crossRoadKit';
+import { crosswalk, layRoad, pathTraffic, signal, stopBar, stripEnd, stripSidePhase, SIDE_CLOCK, type LaneLayout, type P, type Phase, type TrafficPath } from './crossRoadKit';
 import { mat } from './props';
 import { letters } from './signKit';
 import { Merger, palmInto } from './southKit';
@@ -37,13 +37,15 @@ function sign(b: WorldBuilder, text: string, w: number, h: number, x: number, y:
 
 export function buildNorthCrossRoads(b: WorldBuilder): void {
   const mg = new Merger();
-  buildFashionShowDr(b, mg);
-  buildResortsWorldAve(b, mg);
+  const paths: TrafficPath[] = [];
+  buildFashionShowDr(b, mg, paths);
+  buildResortsWorldAve(b, mg, paths);
   mg.flush(b);
+  pathTraffic(b, paths, [-60, -580], 330, 475);
 }
 
 // ================================================================ Fashion Show Dr
-function buildFashionShowDr(b: WorldBuilder, mg: Merger): void {
+function buildFashionShowDr(b: WorldBuilder, mg: Merger, paths: TrafficPath[]): void {
   const name = 'Fashion Show Dr';
   const pts: P[] = [
     [-CURB, FSD_Z],
@@ -64,9 +66,9 @@ function buildFashionShowDr(b: WorldBuilder, mg: Merger): void {
   });
   // a signal at the mall's north garage ramp / the Frontier lot gate, halfway along
   const GATE_X = -96;
-  const gate = twoPhase(36, 24, 7);
+  const gate = SIDE_CLOCK;
   const s = -CURB - GATE_X; // arc length along the road (x from −CURB westward)
-  stripEnd(b, mg, { sgn: -1, pts, road, stripPhase: stripPhase(name), sidePhase: sidePhase(name), stop: stopOf(name), outStops: [[s - 6, gate.main]], inStops: [[s + 6, gate.main]], counts: [4, 3, 4, 3], blade: 'Las Vegas Blvd S' }, [[-80, FSD_Z], 300], 475);
+  paths.push(...stripEnd(b, mg, { sgn: -1, pts, road, stripPhase: stripPhase(name), sidePhase: sidePhase(name), stop: stopOf(name), outStops: [[s - 6, gate.main]], inStops: [[s + 6, gate.main]], counts: [4, 3, 4, 3], blade: 'Las Vegas Blvd S' }));
   stopBar(mg, road, s - 6, 0.4, 6.5);
   stopBar(mg, road, s + 6, -6.5, -0.4);
   crosswalk(mg, road, s + 3.6);
@@ -96,7 +98,7 @@ function buildFashionShowDr(b: WorldBuilder, mg: Merger): void {
 }
 
 // ================================================================ Resorts World Ave
-function buildResortsWorldAve(b: WorldBuilder, mg: Merger): void {
+function buildResortsWorldAve(b: WorldBuilder, mg: Merger, paths: TrafficPath[]): void {
   const name = 'Resorts World Ave';
   const END = -62;
   const pts: P[] = [
@@ -112,7 +114,7 @@ function buildResortsWorldAve(b: WorldBuilder, mg: Merger): void {
     zone: 'Resorts World Ave',
     mapLabel: 'Resorts World Ave',
   });
-  stripEnd(b, mg, { sgn: -1, pts, road, stripPhase: stripPhase(name), sidePhase: sidePhase(name), stop: stopOf(name), counts: [3, 2, 3, 2] }, [[-40, RWA_Z], 260], 676);
+  paths.push(...stripEnd(b, mg, { sgn: -1, pts, road, stripPhase: stripPhase(name), sidePhase: sidePhase(name), stop: stopOf(name), counts: [3, 2, 3, 2] }));
   // the turnaround at the motor lobby: a painted island and the end of the road
   mg.box(mat(0xb8ad9c, 0.85), END + 2.2, 0.11, RWA_Z, 4.4, 0.22, 4.0, 0, true);
   palmInto(mg, END + 2.2, RWA_Z, 7.2, 676, 0.22);

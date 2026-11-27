@@ -606,6 +606,12 @@ export function signal(b: WorldBuilder, x: number, z: number, dirX: number, dirZ
   b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, 7, true);
 }
 
+/**
+ * One shared clock for every signalised junction off the Boulevard (Koval, garage drives, Frank Sinatra…):
+ * heads on the same clock share their three lamp materials, which keeps the draw calls down.
+ */
+export const SIDE_CLOCK = twoPhaseImpl(36, 22, 5);
+
 /** Cross-street phase at a Strip mid-block crossing: green while the Boulevard holds (strip.ts crosswalkPhase). */
 export function stripSidePhase(offset: number): (t: number) => Phase {
   return (t) => {
@@ -618,7 +624,7 @@ export function stripSidePhase(offset: number): (t: number) => Phase {
 }
 
 /** A plain two-phase intersection clock: `main` green for the first part of the cycle, `cross` after. */
-export function twoPhase(cycle: number, mainGreen: number, offset: number): { main: (t: number) => Phase; cross: (t: number) => Phase } {
+export function twoPhaseImpl(cycle: number, mainGreen: number, offset: number): { main: (t: number) => Phase; cross: (t: number) => Phase } {
   const c = (t: number) => (((t + offset) % cycle) + cycle) % cycle;
   return {
     main: (t) => {
@@ -880,9 +886,9 @@ export interface StripRoad {
 
 /**
  * The Boulevard end of a cross street: the crosswalk across its mouth, the inbound stop bar and turn
- * arrows, its signal on the inbound corner, and traffic turning in from (and out onto) the Boulevard.
+ * arrows, its signal on the inbound corner; returns the traffic paths turning in from (and out onto) the Boulevard.
  */
-export function stripEnd(b: WorldBuilder, mg: Merger, o: StripRoad, cull: [P, number], seed: number): void {
+export function stripEnd(b: WorldBuilder, mg: Merger, o: StripRoad): TrafficPath[] {
   const { road, sgn } = o;
   const half = road.W / 2;
   crosswalk(mg, road, 3.2);
@@ -944,7 +950,7 @@ export function stripEnd(b: WorldBuilder, mg: Merger, o: StripRoad, cull: [P, nu
     cIn1,
     [...(o.inStops ?? []).map(([s, ph]) => [...roadPt(s, road.laneOffset(-1, 1)), ph] as [number, number, (t: number) => Phase]), sideStop(xo, zI1)]
   );
-  pathTraffic(b, paths, cull[0], cull[1], seed);
+  return paths; // the caller runs one pathTraffic for all its roads (one set of instanced draws)
 }
 
 /**
