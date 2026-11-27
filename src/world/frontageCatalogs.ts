@@ -151,4 +151,143 @@ Object.assign(CATALOGS, {
       item('mn-candy', 'Snacks', 'Gummy Peach Pack', 'Tips ×1.1 for 90 s.', 4, { tip: 1.1, secs: 90, icon: '🍑' }),
     ],
   },
+  // ================================================================ Harmon Ave → Flamingo Rd, east
+  'pbr-rockbar': {
+    title: 'PBR Rock Bar & Grill',
+    sub: 'Miracle Mile Shops • on the Strip at Harmon',
+    greeting: 'Welcome to PBR! The mechanical bull is resting. The beers are not.',
+    bye: 'Rock on',
+    items: [
+      drink('pbr-giant', '100 oz Beer Tower', 'For the table. Lou is the table. 🍹 for 4 min.', 38, 240, { degen: [10, 'Tower Cat'] }, 'GIANT'),
+      drink('pbr-can', 'Tallboy of PBR', '🍹 for 90 s.', 9, 90),
+      food('pbr-wings', 'Wings (dozen)', 'Lou eats the sauce first. Tips ×1.25 for 2 min.', 19, 1.25, 1, 120, '🍗'),
+    ],
+  },
+  'rosa-mexicano': {
+    title: 'Rosa Mexicano',
+    sub: 'Miracle Mile Shops • indoor and outdoor bars on the Strip',
+    greeting: 'Bienvenidos! Guacamole made at your table. Lou is the table again.',
+    bye: 'Hasta luego',
+    items: [
+      food('rm-guac', 'Tableside Guacamole', 'Mashed right in front of Lou. Tips ×1.3 for 2 min.', 19, 1.3, 1, 120, '🥑', 'FAMOUS'),
+      drink('rm-marg', 'Frozen Pomegranate Margarita', 'Pink, like everything here. 🍹 for 2 min.', 18, 120),
+      food('rm-tacos', 'Carnitas Tacos', 'Tips ×1.2, sprint +10% for 2 min.', 22, 1.2, 1.1, 120, '🌮'),
+    ],
+  },
+  'pfchangs': {
+    title: "P.F. Chang's",
+    sub: 'Planet Hollywood • 3667 S Las Vegas Blvd • patio on the Strip',
+    greeting: 'Welcome! Chopsticks? Lou prefers paws.',
+    bye: 'Thank you',
+    items: [
+      food('pf-wraps', 'Chicken Lettuce Wraps', 'Lou eats the chicken, leaves the lettuce. Tips ×1.3 for 2 min.', 17, 1.3, 1, 120, '🥬', 'CLASSIC'),
+      food('pf-dynamite', 'Dynamite Shrimp', 'Sprint +20% for 90 s.', 16, 1, 1.2, 90, '🍤'),
+      food('pf-fortune', 'Fortune Cookie', '“You will find a cigarette on the Strip.” Tips ×1.1 for 60 s.', 1, 1.1, 1, 60, '🥠'),
+      drink('pf-mai', 'Mai Tai', '🍹 for 2 min.', 15, 120),
+    ],
+  },
+  'hexx': {
+    title: 'Hexx Kitchen + Bar',
+    sub: 'Paris Las Vegas • bean-to-bar chocolate • the Eiffel Tower overhead',
+    greeting: 'Bonjour! Our chocolate is made from the bean, right here. Not for cats. Mostly.',
+    bye: 'Au revoir',
+    items: [
+      item('hx-bar', 'Chocolate', 'Single-Origin Bar', 'Made in the window. Lou only smells it. Tips ×1.2 for 2 min.', 12, { tip: 1.2, secs: 120, icon: '🍫' }),
+      item('hx-truffles', 'Chocolate', 'Box of Truffles', 'A gift for a showgirl. Collectible.', 28, { collect: true, degen: [6, 'Chocolatier'] }),
+      food('hx-crepe', 'Nutella Crêpe', 'Sprint +15% for 90 s.', 14, 1, 1.15, 90, '🥞'),
+      drink('hx-mimosa', 'Mimosa (Eiffel View)', '🍹 for 2 min.', 16, 120),
+    ],
+  },
+  'alexxas': {
+    title: "Alexxa's",
+    sub: 'Paris Las Vegas • bar & patio facing the Bellagio fountains',
+    greeting: 'Bienvenue! Best seats for the fountains are on the patio.',
+    bye: 'À bientôt',
+    items: [
+      drink('ax-rose', 'Frozen Rosé', '🍹 for 2 min.', 17, 120),
+      drink('ax-french75', 'French 75', '🍹 for 90 s and Swag points for the pinky.', 19, 90, { degen: [6, 'Très Chic'] }),
+      food('ax-frites', 'Truffle Frites', 'Tips ×1.15 for 90 s.', 12, 1.15, 1, 90, '🍟'),
+    ],
+  },
+  'wahlburgers': {
+    title: 'Wahlburgers',
+    sub: 'Grand Bazaar Shops • burgers, tots, a full bar',
+    greeting: 'Welcome to Wahlburgers! Paul says hi. Mark is not here.',
+    bye: 'Wicked good, see ya',
+    items: [
+      food('wb-our', 'Our Burger', 'Government cheese, the secret sauce. Tips ×1.35 for 3 min.', 15, 1.35, 1, 180, '🍔', 'HOUSE'),
+      food('wb-tots', 'Tots', 'Sprint +15% for 90 s.', 7, 1, 1.15, 90, '🥔'),
+      drink('wb-frappe', 'Spiked Frappe', 'A boozy milkshake. 🍹 for 2 min.', 14, 120),
+    ],
+  },
+  'ben-jerrys': {
+    title: "Ben & Jerry's",
+    sub: 'Grand Bazaar Shops • scoop shop',
+    greeting: 'Hi! Cherry Garcia or Phish Food? Lou votes Phish Food on principle.',
+    bye: 'Peace, love & ice cream',
+    items: [
+      food('bj-phish', 'Phish Food Cone', 'Fish in name only. Lou is disappointed and eats it anyway. Sprint +20% for 90 s.', 7, 1, 1.2, 90, '🍦'),
+      food('bj-shake', 'Cookie Dough Shake', 'Tips ×1.2 for 2 min.', 9, 1.2, 1, 120, '🥤'),
+    ],
+  },
+  'itsugar': {
+    title: "IT'SUGAR",
+    sub: 'Grand Bazaar Shops • a candy department store',
+    greeting: 'Welcome to IT’SUGAR! The gummy bear is five pounds. Yes, five.',
+    bye: 'Stay sweet',
+    items: [
+      item('is-bear', 'Candy', 'Five-Pound Gummy Bear', 'Bigger than Lou’s head. Collectible.', 40, { collect: true, degen: [10, 'Sugar Rush'] }, 'GIANT'),
+      item('is-mix', 'Candy', 'Pick & Mix Bag', 'Sprint +25% for 60 s.', 9, { speed: 1.25, secs: 60, icon: '🍬' }),
+    ],
+  },
+  'duck-donuts': {
+    title: 'Duck Donuts',
+    sub: 'Grand Bazaar Shops • warm, made-to-order donuts',
+    greeting: 'Hi! Coating, topping, drizzle? Lou says “all”.',
+    bye: 'Have a ducky day',
+    items: [
+      food('dd-dozen', 'Half Dozen, Maple Bacon', 'Tips ×1.25 for 2 min.', 14, 1.25, 1, 120, '🍩'),
+      food('dd-one', 'One Warm Donut', 'Sprint +10% for 60 s.', 3, 1, 1.1, 60, '🍩'),
+    ],
+  },
+  'happy-lemon': {
+    title: 'Happy Lemon',
+    sub: 'Grand Bazaar Shops • cheese-foam tea',
+    greeting: 'Hi! Salted cheese foam on top? Lou ate the foam already.',
+    bye: 'Stay happy',
+    items: [
+      food('hl-foam', 'Salted Cheese Green Tea', 'Sprint +20% for 90 s.', 7, 1, 1.2, 90, '🧋'),
+      food('hl-boba', 'Brown Sugar Boba Milk', 'Lou bats the pearls. Tips ×1.15 for 90 s.', 8, 1.15, 1, 90, '🧋'),
+    ],
+  },
+  'katanaya': {
+    title: 'Katanaya Ramen',
+    sub: 'Grand Bazaar Shops',
+    greeting: 'Irasshaimase! Tonkotsu or spicy miso?',
+    bye: 'Arigatō',
+    items: [
+      food('kt-tonkotsu', 'Tonkotsu Ramen', 'Lou drinks the broth and naps in the bowl. Tips ×1.3 for 3 min.', 17, 1.3, 1, 180, '🍜'),
+      food('kt-gyoza', 'Gyoza (6)', 'Sprint +10%, tips ×1.1 for 90 s.', 9, 1.1, 1.1, 90, '🥟'),
+    ],
+  },
+  'fat-tuesday': {
+    title: 'Fat Tuesday',
+    sub: 'Grand Bazaar Shops • frozen daiquiris since 1984',
+    greeting: 'What’s it gonna be? Get the souvenir cup, it’s two feet tall.',
+    bye: 'Laissez les bons temps rouler',
+    items: [
+      drink('ft-190', '190 Octane (souvenir cup)', 'The strong one, in a two-foot cup. 🍹 for 4 min.', 26, 240, { degen: [8, 'Two-Foot Cup'] }, 'STRONG'),
+      drink('ft-pina', 'Piña Colada (refill)', '🍹 for 2 min.', 14, 120),
+    ],
+  },
+  'daves-hot-chicken': {
+    title: "Dave's Hot Chicken",
+    sub: 'Grand Bazaar Shops • Nashville hot tenders',
+    greeting: 'Spice level? No Spice to Reaper. Lou picks Reaper. Lou regrets it.',
+    bye: 'Stay hot',
+    items: [
+      food('dv-tenders', 'Two Tenders, Hot', 'Tips ×1.3 for 2 min.', 15, 1.3, 1, 120, '🌶️'),
+      food('dv-reaper', 'Reaper Slider', 'Sign a waiver. Sprint +35% for 60 s (fleeing the heat).', 9, 1, 1.35, 60, '🔥', 'WAIVER'),
+    ],
+  },
 });
