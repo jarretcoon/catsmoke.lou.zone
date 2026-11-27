@@ -12,7 +12,10 @@ Game contract kept from the first model (src/ relies on it):
   actions Idle Walk Puff Beg Steal VapeRip (+ Run Jump Pounce Sit Eat Drive Flop Dance Trot),
   meshes named Cig* / Vape*, material CigEmber, empties CigTip / VapeTip on the Head bone,
   cat faces -Y (glTF +Z), feet at z=0, head centre (0,-0.262,0.542), eyes (+-0.053,-0.352,0.556),
-  collar ring z 0.415 around y -0.218 (r 0.084), tag (0,-0.306,0.382).
+  collar ring z 0.415 around y -0.218 (r 0.084), tag (0,-0.306,0.382),
+  muzzle (round 4, the longer wedge): nose leather centre (0,-0.405,0.506), mouth centre (0,-0.4055,0.482),
+  chin (0,-0.354,0.462); cig root (-0.028,-0.378,0.4755) with CigTip at the ember 0.104 along CIG_DIR, VapeTip at
+  the vape root (0.025,-0.377,0.4745). src/catLook.ts mirrors NOSE, CHIN and the mouth line (z 0.478) for the fur.
 src/catLook.ts also uses: CatBody, CatFurShell (low-poly skinned copy of the body for shell fur),
   materials TabbyFur / LidFur / EarFur / CatEye / NoseLeather, bones Lid_L/R Ear_L/R Tail3/4 Belly,
   and draws the pupil itself (the exported iris texture has none).
@@ -59,8 +62,26 @@ LID_UP_TILT = 26.0
 LID_LO_ELEV = -42.0
 LID_LO_TILT = 22.0
 
-PAD_C = {s: Vector((0.029 * s, -0.357, 0.503)) for s in (1, -1)}
-PAD_R = Vector((0.039, 0.038, 0.029))
+# Muzzle (11/26 round 4, from Jarret's face photo): a longer wedge, not a round button. The nose leather sits
+# 16 mm further forward and 15 mm lower on a long, straight, sloping bridge; the whisker pads are longer, slimmer
+# ovals angled in towards the nose (the wedge seen from the front); the chin sits back under the mouth.
+NOSE_C = Vector((0.0, -0.405, 0.506))       # nose leather centre (was (0, -0.389, 0.521))
+NOSE_TILT = 18.0                            # degrees the leather tips down
+BRIDGE_PTS = [(0.0, -0.338, 0.566), (0.0, -0.373, 0.544), (0.0, -0.398, 0.520)]   # between the eyes -> nose top
+BRIDGE_RAD = [0.024, 0.020, 0.0145]
+PAD_C = {s: Vector((0.024 * s, -0.376, 0.490)) for s in (1, -1)}
+PAD_R = Vector((0.033, 0.037, 0.026))
+PAD_YAW = 16.0                              # degrees each pad's front turns in towards the nose
+CHIN_C = Vector((0.0, -0.354, 0.462))
+CHIN_R = Vector((0.027, 0.030, 0.018))
+# mouth line, one side (x for s=+1): philtrum foot -> corner. The cig and vape roots sit just inside the corners.
+MOUTH_PTS = [(0.0, -0.4055, 0.482), (0.010, -0.4035, 0.4775), (0.021, -0.3965, 0.4745), (0.031, -0.3855, 0.4755)]
+MOUTH_TOP = Vector((0.0, -0.406, 0.491))    # bottom of the nose -> philtrum foot
+
+
+def pad_rot(s):
+    """Rotation of whisker pad s: local +Y (back) turns so the pad's front points in towards the nose."""
+    return Matrix.Rotation(math.radians(-PAD_YAW * s), 3, "Z")
 
 FRONT_X = 0.085
 HIND_X = 0.092
@@ -87,10 +108,10 @@ TAIL_RAD = [0.046, 0.042, 0.037, 0.034, 0.031, 0.027, 0.020]
 NECK_PTS = [(0.0, -0.168, 0.305), (0.0, -0.203, 0.383), (0.0, -0.220, 0.418), (0.0, -0.246, 0.492)]
 NECK_RAD = [0.100, 0.079, 0.070, 0.079]
 
-CIG_ROOT = Vector((-0.028, -0.366, 0.491))
-CIG_DIR = Vector((-0.42, -0.88, -0.18)).normalized()
-VAPE_ROOT = Vector((0.024, -0.365, 0.490))
-VAPE_DIR = Vector((0.32, -0.91, -0.26)).normalized()
+CIG_ROOT = Vector((-0.028, -0.378, 0.4755))     # just inside his right mouth corner (was (-0.028, -0.366, 0.491))
+CIG_DIR = Vector((-0.46, -0.86, -0.18)).normalized()
+VAPE_ROOT = Vector((0.025, -0.377, 0.4745))     # left corner (was (0.024, -0.365, 0.490))
+VAPE_DIR = Vector((0.34, -0.90, -0.26)).normalized()
 
 
 def smooth01(e0, e1, x):
@@ -314,12 +335,17 @@ def build_body_parts():
                                      [0.013, 0.007, 0.0012], segs=10))
         parts.append(E(f"Brow_{s}", (0.050 * s, -0.338, 0.585), (0.029, 0.020, 0.012), 14, 10,
                        rot=(0, math.radians(10 * s), math.radians(-16 * s))))
-        parts.append(E(f"WhiskerPad_{s}", PAD_C[s], PAD_R, 20, 14))
+        parts.append(E(f"WhiskerPad_{s}", PAD_C[s], PAD_R, 20, 14, rot=pad_rot(s).to_euler()))
         # fur mound over each eyeball; the almond-shaped lid opening is cut out of it later
         parts.append(E(f"EyeMound_{s}", EYE_C[s], (EYE_R + 0.0045, EYE_R + 0.0045, EYE_R + 0.0040), 24, 16))
-    parts.append(E("NoseBridge", (0.0, -0.356, 0.541), (0.023, 0.030, 0.025), 16, 12))
-    parts.append(E("NoseBase", (0.0, -0.377, 0.522), (0.017, 0.015, 0.013), 14, 10))
-    parts.append(E("Chin", (0.0, -0.345, 0.474), (0.033, 0.036, 0.022), 16, 12))
+        # the muzzle's flanks: fill the gap between the cheek and the pad so the face runs in a straight wedge
+        parts.append(E(f"MuzzleSide_{s}", (0.040 * s, -0.352, 0.503), (0.030, 0.034, 0.030), 16, 12,
+                       rot=(0, 0, math.radians(-24 * s))))
+    # a straight nose bridge sloping from between the eyes down to the leather (Lou's long tan bridge)
+    parts.append(create_tube("NoseBridge", BRIDGE_PTS, BRIDGE_RAD, segs=16))
+    parts.append(E("NoseBase", NOSE_C + Vector((0.0, 0.012, -0.001)), (0.017, 0.016, 0.0135), 14, 10))
+    parts.append(E("Upperlip", MOUTH_TOP + Vector((0.0, 0.014, 0.0)), (0.016, 0.016, 0.011), 14, 10))
+    parts.append(E("Chin", CHIN_C, CHIN_R, 16, 12))
     # chest ruff tufts
     for k, x in enumerate((-0.035, 0.0, 0.035)):
         base = Vector((x, -0.292, 0.262))
@@ -654,11 +680,37 @@ def whisker_roots():
             for colm, az in enumerate((24.0, 38.0, 52.0, 66.0)):
                 az2 = math.radians(az + (5.0 if row % 2 else 0.0))
                 el2 = math.radians(el)
-                p = PAD_C[s] + Vector((PAD_R.x * math.sin(az2) * math.cos(el2) * s,
-                                       -PAD_R.y * math.cos(az2) * math.cos(el2),
-                                       PAD_R.z * math.sin(el2)))
+                p = PAD_C[s] + pad_rot(s) @ Vector((PAD_R.x * math.sin(az2) * math.cos(el2) * s,
+                                                    -PAD_R.y * math.cos(az2) * math.cos(el2),
+                                                    PAD_R.z * math.sin(el2)))
                 roots[s].append((row, colm, p))
     return roots
+
+
+MOUTH_LINES = []    # the mouth polylines snapped onto the skin (snap_face fills it; paint_lou draws them)
+
+
+def mouth_polylines():
+    lines = [[MOUTH_TOP, Vector(MOUTH_PTS[0])]]
+    for s in (1, -1):
+        lines.append([Vector((x * s, y, z)) for x, y, z in MOUTH_PTS])
+    return lines
+
+
+def snap_face(body, roots):
+    """Move each whisker root and the mouth line onto the remeshed skin: the dots and the line are painted
+    within ~2 mm of these points, and the voxel remesh + smoothing moves the skin off the primitives."""
+    me = body.data
+    bvh = BVHTree.FromPolygons([v.co for v in me.vertices], [list(p.vertices) for p in me.polygons])
+    MOUTH_LINES.clear()
+    for line in mouth_polylines():
+        dense = []
+        for a, b in zip(line, line[1:]):
+            for k in range(6):
+                dense.append(bvh.find_nearest(a.lerp(b, k / 6.0))[0])
+        dense.append(bvh.find_nearest(line[-1])[0])
+        MOUTH_LINES.append([tuple(p) for p in dense])
+    return {s: [(row, colm, bvh.find_nearest(p)[0]) for row, colm, p in lst] for s, lst in roots.items()}
 
 
 def _cell_rand(h, shift):
@@ -874,10 +926,10 @@ def paint_lou(P, N, AO, M, roots):
         tan = np.maximum(tan, ring * (0.22 + 0.55 * below + 0.30 * inner_c))
         corner = np.exp(-np.sum(((P - np.array((0.028 * s, -0.372, 0.546), np.float32)) / np.array((0.010, 0.02, 0.012), np.float32)) ** 2, 1))
         tan = np.maximum(tan, corner * 0.95)
-    bridge = np.exp(-np.sum(((P - np.array((0.0, -0.376, 0.543), np.float32)) / np.array((0.019, 0.03, 0.026), np.float32)) ** 2, 1))
+    bridge = np.exp(-np.sum(((P - np.array((0.0, -0.385, 0.534), np.float32)) / np.array((0.019, 0.037, 0.028), np.float32)) ** 2, 1))
     tan = np.maximum(tan, np.clip(bridge * 1.25, 0, 1))
     Q = np.stack([ax, y, z], 1)
-    nose_side = np.exp(-np.sum(((Q - np.array((0.020, -0.378, 0.526), np.float32)) / np.array((0.010, 0.02, 0.010), np.float32)) ** 2, 1))
+    nose_side = np.exp(-np.sum(((Q - np.array((0.021, -0.393, 0.512), np.float32)) / np.array((0.010, 0.022, 0.010), np.float32)) ** 2, 1))
     tan = np.maximum(tan, nose_side * 0.75)
 
     # cheek lines, in head azimuth / elevation (degrees) so they always sit on the skin: the "mascara" line runs
@@ -902,16 +954,16 @@ def paint_lou(P, N, AO, M, roots):
     white = np.zeros(n, np.float32)
     pads = np.zeros(n, np.float32)
     for s in (1, -1):
-        q = (P - np.array(PAD_C[s], np.float32)) / np.array(PAD_R, np.float32) / 1.06
+        q = ((P - np.array(PAD_C[s], np.float32)) @ np.array(pad_rot(s), np.float32)) / np.array(PAD_R, np.float32) / 1.06
         dp = np.linalg.norm(q, axis=1)
         pad = (1.0 - sstep(0.90, 1.12, dp + 0.05 * warpB)) * (side * s > -0.5)
         pads = np.maximum(pads, pad)
         low = sstep(PAD_C[s].z + 0.002, PAD_C[s].z - 0.012, z + 0.002 * warpB)
         inner = sstep(0.026, 0.008, ax)
         white = np.maximum(white, pad * np.maximum(low, inner * sstep(PAD_C[s].z + 0.006, PAD_C[s].z - 0.004, z)))
-    philtrum = np.exp(-np.sum(((P - np.array((0.0, -0.387, 0.503), np.float32)) / np.array((0.013, 0.02, 0.010), np.float32)) ** 2, 1))
-    chin = (1.0 - sstep(0.95, 1.25, np.linalg.norm((P - np.array((0.0, -0.343, 0.474), np.float32)) / np.array((0.040, 0.042, 0.028), np.float32), axis=1) + 0.06 * warpB))
-    lips = (1.0 - sstep(0.004, 0.012, np.abs(z - 0.489) - 0.004)) * (1.0 - sstep(0.032, 0.044, ax)) * (y < -0.352)
+    philtrum = np.exp(-np.sum(((P - np.array((0.0, -0.402, 0.487), np.float32)) / np.array((0.013, 0.02, 0.010), np.float32)) ** 2, 1))
+    chin = (1.0 - sstep(0.95, 1.25, np.linalg.norm((P - np.array(CHIN_C, np.float32)) / np.array((0.040, 0.048, 0.028), np.float32), axis=1) + 0.06 * warpB))
+    lips = (1.0 - sstep(0.004, 0.012, np.abs(z - 0.476) - 0.004)) * (1.0 - sstep(0.032, 0.044, ax)) * (y < -0.362)
     throat = (1.0 - sstep(0.026, 0.042, ax + 0.006 * warpB)) * sstep(0.43, 0.455, z) * (1.0 - sstep(0.47, 0.48, z)) * (y < -0.28)
     white = np.maximum.reduce([white, philtrum * 0.95, chin, lips * 0.95, throat * 0.85, locket])
     white *= (~ear)
@@ -923,13 +975,15 @@ def paint_lou(P, N, AO, M, roots):
             rr = 0.0021 if row < 3 else 0.0016
             dd = np.linalg.norm(P - np.array(p, np.float32), axis=1)
             dots = np.maximum(dots, 1.0 - sstep(rr * 0.55, rr * 1.2, dd))
-    mouth_pts_c = [(0.0, -0.392, 0.506), (0.0, -0.391, 0.497)]
-    d_m, _, _, _ = poly_dist(P, mouth_pts_c)
-    mouth = 1.0 - sstep(0.0009, 0.0019, d_m)
-    for s in (1, -1):
-        mp = [(0.0, -0.391, 0.497), (0.010 * s, -0.389, 0.4925), (0.021 * s, -0.383, 0.4895), (0.031 * s, -0.373, 0.4905)]
-        d_m, _, _, _ = poly_dist(P, mp)
-        mouth = np.maximum(mouth, 1.0 - sstep(0.0010, 0.0020, d_m))
+    # philtrum groove from the nose down, then the lip line out to each corner (snapped onto the skin)
+    mouth = np.zeros(n, np.float32)
+    for k, mp in enumerate(MOUTH_LINES or [[tuple(p) for p in ln] for ln in mouth_polylines()]):
+        d_m, arc_m, _, len_m = poly_dist(P, mp)
+        if k == 0:      # the philtrum: a crisp dark groove
+            mouth = np.maximum(mouth, 1.0 - sstep(0.0008, 0.0017, d_m))
+        else:           # the lips: thinner, lost in the white fur towards the corners
+            fade = 0.62 - 0.42 * np.clip(arc_m / len_m, 0.0, 1.0)
+            mouth = np.maximum(mouth, fade * (1.0 - sstep(0.0006, 0.0015, d_m)))
 
     # ---- compose
     rgb = ground.copy()
@@ -1297,8 +1351,8 @@ def build_nose():
     bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=16, radius=1.0)
     for v in bm.verts:
         u = v.co.copy()
-        wf = 0.42 + 0.58 * ((u.z + 1.0) / 2.0) ** 0.75
-        p = Vector((0.0190 * u.x * wf, 0.0097 * u.y, 0.0123 * u.z))
+        wf = 0.34 + 0.66 * ((u.z + 1.0) / 2.0) ** 0.65   # a wide top tapering to a point (his photo)
+        p = Vector((0.0222 * u.x * wf, 0.0105 * u.y, 0.0138 * u.z))
         # philtrum notch at the bottom centre
         p.y += 0.0025 * math.exp(-((u.x / 0.18) ** 2 + ((u.z + 0.95) / 0.25) ** 2))
         for sx in (1, -1):
@@ -1309,15 +1363,15 @@ def build_nose():
     for f in bm.faces:
         if all(v.tag for v in f.verts):
             f.material_index = 1
-    mw = Matrix.Translation((0.0, -0.389, 0.521)) @ Euler((math.radians(16), 0, 0)).to_matrix().to_4x4()
+    mw = Matrix.Translation(NOSE_C) @ Euler((math.radians(NOSE_TILT), 0, 0)).to_matrix().to_4x4()
     bmesh.ops.transform(bm, matrix=mw, verts=bm.verts)
     # dark outline: a slightly larger shell behind the leather
     bm2 = bmesh.new()
     bmesh.ops.create_uvsphere(bm2, u_segments=20, v_segments=12, radius=1.0)
     for v in bm2.verts:
         u = v.co.copy()
-        wf = 0.42 + 0.58 * ((u.z + 1.0) / 2.0) ** 0.75
-        v.co = Vector((0.0212 * u.x * wf, 0.0090 * u.y + 0.0022, 0.0140 * u.z - 0.0004))
+        wf = 0.34 + 0.66 * ((u.z + 1.0) / 2.0) ** 0.65   # a wide top tapering to a point (his photo)
+        v.co = Vector((0.0246 * u.x * wf, 0.0098 * u.y + 0.0022, 0.0150 * u.z - 0.0004))
     bmesh.ops.transform(bm2, matrix=mw, verts=bm2.verts)
     me2 = bpy.data.meshes.new("tmp")
     bm2.to_mesh(me2)
@@ -1396,7 +1450,28 @@ def build_ear_fur(ears):
     return obj
 
 
-def build_paw_pads():
+def _components(bm):
+    """Connected vertex islands of a bmesh."""
+    seen = set()
+    out = []
+    for v0 in bm.verts:
+        if v0 in seen:
+            continue
+        comp, stack = [], [v0]
+        seen.add(v0)
+        while stack:
+            v = stack.pop()
+            comp.append(v)
+            for e in v.link_edges:
+                o = e.other_vert(v)
+                if o not in seen:
+                    seen.add(o)
+                    stack.append(o)
+        out.append(comp)
+    return out
+
+
+def build_paw_pads(body=None):
     mat = make_mat("PawPad", srgb_to_lin((0.06, 0.05, 0.05)), roughness=0.45, spec=0.5)
     bm = bmesh.new()
     spans = {}
@@ -1412,6 +1487,24 @@ def build_paw_pads():
             res = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=1.0)
             for v in res["verts"]:
                 v.co = Vector((px + dx + v.co.x * 0.0062, toe_y + (0.007 if outer else 0.0) + v.co.y * 0.0074, 0.0042 + v.co.z * 0.0038))
+    if body is not None:
+        # drape every pad onto the sole: its underside at most 0.8 mm proud of the fur skin, the rest buried in the
+        # paw, so it reads as a pad on the sole from any angle and never as a black bead hanging under the foot
+        me_b = body.data
+        bvh = BVHTree.FromPolygons([v.co for v in me_b.vertices], [list(p.vertices) for p in me_b.polygons])
+        for comp in _components(bm):
+            zs = [v.co.z for v in comp]
+            z0, z1 = min(zs), max(zs)
+            hits = {}
+            for v in comp:
+                hit = bvh.ray_cast(Vector((v.co.x, v.co.y, -0.05)), Vector((0.0, 0.0, 1.0)), 0.2)[0]
+                if hit is not None and hit.z < 0.03:
+                    hits[v] = hit.z
+            fallback = sum(hits.values()) / len(hits) if hits else 0.0
+            for v in comp:
+                t = (v.co.z - z0) / max(z1 - z0, 1e-6)
+                lift = -0.0008 + 0.0020 * t if t <= 0.5 else 0.0002 + 0.008 * (t - 0.5)
+                v.co.z = hits.get(v, fallback) + lift
     obj = mesh_obj("PawPads", bm)
     obj.data.materials.append(mat)
     # bmesh primitive ops don't keep creation order, so bind each vertex to its nearest paw
@@ -2445,6 +2538,11 @@ def leg_skin(co):
             acc += lens[i]
         arc /= max(wsum, 1e-9)
         m *= side_f
+        # the whole foot (sole, toes and pads) rides the paw: the tube test above misses the sole's rim
+        fc = g["paw"] + (g["toe"] - g["paw"]) * 0.35
+        foot = smooth01(0.062, 0.042, co.z) * smooth01(1.15, 0.95, math.hypot((co.x - fc.x) / 0.050, (co.y - fc.y) / 0.064))
+        m = max(m, foot)
+        arc += (max(arc, lens[0] + lens[1] + 0.02) - arc) * foot
         if m <= 1e-3 or (best is not None and m <= best[0]):
             continue
         a_mid, a_low = lens[0], lens[0] + lens[1]
@@ -2544,6 +2642,7 @@ def skin(body, arm, details):
             weights = {("Ear_L" if co.x > 0 else "Ear_R"): 1.0}
         else:
             leg = leg_skin(co)
+            leg_m = leg[0] if leg is not None else 0.0
             if leg is not None:
                 m, lw = leg
                 tot = sum(weights.values())
@@ -2551,9 +2650,12 @@ def skin(body, arm, details):
                 for k, wv in lw.items():
                     if wv > 1e-3:
                         weights[k] = weights.get(k, 0.0) + wv * m
-            jw = smooth01(0.494, 0.478, co.z) * smooth01(0.046, 0.026, abs(co.x)) * smooth01(-0.296, -0.330, co.y)
+            jw = smooth01(0.481, 0.465, co.z) * smooth01(0.046, 0.026, abs(co.x)) * smooth01(-0.300, -0.336, co.y)
             bw = 0.75 * smooth01(0.245, 0.150, co.z) * smooth01(0.17, 0.07, abs(co.x)) * \
                 smooth01(-0.15, -0.06, co.y) * smooth01(0.27, 0.18, co.y)
+            # the belly sway never reaches the legs: it used to own up to 3/4 of the hind soles, so the feet (and
+            # their black pads, which ride the paw bones) parted company at the trot and the gallop
+            bw *= (1.0 - leg_m) * smooth01(0.07, 0.11, co.z)
             for extra_name, ew in (("Jaw", jw), ("Belly", bw)):
                 if ew > 1e-3:
                     tot = sum(weights.values())
@@ -2674,8 +2776,8 @@ def solo_track(arm, name):
 # ---------------------------------------------------------------------------------------------
 def build_scene():
     clear_scene()
-    roots = whisker_roots()
     body, ears = build_body()
+    roots = snap_face(body, whisker_roots())
     unwrap_body(body)
     fur, lid_col = bake_and_paint(body, roots)
     rim_mat = make_mat("LidRim", srgb_to_lin((0.05, 0.04, 0.04)), roughness=0.4)
@@ -2685,7 +2787,7 @@ def build_scene():
     nose = build_nose()
     whiskers = build_whiskers(body, roots)
     ear_fur = build_ear_fur(ears)
-    pads = build_paw_pads()
+    pads = build_paw_pads(body)
     collar, tag, tag_text, mat_brass = build_collar()
     cig_vape, p_ember = build_cig_and_vape(mat_brass)
     log("details built")

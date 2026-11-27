@@ -7,6 +7,7 @@ import { viewer, type WorldBuilder } from './builder';
 import { stairs } from './buildings';
 import { barCounter, basic, bollard, mat, neonSign, planter } from './props';
 import { CEIL_FRAG, CEIL_VERT, LIT_FRAG, LIT_VERT, SHOW_FRAG, SHOW_VERT, SKIN_FRAG, SKIN_VERT, WIND_FRAG, WIND_VERT } from './sphereShaders';
+import { buildSphereDistrict } from './sphereDistrict';
 import { LedBoard } from './textures';
 
 /**
@@ -21,8 +22,9 @@ import { LedBoard } from './textures';
  * Local frame: origin on the ground under the centre, +x east (toward the screen), +z south.
  */
 
-const CX = 177;
-const CZ = -230;
+/** East of Koval Ln, like the real one (Koval runs between the Venetian Expo and the Sphere; sphereDistrict.ts). */
+export const CX = 236;
+export const CZ = -230;
 const R = 26;
 const CY = 11.3;
 const RI = 24;
@@ -417,14 +419,17 @@ export function buildSphereVenue(b: WorldBuilder): void {
   });
 
   // ---- Zones, map, pickups
-  b.zone('Sphere', 126, 204, -270, -190);
+  b.zone('Sphere', CX - 42, CX + 30, CZ - 36, CZ + 40);
   b.zone('Sphere Atrium', CX - BASE_R - 1, CX + WALL_X - 0.3, CZ - 19, CZ + 19);
   b.zone(`Sphere • ${SHOW_NAME.replace(' at Sphere', '')}`, CX + WALL_X - 0.3, CX + 23.5, CZ - 23.5, CZ + 23.5);
   b.feature({ kind: 'building', x: CX, z: CZ, w: R * 2, d: R * 2, color: '#3a3a60', label: 'Sphere' });
   b.staticMarkers.push({ x: CX, z: CZ, color: '#b07dff', glyph: '●', size: 3.6 });
-  b.pickup(148, 8.9, -235.5, 3, 'Sphere Bridge Pack', false);
+  b.pickup(CX - 29, 8.9, CZ - 5.5, 3, 'Sphere Bridge Pack', false);
   b.pickup(CX - 20.2, 1.6, CZ - 5, 4, 'Sphere Bar Pack', false);
   b.pickup(CX + rowBack(14) + 0.5, rowY(14) + 0.5, CZ + 15.2, 5, 'Sphere Lost & Found Pack', false);
+
+  // The streets, garages, lots and neighbours round it (sphereDistrict.ts)
+  buildSphereDistrict(b);
 }
 
 // ================================================================ exterior
@@ -594,10 +599,11 @@ function buildPlaza(b: WorldBuilder): void {
   g.position.set(CX, 0, CZ);
   // Dark granite plaza with a lit ring inlay around the Sphere
   const pav = new THREE.MeshStandardMaterial({ map: graniteTexture(), roughness: 0.5, metalness: 0.08, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  pav.map!.repeat.set(75 / 6, 78 / 6);
-  const plaza = new THREE.Mesh(new THREE.PlaneGeometry(75, 78), pav);
+  // The west plaza runs from the Koval Ln sidewalk to the Sphere; Sands Ave bounds it north, the service yard south
+  pav.map!.repeat.set(84 / 6, 76 / 6);
+  const plaza = new THREE.Mesh(new THREE.PlaneGeometry(84, 76), pav);
   plaza.rotation.x = -Math.PI / 2;
-  plaza.position.set(128 + 37.5 - CX, 0.012, -230 - CZ);
+  plaza.position.set(0, 0.012, 2);
   plaza.receiveShadow = true;
   g.add(plaza);
   const ringLed = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x30343c, emissive: 0xb07dff, emissiveIntensity: 0.1, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 0.1, 1.5);
@@ -611,11 +617,11 @@ function buildPlaza(b: WorldBuilder): void {
     ring.position.y = 0.022;
     g.add(ring);
   }
-  // Ring of bollards between the plaza and the bridge/Strip approach
+  // Ring of bollards between the plaza and Koval Ln (the bridge stair and the Wynn garage close the north-west)
   const parts: THREE.Object3D[] = [];
-  for (let deg = 112; deg <= 250; deg += 4.6) {
+  for (let deg = 112; deg <= 176; deg += 4.6) {
     const a = (deg / 180) * Math.PI;
-    if (Math.abs(a - DOOR_A) < 0.16 || (deg > 176 && deg < 196)) continue;
+    if (Math.abs(a - DOOR_A) < 0.16) continue;
     const bo = bollard();
     bo.position.set(36.5 * Math.cos(a), 0.475, 36.5 * Math.sin(a));
     bo.userData.clutter = true;
@@ -648,9 +654,7 @@ function buildPlaza(b: WorldBuilder): void {
   // Planters
   for (const [x, z, w, d] of [
     [-31, 26, 5, 1.6],
-    [-40, 9, 1.6, 6],
-    [-40, -22, 1.6, 6],
-    [-30, -29, 5, 1.6],
+    [-39, 4, 1.6, 6],
     [-22, 31, 4, 1.6],
   ]) {
     const p = planter(w, d, 0xb07dff);
@@ -663,17 +667,17 @@ function buildPlaza(b: WorldBuilder): void {
 
   // Box office and the Sphere Store: rounded kiosks
   kiosk(b, CX - 33, CZ + 18, 'BOX OFFICE', '#ffd27a', 2.2);
-  kiosk(b, CX - 32, CZ - 17, 'SPHERE STORE', '#b9a2ff', 2.8);
+  kiosk(b, CX - 24, CZ + 33, 'SPHERE STORE', '#b9a2ff', 2.8);
   // Monument "SPHERE" sign and the LED marquee pylon facing the Strip
   const mono = neonSign('SPHERE', '#05060a', '#ffffff', 9, 2.2, 'AT THE VENETIAN RESORT', 0.6);
-  b.add(mono, CX - 45, 1.6, CZ + 13, -Math.PI / 2);
-  b.box(CX - 45, 0, CZ + 13, 0.9, 0.5, 9.6, mat(0x15171c, 0.4, 0.4));
+  b.add(mono, CX - 39, 1.6, CZ + 13, -Math.PI / 2);
+  b.box(CX - 39, 0, CZ + 13, 0.9, 0.5, 9.6, mat(0x15171c, 0.4, 0.4));
   const led = new LedBoard('SPHERE', ['THE WIZARD OF OZ AT SPHERE', 'NOW SHOWING DAILY', 'TICKETS AT THE BOX OFFICE', 'SMOKING CAT TAKEOVER TONIGHT'], ['#b07dff', '#ff9a3c', '#2fd1ff', '#ffcf3a'], 256, 512);
   const board = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 11.2), new THREE.MeshBasicMaterial({ map: led.tex }));
-  board.position.set(CX - 44.62, 8.4, CZ - 24);
+  board.position.set(CX - 39.62, 8.4, CZ + 36);
   board.rotation.y = -Math.PI / 2;
   b.scene.add(board);
-  b.box(CX - 44, 0, CZ - 24, 1.1, 14.4, 6.2, mat(0x17191f, 0.35, 0.5), true);
+  b.box(CX - 39, 0, CZ + 36, 1.1, 14.4, 6.2, mat(0x17191f, 0.35, 0.5), true);
   let ledT = 0;
   b.every((dt, t) => {
     ledT += dt;
@@ -687,10 +691,10 @@ function buildPlaza(b: WorldBuilder): void {
 
   // A little crowd on the plaza and in the atrium
   b.crowd.tourists.push(
-    { pts: [[134, -224], [150, -214], [156.5, -216.5]], prop: 'camera' },
-    { pts: [[158, -214], [146, -208], [134, -206]], prop: 'bag' },
-    { pts: [[136, -250], [150, -254], [160, -258]], prop: 'yard-drink' },
-    { pts: [[150, -205], [140, -230], [150, -252]], prop: 'none' },
+    { pts: [[CX - 40, CZ - 2], [CX - 27, CZ + 16], [CX - 20.5, CZ + 13.5]], prop: 'camera' },
+    { pts: [[CX - 19, CZ + 16], [CX - 31, CZ + 22], [CX - 40, CZ + 26]], prop: 'bag' },
+    { pts: [[CX - 40, CZ - 4], [CX - 33, CZ + 8], [CX - 24, CZ + 12]], prop: 'yard-drink' },
+    { pts: [[CX - 27, CZ + 25], [CX - 37, CZ + 2], [CX - 41, CZ - 6]], prop: 'none' },
     { pts: [[CX - 18, CZ + 9], [CX - 15, CZ + 3], [CX - 16, CZ - 6]], prop: 'camera' },
     { pts: [[CX - 20, CZ - 4], [CX - 15, CZ - 10]], prop: 'bag' }
   );
@@ -749,10 +753,11 @@ function kiosk(b: WorldBuilder, x: number, z: number, label: string, fg: string,
 }
 
 function buildBridgeLanding(b: WorldBuilder): void {
-  // The Venetian footbridge (deck at 8.4 m, x 83–151) lands on this platform against the Sphere
+  // The Venetian footbridge (deck at 8.4 m: eastSide.ts to x 151, sphereDistrict.ts over Koval Ln) lands on this
+  // platform against the Sphere; the "Venetian Bridge stairway" drops to the Koval Ln sidewalk, as on the real site
   const deck = mat(0xb8b2a8, 0.7, 0.15);
-  const x0 = 144.8;
-  const x1 = 151;
+  const x0 = CX - 30;
+  const x1 = CX - 26;
   const z0 = -237.2;
   const z1 = -226.6;
   b.box((x0 + x1) / 2, 7.9, (z0 + z1) / 2, x1 - x0, 0.5, z1 - z0, deck);
@@ -764,7 +769,7 @@ function buildBridgeLanding(b: WorldBuilder): void {
   ]) {
     b.box(x, 0, z, 0.7, 7.9, 0.7, mat(0x8f8a82, 0.7, 0.1), true);
   }
-  stairs(b, 129.4, -234.6, '+x', 3.2, 8.4, 15.4, deck);
+  stairs(b, x0 - 12, -234.6, '+x', 3.2, 8.4, 12, deck);
   const glass = new THREE.MeshStandardMaterial({ color: 0x9fe3ff, transparent: true, opacity: 0.3, roughness: 0.05 });
   b.box((x0 + x1) / 2, 8.4, z1 - 0.06, x1 - x0, 1.1, 0.12, glass, true, false);
   b.box((x0 + x1) / 2, 8.4, z0 + 0.06, x1 - x0, 1.1, 0.12, glass, true, false);

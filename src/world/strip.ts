@@ -58,14 +58,15 @@ export const STRIP = {
 
 /** Real signalised mid-block crossings of the Strip (real meters north of Flamingo / -3.2). */
 /** `bridged`: the Boulevard has no at-grade crossing here; people use the pedestrian bridges (signals stay for the cross street). */
-export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both'; bridged?: boolean }> = [
+/** `eastStub`: the east stub ends at this x; the district draws the road on from there (Sands Ave curves to the Sphere: sphereDistrict.ts). */
+export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both'; bridged?: boolean; eastStub?: number }> = [
   { z: -797, name: 'Circus Circus Dr', offset: 6, road: 'west' },
   { z: -735.3, name: 'Circus Circus main entrance', offset: 3, road: 'west' },
   { z: -669.8, name: 'Resorts World Ave', offset: 12 },
   { z: -615.3, name: 'Convention Center Dr', offset: 2, road: 'east' },
   { z: -573.1, name: 'Genting Blvd', offset: 8 },
   { z: -475.3, name: 'Fashion Show Dr', offset: 4 },
-  { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both', bridged: true },
+  { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both', bridged: true, eastStub: 40 },
   { z: 206, name: 'Harmon Ave', offset: 3 },
   { z: 529.6, name: 'Reno Ave', offset: 7 },
   { z: 621.1, name: 'Mandalay Bay Rd / Hacienda', offset: 13 },
@@ -283,7 +284,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   glow.apply(sideMat, crossGlow);
   for (const cw of CROSSWALKS) {
     if (!cw.road) continue;
-    const spans: Array<[number, number]> = cw.road === 'both' ? [[STRIP.flamingoWest, -half], [half, STRIP.flamingoEast]] : cw.road === 'west' ? [[STRIP.flamingoWest, -half]] : [[half, STRIP.flamingoEast]];
+    let spans: Array<[number, number]> = cw.road === 'both' ? [[STRIP.flamingoWest, -half], [half, STRIP.flamingoEast]] : cw.road === 'west' ? [[STRIP.flamingoWest, -half]] : [[half, STRIP.flamingoEast]];
+    if (cw.eastStub !== undefined) spans = spans.map(([a, c]) => (a > 0 ? [a, cw.eastStub!] : [a, c]));
     for (const [a, c] of spans) {
       const w = c - a;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 14), sideMat);

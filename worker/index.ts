@@ -13,7 +13,7 @@
 //   blob1    report schema: "s1"
 //   blob2    game version (short commit sha, or the build time)
 //   blob3    device class (same as index1, handy in GROUP BY)
-//   blob4    graphics quality: low | medium | high
+//   blob4    graphics quality: low | medium | high | ultra
 //   blob5    time to "Ready": 0-3s | 3-6s | 6-10s | 10-20s | 20-40s | 40s+ | loading (left before Ready)
 //   blob6    typical frame rate while playing: <20 | 20-30 | 30-45 | 45-58 | 58-90 | 90+ | none
 //   blob7    play time so far this visit: title (never started) | 0-1m | 1-5m | 5-15m | 15-30m | 30-60m | 60m+
@@ -44,7 +44,7 @@ const LIVE_HOST = 'catsmoke.lou.zone';
 
 const ENUMS = {
   dev: ['desktop', 'phone', 'tablet'],
-  q: ['low', 'medium', 'high'],
+  q: ['low', 'medium', 'high', 'ultra'],
   load: ['0-3s', '3-6s', '6-10s', '10-20s', '20-40s', '40s+', 'loading'],
   fps: ['<20', '20-30', '30-45', '45-58', '58-90', '90+', 'none'],
   len: ['title', '0-1m', '1-5m', '5-15m', '15-30m', '30-60m', '60m+'],

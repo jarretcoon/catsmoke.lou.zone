@@ -240,7 +240,7 @@ export function boxTruck(color = 0xdcdad4, stripe = 0xd8352b): THREE.Group {
 }
 
 // ---------------------------------------------------------------- BOH props
-function dumpster(color: number): THREE.Group {
+export function dumpster(color: number): THREE.Group {
   const g = new THREE.Group();
   const m = mat(color, 0.7, 0.3);
   part(g, BX(2.0, 1.2, 1.5), m, 0, 0.75, 0, 0, 0, 0, true);
@@ -294,7 +294,7 @@ function chiller(): THREE.Group {
   for (let y = 0.3; y < 1.8; y += 0.22) part(g, BX(2.22, 0.05, 5.3), K.steel, 0, y, 0);
   return g;
 }
-function transformerBox(): THREE.Group {
+export function transformerBox(): THREE.Group {
   const g = new THREE.Group();
   part(g, BX(1.8, 1.4, 1.6), K.green, 0, 0.75, 0, 0, 0, 0, true);
   part(g, BX(2.0, 0.1, 1.8), K.concrete, 0, 0.05, 0);
@@ -307,14 +307,14 @@ function bollardY(): THREE.Group {
   part(g, CY(0.12, 0.12, 1.0, 8), K.yellow, 0, 0.5, 0);
   return clutter(g);
 }
-function jersey(): THREE.Group {
+export function jersey(): THREE.Group {
   const g = new THREE.Group();
   part(g, BX(0.6, 0.35, 3.0), K.concrete, 0, 0.18, 0);
   part(g, BX(0.25, 0.5, 3.0), K.concrete, 0, 0.6, 0);
   return clutter(g);
 }
 /** Cobra-head street light facing +x (arm reaches over the road). */
-function cobraLight(b: WorldBuilder): THREE.Group {
+export function cobraLight(b: WorldBuilder): THREE.Group {
   const g = new THREE.Group();
   part(g, CY(0.1, 0.16, 9, 8), K.galv, 0, 4.5, 0);
   part(g, BX(2.6, 0.1, 0.1), K.galv, 1.3, 8.8, 0);
@@ -323,7 +323,7 @@ function cobraLight(b: WorldBuilder): THREE.Group {
   return g;
 }
 /** Parking-lot pole with two shoebox heads. */
-function lotLight(b: WorldBuilder): THREE.Group {
+export function lotLight(b: WorldBuilder): THREE.Group {
   const g = new THREE.Group();
   part(g, BX(0.6, 0.6, 0.6), K.concrete, 0, 0.3, 0);
   part(g, CY(0.09, 0.13, 9.4, 8), K.darkSteel, 0, 5.3, 0);
@@ -334,7 +334,7 @@ function lotLight(b: WorldBuilder): THREE.Group {
   }
   return g;
 }
-function lightPool(b: WorldBuilder, x: number, z: number, s = 10, y = 0.07): void {
+export function lightPool(b: WorldBuilder, x: number, z: number, s = 10, y = 0.07): void {
   const p = new THREE.Mesh(new THREE.PlaneGeometry(s, s), lightPoolMaterial());
   p.rotation.x = -Math.PI / 2;
   p.position.set(x, y, z);
@@ -343,7 +343,7 @@ function lightPool(b: WorldBuilder, x: number, z: number, s = 10, y = 0.07): voi
   b.add(p);
 }
 /** Oleander shrub: green mounds dotted with pink or white blooms. */
-function oleander(R: () => number, white = false): THREE.Group {
+export function oleander(R: () => number, white = false): THREE.Group {
   const g = new THREE.Group();
   for (let i = 0; i < 4; i++) {
     const a = R() * Math.PI * 2;
@@ -358,7 +358,7 @@ function oleander(R: () => number, white = false): THREE.Group {
   return clutter(g);
 }
 /** Chain-link fence run (axis-aligned) with posts, top rail and the shared mesh material. */
-function chainFence(b: WorldBuilder, x0: number, z0: number, x1: number, z1: number, h = 2.4): void {
+export function chainFence(b: WorldBuilder, x0: number, z0: number, x1: number, z1: number, h = 2.4): void {
   const len = Math.hypot(x1 - x0, z1 - z0);
   const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
   const panel = new THREE.PlaneGeometry(len, h);
@@ -473,7 +473,7 @@ function serviceRoad(b: WorldBuilder, x0: number, z0: number, x1: number, z1: nu
   b.feature({ kind: 'road', x: cx, z: cz, w: alongZ ? 9 : len, d: alongZ ? len : 9, color: '#3b3a40', label });
 }
 /** Green street-name blade on a post. */
-function streetName(b: WorldBuilder, key: string, x: number, z: number, rotY: number): void {
+export function streetName(b: WorldBuilder, key: string, x: number, z: number, rotY: number): void {
   const g = new THREE.Group();
   part(g, CY(0.05, 0.05, 3.2, 6), K.galv, 0, 1.6, 0);
   part(g, signGeometry(key, 1.6, 0.24, 0.03), signs(b), 0, 3.0, 0);
@@ -487,7 +487,7 @@ function streetName(b: WorldBuilder, key: string, x: number, z: number, rotY: nu
  * Loading-dock enclosure against a building face. `face` is the direction the doors look ('+x','-x','+z','-z');
  * (x0..x1, z0..z1) is the enclosure footprint. Trucks are backed into some of the doors.
  */
-function loadingDock(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, face: '+x' | '-x' | '+z' | '-z', doors: number, trucks: number[], R: () => number): void {
+export function loadingDock(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, face: '+x' | '-x' | '+z' | '-z', doors: number, trucks: number[], R: () => number): void {
   const h = 5.4;
   b.box((x0 + x1) / 2, 0, (z0 + z1) / 2, x1 - x0, h, z1 - z0, K.stucco, true);
   b.add(new THREE.Mesh(BX(x1 - x0 + 0.3, 0.4, z1 - z0 + 0.3), K.concreteDark), (x0 + x1) / 2, h + 0.2, (z0 + z1) / 2);
@@ -581,7 +581,7 @@ function bohWallDressing(b: WorldBuilder, alongX: boolean, face: number, a0: num
 let lampHolder: WorldBuilder | null = null;
 
 /** Employee entrance: door, canopy, time-clock sign, card reader + the smoking area (bench, urns, smokers). */
-function employeeEntrance(b: WorldBuilder, x: number, z: number, rot: number, smokeDx: number, smokeDz: number): void {
+export function employeeEntrance(b: WorldBuilder, x: number, z: number, rot: number, smokeDx: number, smokeDz: number): void {
   const g = new THREE.Group();
   part(g, BX(2.2, 2.6, 0.12), K.darkSteel, 0, 1.3, 0.06);
   part(g, BX(1.0, 2.3, 0.06), K.glass, -0.45, 1.2, 0.13);
@@ -1004,20 +1004,20 @@ function buildWestBack(b: WorldBuilder, R: () => number): void {
 }
 
 function buildEastBack(b: WorldBuilder, R: () => number): void {
-  bohGround(b, 131, 202, -400, -256);
-  bohGround(b, 170, 202, -200, -92);
+  // (north of z −256 and east of Koval is the Sphere district: sphereDistrict.ts lays its own ground)
+  bohGround(b, 170, 191, -273, -92);
   bohGround(b, 147, 202, -92, -12);
   bohGround(b, 131, 202, 12, 436);
-  // ---- Koval Ln along the back edge
+  // ---- Koval Ln along the back edge: it starts at Sands Ave (a T just north-west of the Sphere, sphereDistrict.ts)
+  // and runs south between the Venetian Expo / the resorts' backs and the Sphere, under the Venetian bridge
   const X = 186;
   for (const [z0, z1] of [
-    [-399, -256],
-    [-204, -11],
+    [-273, -11],
     [11, 432],
-  ]) serviceRoad(b, X - 0.01, z0, X + 0.01, z1, z0 === -204 ? 'Koval Ln' : undefined);
-  b.zone('Koval Ln', X - 5, X + 5, -399, 432);
-  for (let z = -390; z < 430; z += 36) {
-    if (Math.abs(z) < 14 || (z > -258 && z < -202)) continue;
+  ]) serviceRoad(b, X - 0.01, z0, X + 0.01, z1, z0 === -273 ? 'Koval Ln' : undefined);
+  b.zone('Koval Ln', X - 5, X + 5, -273, 432);
+  for (let z = -246; z < 430; z += 36) {
+    if (Math.abs(z) < 14 || (z > -238 && z < -222)) continue;
     const l = cobraLight(b);
     l.position.set(X + 5.4, 0, z);
     l.rotation.y = Math.PI;
@@ -1025,14 +1025,14 @@ function buildEastBack(b: WorldBuilder, R: () => number): void {
     b.collider(X + 5.2, X + 5.6, z - 0.2, z + 0.2, 0, 9, true);
     lightPool(b, X + 2.6, z, 12);
   }
-  utilityLine(b, 199.5, -396, -260, 34);
-  utilityLine(b, 199.5, -200, 428, 36);
+  utilityLine(b, 199.5, -60, 428, 36);
   streetName(b, 'koval', X - 5.2, -12.5, -Math.PI / 2);
   streetName(b, 'koval', X - 5.2, 12.5, -Math.PI / 2);
   berm(b, 179.6, 46, 120, 21);
   berm(b, 179.6, 300, 428, 22);
-  // Paradise Rd beyond the edge (looks only)
-  ground(serviceRoadMaterial(), roadStripGeometry(222, -700, 222, 900, 0.0, 12));
+  // Paradise Rd beyond the edge (looks only; the Sphere district's bay reaches past it at z −425…−55)
+  ground(serviceRoadMaterial(), roadStripGeometry(222, -700, 222, -430, 0.0, 12));
+  ground(serviceRoadMaterial(), roadStripGeometry(222, -50, 222, 900, 0.0, 12));
 
   // ---- Linq Ln behind the LINQ / Flamingo + the LINQ garage + docks
   const LX = 142;
@@ -1132,10 +1132,7 @@ function buildEastBack(b: WorldBuilder, R: () => number): void {
     [146, 392, 24, 8],
     [150, 415, 14, 5],
   ], 'MGM Grand Pool Complex', 302);
-  // ---- Venetian / Palazzo receiving + garage behind the towers
-  loadingDock(b, 131, 137, -296, -264, '+x', 4, [0, 2], R);
-  parkingGarage(b, 141, 177, -398, -342, 5, 'Venetian • Palazzo Self Parking', '+x', 205);
-  surfaceLot(b, 141, 177, -334, -262, 108, 0.6, 'Venetian Lot');
-  employeeEntrance(b, 134.2, -258, Math.PI / 2, 4, 1);
-  b.box(133, 0, -257, 4.4, 5, 6, K.stucco, true);
+  // ---- Venetian / Palazzo self parking behind the Palazzo, south of the Sands Ave curve
+  // (the Venetian Expo, its docks on Koval Ln and the old Venetian Lot's ground are sphereDistrict.ts)
+  parkingGarage(b, 104, 140, -392, -346, 5, 'Venetian • Palazzo Self Parking', '+x', 205);
 }

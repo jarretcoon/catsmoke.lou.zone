@@ -1,10 +1,22 @@
 import * as THREE from 'three';
 
-function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+let texDetail = 1;
+/**
+ * Draw the generated textures at `k` times their usual resolution (Ultra: 2). Every drawing function keeps working
+ * in its own pixel units (the context is pre-scaled), so the same picture comes out with finer edges, text and
+ * grain. Call before the world is built.
+ */
+export function setTextureDetail(k: number): void {
+  texDetail = Math.max(1, Math.min(4, k));
+}
+
+function canvas(w: number, h: number, detail = texDetail): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  return [c, c.getContext('2d')!];
+  c.width = Math.round(w * detail);
+  c.height = Math.round(h * detail);
+  const ctx = c.getContext('2d')!;
+  if (detail !== 1) ctx.scale(c.width / w, c.height / h);
+  return [c, ctx];
 }
 
 function finish(c: HTMLCanvasElement, repeat?: [number, number], srgb = true): THREE.CanvasTexture {
@@ -1290,7 +1302,7 @@ export function makeSignTexture(text: string, bg: string, fg: string, subtext?: 
 let ledGrid: HTMLCanvasElement | null = null;
 function ledGridPattern(): HTMLCanvasElement {
   if (ledGrid) return ledGrid;
-  const [c, ctx] = canvas(4, 4);
+  const [c, ctx] = canvas(4, 4, 1);
   ctx.fillStyle = 'rgba(0,0,0,0.26)';
   ctx.fillRect(0, 0, 4, 1);
   ctx.fillRect(0, 0, 1, 4);
@@ -1344,7 +1356,7 @@ export class LedBoard {
     w = 256,
     h = 512
   ) {
-    const [c, ctx] = canvas(w, h);
+    const [c, ctx] = canvas(w, h, 1); // redrawn every frame, with a 4 px LED grid: stays 1x
     this.ctx = ctx;
     this.w = w;
     this.h = h;

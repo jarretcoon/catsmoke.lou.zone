@@ -41,11 +41,16 @@ export function buildBackdrop(b: WorldBuilder): void {
   b.box((xW + xE) / 2, 0, zN, xE - xW, 0.8, 1.2, edgeMat, false, false);
   b.box((xW + xE) / 2, 0, zS, xE - xW, 0.8, 1.2, edgeMat, false, false);
   b.box(xW, 0, (zN + zS) / 2, 1.2, 0.8, zS - zN, edgeMat, false, false);
-  b.box(xE, 0, (zN + zS) / 2, 1.2, 0.8, zS - zN, edgeMat, false, false);
+  // The east edge opens into the Sphere district's bay (Sands Ave, Manhattan St, Hughes Center: sphereDistrict.ts walls it)
+  const bayN = -425;
+  const bayS = -55;
+  b.box(xE, 0, (zN + bayN) / 2, 1.2, 0.8, bayN - zN, edgeMat, false, false);
+  b.box(xE, 0, (bayS + zS) / 2, 1.2, 0.8, zS - bayS, edgeMat, false, false);
   b.collider(xW - 50, xE + 50, zN - 50, zN - 0.6, 0, 60, true);
   b.collider(xW - 50, xE + 50, zS + 0.6, zS + 50, 0, 60, true);
   b.collider(xW - 50, xW - 0.6, zN - 50, zS + 50, 0, 60, true);
-  b.collider(xE + 0.6, xE + 50, zN - 50, zS + 50, 0, 60, true);
+  b.collider(xE + 0.6, xE + 50, zN - 50, bayN, 0, 60, true);
+  b.collider(xE + 0.6, xE + 50, bayS, zS + 50, 0, 60, true);
 }
 
 interface Range {
