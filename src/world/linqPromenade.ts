@@ -4,7 +4,7 @@ import { buildInNOut } from './food';
 import { Kit, glowMat, vcMat } from './interiorKit';
 import { LINQ_ATLAS, LINQ_ATLAS_H, linqRect, linqSignMat, linqTex, linqWindowMat, signRegion, type Interior, type Rect } from './linqAtlas';
 import { makePaverTexture } from './textures';
-import { lazyInterior, uvTo } from './themedKit';
+import { lazyInterior, mapGlow, uvTo } from './themedKit';
 import { neonSign, palmTree } from './props';
 
 /*
@@ -531,10 +531,10 @@ function souvenirInterior(b: WorldBuilder, t: Tenant): void {
     k.box(M(), 0x1a2a5a, cx, 0.5, minZ + 1.2, 4, 1.0, 0.8);
     k.box(M(), 0xffcf3a, cx, 1.02, minZ + 1.2, 4.1, 0.05, 0.9);
     k.box(MET(), 0x222222, cx + 1.2, 1.2, minZ + 1.2, 0.4, 0.3, 0.3);
-    aq(k, glowMat(), linqRect('welcome-shop'), cx, 3.2, minZ + 0.05, 4.2, 1.6, 0, 0, 0x8a8a8a);
+    aq(k, mapGlow(linqTex()), linqRect('welcome-shop'), cx, 3.2, minZ + 0.08, 4.2, 1.6, 0, 0, 0x9a9a9a);
     // warm cream walls and a light floor: the shop reads lit from inside
     k.box(glowMat(), 0x4a4038, cx, t.h / 2, minZ + 0.02, maxX - minX, t.h, 0.04);
-    for (const sx of [minX + 0.02, maxX - 0.02]) k.box(glowMat(), 0x3e362e, sx, t.h / 2, (minZ + maxZ) / 2, 0.04, t.h, maxZ - minZ);
+    for (const sx of [minX + 0.06, maxX - 0.06]) k.box(glowMat(), 0x3e362e, sx, t.h / 2, (minZ + maxZ) / 2, 0.04, t.h, maxZ - minZ);
     for (let i = 0; i < 3; i++) k.can(cx - 2 + i * 2, t.h - 0.45, (minZ + maxZ) / 2);
     k.flush(group);
     return [];
