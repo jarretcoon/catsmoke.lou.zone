@@ -195,28 +195,8 @@ export function buildStreetShops(b: WorldBuilder): void {
     { kind: 'shirts', sign: 'souvenirs', width: 8.6, awning: AWNINGS.navy, spot: 'boutique' },
   ], { wall: 0xe2d8c6, height: 8, seed: 11, zoneName: 'Strip Shops (Casino Royale)' });
 
-  // East: between BLVD and the Showcase Mall
-  shopRow(b, 1, 306.5, [
-    { kind: 'pharmacy', sign: 'pharmacy', width: 11, awning: AWNINGS.red, variant: 1, spot: 'abc', label: 'Pharmacy & Liquor (Showcase)' },
-    { kind: 'daiquiri', sign: 'daiquiri', width: 8.6, awning: AWNINGS.pink, spot: 'bar', label: 'Frozen Daiquiri Bar' },
-    { kind: 'trinkets', sign: 'souvenirs', width: 8.6, awning: AWNINGS.navy, spot: 'boutique' },
-    { kind: 'coffee', sign: 'coffee', width: 6, awning: AWNINGS.green },
-  ], { wall: 0xcdbfa6, height: 7.5, seed: 12, zoneName: 'Strip Shops at Showcase' });
-
-  // West: Diamond Row between Crystals and the Whataburger
-  shopRow(b, -1, 254, [
-    { kind: 'jewelry', sign: 'jewelry', width: 8.6, awning: AWNINGS.black },
-    { kind: 'sneakers', sign: 'sneakers', width: 8.6, awning: AWNINGS.black },
-    { kind: 'candy', sign: 'candy', width: 8.6, awning: AWNINGS.pink },
-    { kind: 'gallery', sign: 'gallery', width: 8.6, awning: AWNINGS.cream },
-  ], { wall: 0xb8b2aa, height: 8.5, seed: 13, zoneName: 'Diamond Row Shops' });
-
-  // West: by Park MGM
-  shopRow(b, -1, 316, [
-    { kind: 'foodcourt', sign: 'foodcourt', width: 11, awning: AWNINGS.gold },
-    { kind: 'shirts', sign: 'souvenirs', width: 8.6, awning: AWNINGS.navy, variant: 1, spot: 'boutique' },
-    { kind: 'smoke', sign: 'smoke', width: 6, awning: AWNINGS.black, spot: 'abc', label: 'Smoke Shop' },
-  ], { wall: 0xd6c6aa, height: 7, seed: 14, zoneName: 'Park MGM Street Shops' });
+  // Tropicana → Harmon (Polo Towers, the Waldorf front, Park MGM): the real shops are in
+  // frontageTropHarmon.ts (Walgreens, CVS, The Crack Shack, Starbucks, …), where made-up rows stood.
 
   // West: the south-Strip strip mall (old-Vegas souvenir row)
   const end = shopRow(b, -1, 716, [

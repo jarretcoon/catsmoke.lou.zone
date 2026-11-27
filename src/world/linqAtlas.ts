@@ -16,7 +16,7 @@ export const LINQ_ATLAS = 2048;
 /** The atlas is 2048 wide and this tall (signs + painted interiors). */
 export const LINQ_ATLAS_H = 3072;
 
-interface Painter {
+export interface Painter {
   w: number;
   h: number;
   paint: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
@@ -123,7 +123,7 @@ function fit(ctx: CanvasRenderingContext2D, s: string, style: LetterStyle, px: n
   }
   return size;
 }
-function text(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, style: LetterStyle, px: number, maxW: number, fill: string | CanvasGradient, stroke?: string, sw = 0): void {
+export function text(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, style: LetterStyle, px: number, maxW: number, fill: string | CanvasGradient, stroke?: string, sw = 0): void {
   fit(ctx, s, style, px, maxW);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -136,7 +136,7 @@ function text(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, st
   ctx.fillStyle = fill;
   ctx.fillText(s, x, y);
 }
-function glowText(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, style: LetterStyle, px: number, maxW: number, fill: string, glow: string): void {
+export function glowText(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, style: LetterStyle, px: number, maxW: number, fill: string, glow: string): void {
   ctx.shadowColor = glow;
   ctx.shadowBlur = px * 0.35;
   text(ctx, s, x, y, style, px, maxW, fill);
@@ -157,7 +157,7 @@ export interface SignSpec {
   h?: number;
 }
 
-function paintSign(s: SignSpec): Painter['paint'] {
+export function paintSign(s: SignSpec): Painter['paint'] {
   return (ctx, w, h) => {
     if (s.look === 'neon') {
       ctx.fillStyle = s.bg;
@@ -201,7 +201,7 @@ export function signRegion(name: string, s: SignSpec): void {
 // ---------------------------------------------------------------- shop-window interiors
 type Interior = 'bar' | 'diner' | 'candy' | 'shop' | 'cafe' | 'bowl' | 'ice' | 'hats' | 'pizza' | 'upper' | 'sweets' | 'pub' | 'casino' | 'tattoo';
 
-function interiorPainter(kind: Interior, seed: number): Painter['paint'] {
+export function interiorPainter(kind: Interior, seed: number): Painter['paint'] {
   return (ctx, w, h) => {
     const r = prng(seed);
     // back wall + floor with a warm falloff
