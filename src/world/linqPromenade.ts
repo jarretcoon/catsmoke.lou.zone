@@ -376,6 +376,8 @@ function storefront(b: WorldBuilder, k: Kit, t: Tenant): void {
     const pos = t.walkIn ? new THREE.Vector3(cx, 0, S ? zf + t.d * 0.55 : zf - t.d * 0.55) : new THREE.Vector3(cx, 0, sz);
     b.shopSpots.push({ kind: t.shop.kind, position: pos, radius: t.walkIn ? 3.4 : 3, label: t.shop.label, catalog: t.shop.catalog, hint: t.shop.hint });
   }
+  // on the phone map: each storefront as a building, the working ones labelled
+  b.building(cx, S ? zf + t.d / 2 : zf - t.d / 2, t.x1 - t.x0, t.d, `#${new THREE.Color(t.wall).getHexString()}`, t.shop?.label);
   b.zone(t.shop?.label ?? t.id, t.x0, t.x1, S ? zf - (t.patio ?? 0) : zf - t.d, S ? zf + t.d : zf + (t.patio ?? 0));
 }
 
