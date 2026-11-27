@@ -743,7 +743,7 @@ function stationAndMall(b: WorldBuilder, atlas: Atlas, mg: Merger, westFace: Fac
 /** The SkyVue "pillars of sadness": two bare concrete columns of the 2012 observation wheel that never turned. */
 function skyVue(b: WorldBuilder, mg: Merger): void {
   const conc = mat(0xb4aea4, 0.92);
-  const z = 631;
+  const z = 641; // clear of Hacienda Ave (southCrossRoads.ts)
   for (const x of [50, 58]) {
     mg.add(new THREE.CylinderGeometry(1.25, 1.45, 21, 20).translate(x, 10.5, z), conc, true);
     mg.add(new THREE.CylinderGeometry(1.55, 1.55, 0.6, 20).translate(x, 21.2, z), mat(0x9a948a, 0.92));

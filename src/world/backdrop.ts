@@ -44,7 +44,9 @@ export function buildBackdrop(b: WorldBuilder): void {
   const bayN = -425;
   const bayS = -55;
   b.box(xE, 0, (zN + bayN) / 2, 1.2, 0.8, bayN - zN, edgeMat, false, false);
-  b.box(xE, 0, (bayS + zS) / 2, 1.2, 0.8, zS - bayS, edgeMat, false, false);
+  // (open where Harmon Ave carries on east as scenery: harmonAve.ts; the collider below still closes the edge)
+  b.box(xE, 0, (bayS + 205.4) / 2, 1.2, 0.8, 205.4 - bayS, edgeMat, false, false);
+  b.box(xE, 0, (224.2 + zS) / 2, 1.2, 0.8, zS - 224.2, edgeMat, false, false);
   b.collider(xW - 50, xE + 50, zN - 50, zN - 0.6, 0, 60, true);
   b.collider(xW - 50, xE + 50, zS + 0.6, zS + 50, 0, 60, true);
   b.collider(xW - 50, xW - 0.6, zN - 50, bayWN, 0, 60, true);

@@ -346,7 +346,7 @@ export function addBuilding(b: WorldBuilder, mg: Merger, o: BlockOpts): void {
 const CAR_COLORS = [0xe8eaed, 0x48505c, 0x7b828c, 0xa8242c, 0x244e86, 0xc9b48a, 0xd8a828, 0x3b6e52];
 
 let sharedCarGeo: { paint: THREE.BufferGeometry[]; trim: THREE.BufferGeometry[]; lights: THREE.BufferGeometry } | null = null;
-function getCarGeos() {
+export function getCarGeos() {
   if (sharedCarGeo) return sharedCarGeo;
   const paint: THREE.BufferGeometry[] = [];
   const trim: THREE.BufferGeometry[] = [];
