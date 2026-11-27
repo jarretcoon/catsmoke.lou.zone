@@ -222,22 +222,24 @@ export class Body {
 const WHITE = 0xffffff;
 
 // ---------------------------------------------------------------- the body recipe
-const TORSO_M: Array<[number, number]> = [[0.163, 0.97], [0.158, 1.03], [0.156, 1.08], [0.166, 1.16], [0.18, 1.25], [0.184, 1.31], [0.176, 1.37], [0.15, 1.42], [0.1, 1.46], [0.06, 1.48], [0, 1.49]];
-const TORSO_F: Array<[number, number]> = [[0.16, 0.97], [0.142, 1.03], [0.132, 1.09], [0.142, 1.16], [0.158, 1.24], [0.16, 1.3], [0.152, 1.36], [0.13, 1.41], [0.09, 1.45], [0.055, 1.47], [0, 1.48]];
-const PELVIS_M: Array<[number, number]> = [[0, 0.815], [0.07, 0.82], [0.135, 0.85], [0.162, 0.9], [0.166, 0.96], [0.16, 1.02]];
-const PELVIS_F: Array<[number, number]> = [[0, 0.815], [0.075, 0.82], [0.145, 0.85], [0.172, 0.9], [0.17, 0.96], [0.15, 1.03]];
+const TORSO_M: Array<[number, number]> = [[0.173, 0.895], [0.169, 0.93], [0.164, 0.97], [0.158, 1.03], [0.156, 1.08], [0.166, 1.16], [0.18, 1.25], [0.184, 1.31], [0.176, 1.37], [0.15, 1.42], [0.1, 1.46], [0.06, 1.48], [0, 1.49]];
+const TORSO_F: Array<[number, number]> = [[0.179, 0.895], [0.173, 0.93], [0.158, 0.98], [0.142, 1.035], [0.132, 1.09], [0.142, 1.16], [0.158, 1.24], [0.16, 1.3], [0.152, 1.36], [0.13, 1.41], [0.09, 1.45], [0.055, 1.47], [0, 1.48]];
+// The pelvis stops at the crotch line (0.885), where the thigh tops meet: nothing of it shows below or in front of
+// the thighs in any pose, and it stays inside the shirt hem (narrower and shallower than the hem), so trousers,
+// shorts and skirts keep a clean, neutral shape.
+const PELVIS_M: Array<[number, number]> = [[0, 0.885], [0.06, 0.888], [0.115, 0.9], [0.148, 0.93], [0.152, 0.97], [0.14, 1.02]];
+const PELVIS_F: Array<[number, number]> = [[0, 0.885], [0.065, 0.888], [0.13, 0.9], [0.16, 0.93], [0.16, 0.97], [0.13, 1.02]];
 const lowRes = (pts: Array<[number, number]>) => pts.filter((_, i) => i % 2 === 0 || i === pts.length - 1);
 
-/** Torso (with print flag), pelvis, belt: one gender's core. */
+/** Torso (with print flag) and pelvis: one gender's core. */
 function core(b: Body, female: boolean): void {
   const seg = Q(b, 16, 8, 6);
   const far = b.lod === 2;
   const t = female ? TORSO_F : TORSO_M;
   const pv = female ? PELVIS_F : PELVIS_M;
   b.add(lathe(`t${female}${far}`, far ? lowRes(t) : t, seg), BONE.spine, SLOT.top, WHITE, 0, 0, 0, 0, 0, 0, 1, 1, 0.64, FLAG.print);
-  b.add(lathe(`p${female}${far}`, far ? lowRes(pv) : pv, seg), BONE.hips, SLOT.bottom, WHITE, 0, 0, 0, 0, 0, 0, 1, 1, 0.7);
-  if (female && !far) for (const s of [-1, 1]) b.add(ell(0.06, 0.056, 0.04, Q(b, 10, 6, 4), Q(b, 7, 4, 3)), BONE.spine, SLOT.top, WHITE, s * 0.058, 1.262, 0.07, 0, 0, 0, 1, 1, 1, FLAG.print);
-  if (!far) b.fixed(cyl(0.165, 0.165, 0.035, seg, true), BONE.hips, 0x2a221c, 0, 1.0, 0, 0, 0, 0, female ? 0.93 : 1, 1, 0.71); // belt line
+  b.add(lathe(`p${female}${far}`, far ? lowRes(pv) : pv, seg), BONE.hips, SLOT.bottom, WHITE, 0, 0, 0, 0, 0, 0, 1, 1, 0.62);
+  if (female && !far) for (const s of [-1, 1]) b.add(ell(0.075, 0.068, 0.024, Q(b, 10, 6, 4), Q(b, 7, 4, 3)), BONE.spine, SLOT.top, WHITE, s * 0.05, 1.256, 0.078, 0, s * 0.25, 0, 1, 1, 1, FLAG.print);
 }
 
 function neckAndHead(b: Body): void {
