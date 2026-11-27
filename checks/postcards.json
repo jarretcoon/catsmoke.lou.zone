@@ -9,7 +9,7 @@
     { "id": "nyny-night", "label": "New York-New York (night)", "time": "night", "tp": [8, 0.3, 410], "cam": [1.5708, 0.2, 14], "maxCalls": 1250 },
     { "id": "lucky-night", "label": "Circus Circus + Lucky (night)", "time": "night", "tp": [-14, 0.3, -760], "cam": [0.5, 0.1, 20], "maxCalls": 790 },
     { "id": "sphere-night", "label": "Sphere (night)", "time": "night", "tp": [179, 0.3, -196], "cam": [-0.75, 0.08, 12], "maxCalls": 800 },
-    { "id": "chandelier", "label": "Cosmopolitan Chandelier (inside)", "time": "night", "tp": [-40, 0.3, 192], "cam": [0, 0.12, 6], "maxCalls": 1700 },
+    { "id": "chandelier", "label": "Cosmopolitan Chandelier (inside)", "time": "night", "tp": [-40, 0.3, 192], "cam": [0, 0.12, 6], "maxCalls": 1850 },
     { "id": "bellagio-casino", "label": "Bellagio casino floor (inside)", "time": "night", "tp": [-96, 0.3, 40], "cam": [1.5708, 0.16, 6], "maxCalls": 600 },
     { "id": "sphere-oz", "label": "Inside the Sphere (Oz show)", "time": "night", "tp": [227.7, 14.6, -230], "cam": [-1.5708, 0.3, 4.5], "sphereT": 52, "maxCalls": 340 },
     { "id": "fountains-day", "label": "Bellagio fountains (day)", "time": "day", "tp": [-9, 0.3, 66], "cam": [1.5708, 0.25, 10], "maxCalls": 850 },
