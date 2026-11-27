@@ -7,7 +7,7 @@ import { basic, mat, mesh } from './props';
 import { STRIP, saharaPhase } from './strip';
 import { bulbPath, driveLed, letterFace, letters, neonFace, neonPanel, neonText, part, placed } from './signKit';
 import { L0, Merger, canvasTex, palmInto, paving, v3 } from './southKit';
-import { ParkedLotBuilder, flatRoad } from './westKit';
+import { ParkedLotBuilder, buildInstancedTraffic, flatRoad } from './westKit';
 import { stratSign } from './stripSigns';
 
 /**
@@ -721,6 +721,8 @@ function buildSahara(b: WorldBuilder, k: Kit): void {
   tower(b, { x: 50.5, z: -904.5, w: 14, d: 20, h: 27, y: pH, facade: alex, accent: 0xffe0b0, noSetback: true });
   tower(b, { x: 56, z: -873.5, w: 15, d: 11, h: 17, facade: blanca, accent: 0xffd8a0 });
   tower(b, { x: 71.5, z: -891, w: 12, d: 40, h: 31, facade: marra, accent: 0xffd8a0 });
+  // the blue glass end bays of the big slab (the SLS-era photos), full height on the Strip face
+  for (const zc of [-873.6, -908.4]) k.box(k.glass, 65.42, 16.5, zc, 0.2, 29, 5.2);
   // dark vertical end bands on the Alexandria (the SLS-era stripes), the LED wrap up top, SAHARA + the S in bulbs
   for (const dz of [-9.6, 9.6]) k.box(mat(0x2e2e34, 0.6), 43.4, pH + 13.5, -904.5 + dz, 0.4, 27, 1.2);
   const wrap = new LedBoard('SAHARA', ['MAGIC MIKE LIVE', 'NOW PLAYING', 'BAZAAR MEAT', 'SAHARA LAS VEGAS', 'THE STRIP STARTS HERE'], ['#1c2cff', '#2a5cff', '#6a2cff', '#0a1a8a', '#c06a2a'], 384, 512);
@@ -782,7 +784,7 @@ function buildSaharaEastBack(b: WorldBuilder, k: Kit): void {
   for (let y = 0; y <= 15; y += 3.1) k.box(deck, (gx0 + gx1) / 2, y + 0.55, (gz0 + gz1) / 2, gx1 - gx0, 1.1, gz0 - gz1);
   for (let z = gz0 - 3; z > gz1 + 2; z -= 7.5) k.box(deck, gx1 - 0.2, 7.7, z, 0.5, 15.4, 0.6);
   b.add(letters(b, 'SAHARA SELF PARKING', 9, 1.2, { style: 'sans', fill: '#ffffff', bg: '#1d2a5a' }, 0.15), gx1 + 0.15, 13.5, -880, HALF_PI);
-  b.building((gx0 + gx1) / 2, (gz0 + gz1) / 2, gx1 - gx0, gz0 - gz1, '#9a948a', 'Sahara garage');
+  b.building((gx0 + gx1) / 2, (gz0 + gz1) / 2, gx1 - gx0, gz0 - gz1, '#9a948a');
 
   // Paradise Rd south of Sahara Ave: under the monorail to the SAHARA station (two lanes each way)
   const rx0 = 94;
@@ -803,6 +805,9 @@ function buildSaharaEastBack(b: WorldBuilder, k: Kit): void {
   paving(b, 109, 152, -858, -880, '#d0cbc0', '#b4ada0', 3);
   for (const [x, z] of [[110, -878], [130, -878], [151, -878], [130, -860]] as Array<[number, number]>) k.palm(x, z, 8);
   b.zone('Turnberry Towers', 108, 153, -880, -856);
+  b.building(119, -868, 14, 13, '#9fc8d0', 'Turnberry Towers');
+  b.building(141, -866, 13, 13, '#9fc8d0');
+  b.building(178, -868, 20, 13, '#dcd4c6');
   // Hilton Grand Vacations Suites (Paradise), lower and wider
   const hgv: FacadeSpec = { wall: '#dcd4c6', mullion: '#f0eadf', glass: '#3a4a5a', lit: '#ffe6b8', cols: 12, rows: 12, style: 1, seed: 547 };
   tower(b, { x: 178, z: -868, w: 20, d: 13, h: 19, facade: hgv });
@@ -838,7 +843,7 @@ function buildFontainebleauNorth(b: WorldBuilder, k: Kit): void {
   b.add(letters(b, 'FONTAINEBLEAU', 22, 2.6, { style: 'deco', fill: '#dfe8f4', spacing: 0.12 }), (gx0 + gx1) / 2, gh - 2.5, gz1 - 0.12, Math.PI);
   b.add(neonText(b, 'FONTAINEBLEAU', 22, 2.6, 'deco', '#9fc8ff', undefined, 0.12), (gx0 + gx1) / 2, gh - 2.5, gz1 - 0.16, Math.PI);
   b.add(letters(b, 'SELF PARKING • LIV • BLEAULIVE', 12, 1.2, { style: 'sans', fill: '#ffffff', bg: '#0c1a33' }, 0.15), gx1 + 0.15, 4.5, -782, HALF_PI);
-  b.building((gx0 + gx1) / 2, (gz0 + gz1) / 2, gx1 - gx0, gz0 - gz1, '#2c5a9a', 'Fontainebleau garage');
+  b.building((gx0 + gx1) / 2, (gz0 + gz1) / 2, gx1 - gx0, gz0 - gz1, '#2c5a9a');
   b.zone('Fontainebleau garage', gx0, gx1, gz1, gz0);
   // --- LIV Beach on the north podium (cabanas, the pool, white umbrellas), seen over the vacant lot
   const px0 = 30;
@@ -1323,6 +1328,10 @@ function buildNorthWest(b: WorldBuilder, k: Kit): void {
   k.mg.add(new THREE.CylinderGeometry(7.5, 7.5, 18.4, 24, 1, false, 0, Math.PI).rotateX(HALF_PI).rotateZ(HALF_PI).scale(1, 0.4, 1).translate(-62.5, 46.2, -968), mat(0xd8e4ea, 0.3, 0.6));
   b.add(letters(b, 'ALLURE', 6, 1.4, { style: 'thin', fill: '#ffffff', spacing: 0.3 }), -54.9, 42, -968, HALF_PI);
   b.zone('Allure Las Vegas (200 W Sahara)', -71, -52, -978, WALK_N);
+  b.building(-62.5, -968, 15, 18, '#7aa8bc', 'Allure');
+  b.building(-87, -967, 18, 20, '#e8e2d6');
+  b.building(-40, -989, 12, 12, '#e2231a');
+  b.building(-54, -990, 12, 13, '#f0e2c4');
   // Ahern Hotel (9 floors)
   const ahern: FacadeSpec = { wall: '#e8e2d6', mullion: '#2a2a2e', glass: '#3a4450', lit: '#ffe6c0', cols: 8, rows: 9, style: 1, seed: 563 };
   tower(b, { x: -87, z: -967, w: 18, d: 20, h: 11, facade: ahern });
@@ -1408,6 +1417,11 @@ function buildNorthEast(b: WorldBuilder, k: Kit): void {
   b.add(letters(b, 'Walgreens', 8, 1.1, { style: 'script', fill: '#ffffff' }), 27.25, 5.2, -962.7, 0);
   b.add(letters(b, 'Walgreens', 7, 1.1, { style: 'script', fill: '#e31837', bg: '#ffffff', sub: 'PHARMACY • 24 HOURS', subFill: '#e31837', scale: 0.6 }, 0.2), 20.6, 4.2, -970, HALF_PI);
   b.zone('Walgreens (2427 Las Vegas Blvd S)', 19, 34, -978, zS);
+  b.building(27.25, -970.25, 12.5, 14.5, '#e31837');
+  b.building(44, -969, 11, 21, '#d8cfc0');
+  b.building(26.5, -988, 11, 17, '#d8cfc0');
+  b.building(43, -988, 12, 12, '#da291c');
+  b.building(70, -970, 14, 25, '#d8cfc0');
   // a little strip along Paradise: Subway, Thai Pepper, Bourbon Street Bar & Grill (storefronts face the lot, west)
   const shops: Array<[string, string, string, number]> = [
     ['SUBWAY', '#ffc20e', '#008c15', 6],
@@ -1520,6 +1534,16 @@ function buildBeyondTheEdge(b: WorldBuilder, k: Kit): void {
   for (let z = z0 - 28; z > z1; z -= 15) if (z > -1036 || z < -1056) k.palm(0, z, 8.5);
   // Bob Stupak Ave (west), the STRAT's south side
   flatRoad(b, -48, -1012, 72, 12, 'x', 4, true, 0.03);
+  // traffic on past the edge, toward downtown (instanced, culled with distance)
+  buildInstancedTraffic(
+    b,
+    STRIP.laneCenters.flatMap((lx, i) => [
+      { axis: 'z' as const, lanePos: -lx, min: z1 + 10, max: z0 - 3, dir: 1 as const, count: 3 - (i === 2 ? 1 : 0), speed: 10 + i },
+      { axis: 'z' as const, lanePos: lx, min: z1 + 10, max: z0 - 3, dir: -1 as const, count: 3 - (i === 2 ? 1 : 0), speed: 10.5 + i },
+    ]),
+    [0, -1080],
+    420
+  );
   // the Strip's street lights carry on
   for (const s of [-1, 1]) for (let z = z0 - 10; z > z1; z -= 24) k.cobra(s * (BLVD + 1), z, s > 0 ? -HALF_PI : HALF_PI, 10, 3);
 
