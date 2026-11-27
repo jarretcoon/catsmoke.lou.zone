@@ -34,6 +34,7 @@ export function buildSaharaDistrict(b: WorldBuilder): void {
   buildSaharaAve(b, k);
   buildSahara(b, k);
   buildSaharaEastBack(b, k);
+  buildFontainebleauNorth(b, k);
   buildHgvBoulevard(b, k);
   buildFestivalGrounds(b, k);
   buildBonanza(b, k);
@@ -762,7 +763,7 @@ function buildSahara(b: WorldBuilder, k: Kit): void {
   b.building(40, -875, 24, 22, '#d9d2c6');
   b.zone('SAHARA Las Vegas', x0, 94, zN, zS);
   b.zone('SAHARA porte-cochère (Liset Way)', BLVD, 50, -886.5, zS);
-  b.zone('Former Wet ’n Wild site (vacant)', x0, 100, zS, -856);
+  b.zone("Former Wet 'n Wild site (vacant)", x0, 100, zS, -856);
   b.pickup(24.2, 1.2, -887.8, 2, 'Valet stand: a forgotten pack', false);
   b.crowd.tourists.push({ pts: [[24, -868], [24, -884], [45, -884]], prop: 'bag' }, { pts: [[22.8, -890], [22.8, -915]], prop: 'camera' });
 }
@@ -811,6 +812,84 @@ function buildSaharaEastBack(b: WorldBuilder, k: Kit): void {
   k.lot(110, 200, -884, zN - 1, true, 0.55, 551);
   b.zone('Sahara east lots', 107, X_E, zN, -884);
   for (let x = 112; x < 200; x += 22) k.cobra(x, zN - 0.6, Math.PI, 9, 2.4);
+}
+
+// =============================================================== the Fontainebleau's north end and Turnberry Place
+/**
+ * Behind and north of the Fontainebleau (northStrip.ts builds the tower and the Strip podium): its self-park
+ * garage (OSM: o 167..376, s 2763..3063) with the blue-lit FONTAINEBLEAU on the faces you see from the north,
+ * the LIV Beach pool deck on the podium's north side, and east of it the four Turnberry Place towers (38–45
+ * floors) round their private park, clear of the monorail beam on x ≈ 184.
+ */
+function buildFontainebleauNorth(b: WorldBuilder, k: Kit): void {
+  // --- the garage: concrete decks with blue glass spandrels
+  const gx0 = 67;
+  const gx1 = 98;
+  const gz0 = -745;
+  const gz1 = -819;
+  const gh = 21;
+  const deck = mat(0xdfe4ea, 0.8);
+  const blue = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x1c3a6c, roughness: 0.2, metalness: 0.6, emissive: 0x6a9ae0, emissiveIntensity: 0.05 }), 0.05, 0.55);
+  k.solid(mat(0x1a1d22, 0.9), gx0 + 0.4, gx1 - 0.4, gz1 + 0.4, gz0 - 0.4, gh);
+  for (let y = 0; y <= gh; y += 3) {
+    k.box(deck, (gx0 + gx1) / 2, y + 0.5, (gz0 + gz1) / 2, gx1 - gx0, 1.0, gz0 - gz1);
+    if (y > 0 && y < gh) k.box(blue, (gx0 + gx1) / 2, y + 1.15, (gz0 + gz1) / 2, gx1 - gx0 + 0.1, 0.3, gz0 - gz1 + 0.1);
+  }
+  b.add(letters(b, 'FONTAINEBLEAU', 22, 2.6, { style: 'deco', fill: '#dfe8f4', spacing: 0.12 }), (gx0 + gx1) / 2, gh - 2.5, gz1 - 0.12, Math.PI);
+  b.add(neonText(b, 'FONTAINEBLEAU', 22, 2.6, 'deco', '#9fc8ff', undefined, 0.12), (gx0 + gx1) / 2, gh - 2.5, gz1 - 0.16, Math.PI);
+  b.add(letters(b, 'SELF PARKING • LIV • BLEAULIVE', 12, 1.2, { style: 'sans', fill: '#ffffff', bg: '#0c1a33' }, 0.15), gx1 + 0.15, 4.5, -782, HALF_PI);
+  b.building((gx0 + gx1) / 2, (gz0 + gz1) / 2, gx1 - gx0, gz0 - gz1, '#2c5a9a', 'Fontainebleau garage');
+  b.zone('Fontainebleau garage', gx0, gx1, gz1, gz0);
+  // --- LIV Beach on the north podium (cabanas, the pool, white umbrellas), seen over the vacant lot
+  const px0 = 30;
+  const px1 = 64;
+  const pz0 = -796;
+  const pz1 = -821.5;
+  const pH = 8;
+  k.solid(mat(0xf2f1ee, 0.5, 0.2), px0, px1, pz1, pz0, pH);
+  k.box(blue, (px0 + px1) / 2, 4.5, pz1 - 0.06, px1 - px0, 1.2, 0.1);
+  const water = new THREE.MeshStandardMaterial({ color: 0x3ab8d8, roughness: 0.1, metalness: 0.2, emissive: 0x2a9ac0, emissiveIntensity: 0.15 });
+  b.nightGlow(water, 0.15, 0.6);
+  k.box(water, 46, pH + 0.05, -809, 18, 0.1, 9);
+  k.box(k.white, 46, pH + 0.02, -809, 30, 0.04, 20);
+  const umb = mat(0xf4f4f0, 0.7);
+  for (let i = 0; i < 6; i++) {
+    const x = 34 + i * 5;
+    for (const z of [-799.5, -818.5]) {
+      k.mg.add(new THREE.ConeGeometry(1.4, 0.7, 10).translate(x, pH + 2.4, z), umb);
+      k.mg.beam(k.steel, v3(x, pH, z), v3(x, pH + 2.2, z), 0.04, 4);
+    }
+  }
+  for (const x of [32, 62]) for (const z of [-798, -820]) k.palm(x, z, 7, Math.round(x * z));
+  b.add(neonPanel(b, 'LIV BEACH', 8, 1.6, { style: 'deco', color: '#ffffff', fill: '#f2f2f2', depth: 0.1, spacing: 0.25 }), 47, pH + 1.4, pz1 - 0.1, Math.PI);
+  b.zone('LIV Beach (Fontainebleau pool deck)', px0, px1, pz1, pz0);
+
+  // --- Turnberry Place: four towers round the Stirling Club park, a gatehouse on the south
+  const tp: FacadeSpec = { wall: '#d8d2c4', mullion: '#efe9dc', glass: '#3a5a6a', lit: '#ffe8c8', cols: 10, rows: 30, style: 2, seed: 591 };
+  const towers: Array<[number, number, number]> = [
+    [118, -790, 42],
+    [152, -786, 45],
+    [116, -836, 39],
+    [154, -834, 44],
+  ];
+  paving(b, 102, 172, -772, -852, '#d6d0c2', '#bab2a2', 3);
+  for (const [x, z, h] of towers) {
+    tower(b, { x, z, w: 15, d: 15, h, facade: { ...tp, seed: 591 + x }, accent: 0xffe0b0 });
+  }
+  k.flat(mat(0x6f8a4a, 0.95), 126, 146, -800, -826, 0.02);
+  k.box(water, 136, 0.06, -813, 12, 0.1, 6);
+  k.solid(mat(0xe8dfcc, 0.8), 128, 144, -840, -852, 6);
+  b.add(letters(b, 'THE STIRLING CLUB', 9, 1.0, { style: 'serif', fill: '#3a2a1a' }), 136, 4.8, -839.9, 0);
+  for (let x = 104; x < 172; x += 9) k.palm(x, -773, 7.5);
+  for (const [x, z] of [[136, -800], [128, -826], [144, -826]] as Array<[number, number]>) k.palm(x, z, 8);
+  k.box(k.stucco, 137, 1.2, -771.6, 14, 2.4, 0.6);
+  b.add(letters(b, 'TURNBERRY PLACE', 9, 1.0, { style: 'serif', fill: '#c8a874' }), 137, 1.5, -771.25, 0);
+  b.collider(130, 144, -771.9, -771.3, 0, 2.4, true);
+  b.zone('Turnberry Place', 102, 172, -852, -772);
+  b.building(137, -812, 70, 80, '#d6d0c2', 'Turnberry Place');
+  // the strip east of Turnberry under the monorail: service road and staff parking
+  k.lot(174, X_E, -772, -852, false, 0.5, 597);
+  b.zone('Turnberry staff lot', 172, X_E, -852, -772);
 }
 
 // =============================================================== west, south of Sahara Ave
