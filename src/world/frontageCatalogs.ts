@@ -290,4 +290,40 @@ Object.assign(CATALOGS, {
       food('dv-reaper', 'Reaper Slider', 'Sign a waiver. Sprint +35% for 60 s (fleeing the heat).', 9, 1, 1.35, 60, '🔥', 'WAIVER'),
     ],
   },
+  // ================================================================ Flamingo Rd → Spring Mountain Rd
+  'hells-kitchen': {
+    title: "Gordon Ramsay Hell's Kitchen",
+    sub: 'Caesars Palace • the Strip entrance under the pitchfork',
+    greeting: '“Welcome to Hell’s Kitchen.” Red team or blue team? Lou is on the cat team.',
+    bye: '“Get out!” (affectionately)',
+    items: [
+      food('hk-wellington', 'Beef Wellington', 'The one from the show. Perfectly pink. Tips ×1.5 for 3 min.', 69, 1.5, 1, 180, '🥩', 'SIGNATURE'),
+      food('hk-scallops', 'Pan-Seared Scallops', '“It’s RAW!” It isn’t. Tips ×1.3 for 2 min.', 48, 1.3, 1, 120, '🐚'),
+      food('hk-toffee', 'Sticky Toffee Pudding', 'Sprint +20%, tips ×1.15 for 2 min.', 16, 1.15, 1.2, 120, '🍮'),
+      drink('hk-cocktail', 'Hell’s Kitchen Lemonade', 'Spicy. 🍹 for 2 min.', 19, 120, { degen: [6, 'Survived Service'] }),
+    ],
+  },
+  'guy-fieri': {
+    title: "Guy Fieri's Vegas Kitchen & Bar",
+    sub: 'The LINQ • a terrace over the Strip • welcome to Flavortown',
+    greeting: 'Welcome to Flavortown! Lou is now the mayor.',
+    bye: 'Keep it real, keep it funky',
+    items: [
+      food('gf-nachos', 'Trash Can Nachos', 'Served in a can, dumped at the table. Lou sits in the can. Tips ×1.4 for 3 min.', 26, 1.4, 1, 180, '🧀', 'FLAVORTOWN'),
+      food('gf-burger', 'Bacon Mac-n-Cheese Burger', 'Tips ×1.3, sprint −5% for 2 min (heavy).', 24, 1.3, 0.95, 120, '🍔'),
+      drink('gf-marg', 'Big Margarita', 'A fishbowl of it. 🍹 for 3 min.', 22, 180),
+      item('cheap-shades', 'Merch', 'Backwards Shades', 'Worn on the back of the head, like the man himself. Wearable • +1 Swag', 18, { wear: 'cheap-shades' }),
+    ],
+  },
+  'mojito-hut': {
+    title: 'Mojito Hut',
+    sub: 'Caesars Palace forecourt • outdoor bar',
+    greeting: 'Mojito? We muddle the mint right here.',
+    bye: 'Salud',
+    items: [
+      drink('mh-mojito', 'Classic Mojito', 'Lou eats the mint. 🍹 for 2 min.', 16, 120),
+      drink('mh-frozen', 'Frozen Strawberry Mojito (yard)', 'A yard-long cup. 🍹 for 4 min.', 28, 240, { degen: [6, 'Yard Cat'] }),
+      drink('mh-virgin', 'Virgin Mojito', 'Mint, lime, soda. 🍹 for 30 s (it’s mostly the vibe).', 9, 30),
+    ],
+  },
 });
