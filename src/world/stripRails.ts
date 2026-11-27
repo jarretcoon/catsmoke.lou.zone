@@ -163,6 +163,7 @@ export function buildCurbBollards(b: WorldBuilder, deuceStops: Array<{ z: number
   for (const s of [-1, 1] as const) {
     for (let z = STRIP.north + 8; z < STRIP.south - 8; z += 1.55) {
       if (Math.abs(z) < 28 || Math.abs(z - STRIP.tropicanaZ) < 28 || Math.abs(z + 407) < 21 || (z > 880 && z < 960)) continue;
+      if (Math.abs(z - STRIP.saharaZ) < STRIP.saharaHalf + 5) continue; // Sahara Ave's mouth and corner ramps
       if (crossings.some((c) => Math.abs(c.z - z) < (c.road ? 12 : 6))) continue;
       if (inMouth(z, s, 1.5)) continue; // a cross street's mouth (crossRoads.ts)
       if (deuceStops.some((d) => d.side === s && Math.abs(d.z - z) < 4.5)) continue;

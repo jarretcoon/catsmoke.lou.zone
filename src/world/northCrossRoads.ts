@@ -41,7 +41,7 @@ export function buildNorthCrossRoads(b: WorldBuilder): void {
   buildFashionShowDr(b, mg, paths);
   buildResortsWorldAve(b, mg, paths);
   mg.flush(b);
-  pathTraffic(b, paths, [-60, -580], 330, 475);
+  pathTraffic(b, paths, [-60, -580], 250, 475);
 }
 
 // ================================================================ Fashion Show Dr

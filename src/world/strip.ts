@@ -38,11 +38,15 @@ import {
  * Street cross-section, cars and people stay life-size.
  */
 export const STRIP = {
-  /** The walkable north end: past Circus Circus Dr to Sky Las Vegas (Sahara Ave and the STRAT stay backdrop). */
-  north: -856,
+  /** The walkable north end: past Sahara Ave to Bob Stupak Ave at the foot of the STRAT (the STRAT stays backdrop). */
+  north: -996,
   south: 960,
   /** Tropicana Ave (real s −1542) — the second big intersection, also a skybridge ring. */
   tropicanaZ: 442.7,
+  /** Sahara Ave (real s 3551; ~16 m north of zFromS because the Circus Circus block is stretched): at-grade, signalised. */
+  saharaZ: -936,
+  /** Sahara Ave curb half-width: three lanes out, dual lefts + three through + a right in, a raised median (~30 m). */
+  saharaHalf: 15,
   medianHalf: 1.4,
   laneCenters: [3.1, 6.5, 9.9],
   curb: 11.6,
@@ -182,8 +186,20 @@ export function flamingoPhase(t: number): { ns: Phase; ew: Phase } {
 export function tropicanaPhase(t: number): { ns: Phase; ew: Phase } {
   return flamingoPhase(t + FLAMINGO_CYCLE / 2);
 }
+/** Sahara Ave & Las Vegas Blvd: the same 34 s plan, a third of a cycle after Flamingo. */
+export function saharaPhase(t: number): { ns: Phase; ew: Phase } {
+  return flamingoPhase(t + 11);
+}
 function crossPhase(z: number, t: number): { ns: Phase; ew: Phase } {
+  if (Math.abs(z - STRIP.saharaZ) < 40) return saharaPhase(t);
   return Math.abs(z - STRIP.tropicanaZ) < 40 ? tropicanaPhase(t) : flamingoPhase(t);
+}
+/** Cross-street traffic's stop line (|x|) and west end for the lane at z. */
+function crossStopX(z: number): number {
+  return Math.abs(z - STRIP.saharaZ) < 40 ? 19.8 : STRIP.curb + 2.2;
+}
+function crossWestLim(z: number): number {
+  return Math.abs(z - STRIP.saharaZ) < 40 ? -172 : z > 200 ? -114 : -148;
 }
 export function crosswalkPhase(t: number, offset: number): Phase {
   const c = (t + offset) % CROSSWALK_CYCLE;
@@ -229,10 +245,11 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   const curbMat = mat(0xb4ada1, 0.8);
   const curbTop = mat(0xd4cec2, 0.75);
   for (const s of [-1, 1] as const) {
-    // the curb runs, cut where a cross street's mouth meets this side (crossRoads.ts curbs the corners)
+    // the curb runs, cut at Sahara Ave and where a cross street's mouth meets this side (crossRoads.ts curbs the corners)
     const runs: Array<[number, number]> = [];
     for (const [a, c] of [
-      [STRIP.north, -STRIP.flamingoHalf],
+      [STRIP.north, STRIP.saharaZ - STRIP.saharaHalf],
+      [STRIP.saharaZ + STRIP.saharaHalf, -STRIP.flamingoHalf],
       [STRIP.flamingoHalf, STRIP.tropicanaZ - STRIP.flamingoHalf],
       [STRIP.tropicanaZ + STRIP.flamingoHalf, STRIP.south],
     ]) {
@@ -258,6 +275,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     { z0: -28, z1: 28 },
     { z0: STRIP.tropicanaZ - 28, z1: STRIP.tropicanaZ + 28 },
     { z0: 890, z1: 952 }, // Welcome sign island (built by the south district)
+    { z0: STRIP.saharaZ - STRIP.saharaHalf - 9, z1: STRIP.saharaZ + STRIP.saharaHalf + 9 }, // Sahara Ave + the left-turn bays (saharaDistrict.ts)
     ...CROSSWALKS.map((c) => ({ z0: c.z - 5, z1: c.z + 5 })),
     // left-turn openings across the whole intersection at the cross streets crossRoads.ts builds
     ...CROSSWALKS.filter((c) => c.stop).map((c) => ({ z0: c.stop![0] - 1, z1: c.stop![1] + 1 })),
@@ -389,6 +407,21 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     bar.rotation.x = -Math.PI / 2;
     b.add(bar);
   }
+  // --- Sahara Ave: four corner mast arms (the crosswalks, stop bars and ped heads are in saharaDistrict.ts) ---
+  const sh = STRIP.saharaHalf;
+  const sahLamps = { ns: signalLamps(), ew: signalLamps() };
+  for (const [x, z, rot, axis] of [
+    [-half - 1.2, STRIP.saharaZ - sh - 1.2, 0, 'ns'],
+    [half + 1.2, STRIP.saharaZ + sh + 1.2, Math.PI, 'ns'],
+    [half + 1.2, STRIP.saharaZ - sh - 1.2, -Math.PI / 2, 'ew'],
+    [-half - 1.2, STRIP.saharaZ + sh + 1.2, Math.PI / 2, 'ew'],
+  ] as Array<[number, number, number, 'ns' | 'ew']>) {
+    const sig = trafficSignal(axis === 'ns' ? half : sh + 1, sahLamps[axis]);
+    sig.group.add(placed(streetBlade(b, axis === 'ns' ? 'Sahara Ave' : 'Las Vegas Blvd S'), 2.1, 7.35, 0));
+    b.add(sig.group, x, 0, z, rot);
+    b.collider(x - 0.25, x + 0.25, z - 0.25, z + 0.25, 0, 7, true);
+    signals.push({ sig, read: () => saharaPhase(clock())[axis] });
+  }
 
   // --- Mid-block signalised crosswalks ---
   const stripeGeo = new THREE.PlaneGeometry(0.6, 4.0);
@@ -443,7 +476,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   const glowMat = new THREE.MeshBasicMaterial({ map: makeGlowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   let poleIdx = 0;
   const nearCrossing = (z: number, r: number) =>
-    Math.abs(z) < 30 || Math.abs(z - STRIP.tropicanaZ) < 30 || (z > 885 && z < 955) || CROSSWALKS.some((c) => Math.abs(c.z - z) < r + (c.road ? 6 : 0) || (c.mouth && z > Math.min(c.mouth[0], c.mouthEast?.[0] ?? Infinity) - 2.5 && z < Math.max(c.mouth[1], c.mouthEast?.[1] ?? -Infinity) + 2.5));
+    Math.abs(z) < 30 || Math.abs(z - STRIP.tropicanaZ) < 30 || Math.abs(z - STRIP.saharaZ) < STRIP.saharaHalf + 8 || (z > 885 && z < 955) || CROSSWALKS.some((c) => Math.abs(c.z - z) < r + (c.road ? 6 : 0) || (c.mouth && z > Math.min(c.mouth[0], c.mouthEast?.[0] ?? Infinity) - 2.5 && z < Math.max(c.mouth[1], c.mouthEast?.[1] ?? -Infinity) + 2.5));
   const poleZs: number[] = [];
   for (let z = STRIP.north + 10; z < STRIP.south - 5; z += 24) if (!nearCrossing(z, 7)) poleZs.push(z);
   glow.setPoles(STRIP.north + 10, 24, poleZs);
@@ -563,6 +596,20 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     c.group.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
     cars.push({ mesh: c.group, laneX: z, dir, speed: 10, cruise: 10 + i, halfLen: c.length / 2 + 0.3, axis: 'x' });
   });
+  // Sahara Ave: three through lanes each way (eastbound on the south half)
+  const sahPalette: Array<[CarKind, number]> = [['suv', 0xd9d9d9], ['sedan', 0x2d4f8c], ['taxi', 0xf4c430], ['sedan', 0x111111], ['suv', 0x8a1c1c], ['sedan', 0x6b6f76], ['sport', 0xf2f2f0], ['taxi', 0x2a2a2a]];
+  sahPalette.forEach(([kind, color], i) => {
+    const dir: 1 | -1 = i % 2 === 0 ? 1 : -1;
+    const lane = [3.3, 6.6, 10.0][(i >> 1) % 3]; // saharaDistrict.ts paints the lanes
+
+    const z = STRIP.saharaZ + (dir === 1 ? lane : -lane);
+    const c = car(kind, color);
+    bakeGroup(c.group);
+    b.scene.add(c.group);
+    c.group.position.set(-150 + i * 41, 0, z);
+    c.group.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+    cars.push({ mesh: c.group, laneX: z, dir, speed: 11, cruise: 11 + (i % 3), halfLen: c.length / 2 + 0.3, axis: 'x' });
+  });
 
   // LED billboard trucks circling the Boulevard (middle lane, one each way)
   const adLed = new LedBoard('TONIGHT', ['MAGIC • 7 & 9 PM', 'POOL PARTY SAT', 'ALL-YOU-CAN-EAT $39', 'FIGHT NIGHT LIVE', 'LOU THE CAT • WANTED'], ['#ff2c8a', '#2de2ff', '#ffd24d', '#7aff47', '#ff7a1a'], 512, 256);
@@ -606,6 +653,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     };
     consider(-dir * (STRIP.flamingoHalf + 2.2), flamingoPhase(t).ns);
     consider(STRIP.tropicanaZ - dir * (STRIP.flamingoHalf + 2.2), tropicanaPhase(t).ns);
+    consider(STRIP.saharaZ - dir * (STRIP.saharaHalf + 5.6), saharaPhase(t).ns); // behind the crosswalk
     for (const cw of CROSSWALKS) consider(cw.stop ? (dir === 1 ? cw.stop[0] : cw.stop[1]) : cw.z - dir * 4.6, crosswalkPhase(t, cw.offset));
     return best;
   };
@@ -620,7 +668,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
         const d = nextStop(pos, c.dir);
         if (d < 28) target = Math.min(target, Math.max(0, (d - c.halfLen) * 0.9));
       } else if (crossPhase(c.laneX, t).ew !== 'go') {
-        const line = -c.dir * (STRIP.curb + 2.2);
+        const line = -c.dir * crossStopX(c.laneX);
         const d = (line - pos) * c.dir;
         if (d > 0 && d < 26) target = Math.min(target, Math.max(0, (d - c.halfLen) * 0.9));
       }
@@ -645,7 +693,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
         if (c.dir === 1 && next > STRIP.south) c.mesh.position.z = STRIP.north;
         if (c.dir === -1 && next < STRIP.north) c.mesh.position.z = STRIP.south;
       } else {
-        const westLim = c.laneX > 200 ? -114 : -148;
+        const westLim = crossWestLim(c.laneX);
         c.mesh.position.x = next;
         if (c.dir === 1 && next > STRIP.flamingoEast) c.mesh.position.x = westLim;
         if (c.dir === -1 && next < westLim) c.mesh.position.x = STRIP.flamingoEast;

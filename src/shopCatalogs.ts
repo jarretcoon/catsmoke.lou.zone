@@ -1,4 +1,5 @@
 import type { AbcItem, ShopCatalog } from './abcShop';
+import { NORTH_CATALOGS } from './northCatalogs';
 
 /*
  * Menus for the LINQ Promenade's working shops, bars and counters. They all open in the ABC Stores
@@ -284,6 +285,8 @@ export const CATALOGS: Record<string, ShopCatalog> = {
     ],
   },
 };
+// The north end's shops (Bonanza Gift Shop, the Circle K at Bob Stupak Ave): northCatalogs.ts
+Object.assign(CATALOGS, NORTH_CATALOGS);
 
 export function catalogById(id: string | undefined): ShopCatalog | undefined {
   return id ? CATALOGS[id] : undefined;
