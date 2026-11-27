@@ -95,7 +95,7 @@
     { "id": "russell-hotel-row-night", "label": "The stadium-area hotel row and its pole signs (night)", "time": "night", "tp": [-226, 0.3, 840], "cam": [2.2, 0.2, 14], "maxCalls": 340 },
     { "id": "wynn-casino", "label": "Wynn casino: the marble aisle, lantern chandeliers, red chandeliers and Parasol Up (inside, night)", "time": "night", "tp": [88.5, 0.3, -462], "cam": [0, 0.1, 7], "maxCalls": 1100 },
     { "id": "wynn-atrium-day", "label": "Wynn atrium: mosaic floor, flower balls, the flower balloon and the Esplanade shops (inside, day)", "time": "day", "tp": [57, 0.3, -491.1], "cam": [-1.5708, 0.12, 3.6], "maxCalls": 540 },
-    { "id": "encore-casino", "label": "Encore casino: butterfly walkway, red shade chandeliers, the Eastside Lounge (inside, night)", "time": "night", "tp": [41, 0.3, -532], "cam": [-0.3, 0.4, 9], "maxCalls": 920 },
+    { "id": "encore-casino", "label": "Encore casino: butterfly walkway, red shade chandeliers, the Eastside Lounge (inside, night)", "time": "night", "tp": [41, 0.3, -532], "cam": [-0.3, 0.4, 9], "maxCalls": 1100 },
     { "id": "encore-esplanade-day", "label": "Encore Esplanade: lattice vault, jewelled chandeliers, red runner, boutiques (inside, day)", "time": "day", "tp": [53.1, 0.3, -530], "cam": [0, 0.2, 7], "maxCalls": 1240 },
     { "id": "harrahs-lobby", "label": "Harrah's casino: purple starburst carpet, crown chandeliers, the lobby's ombre reef artwork (inside, night)", "time": "night", "tp": [52, 0.3, -172], "cam": [0, 0.15, 7], "maxCalls": 1280 },
     { "id": "harrahs-piano-bar", "label": "Harrah's Piano Bar: two grand pianos on the stage, the purple bar (inside, night)", "time": "night", "tp": [54, 0.3, -152], "cam": [-0.9, 0.25, 6], "maxCalls": 740 },
