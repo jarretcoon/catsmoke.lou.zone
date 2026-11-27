@@ -229,10 +229,7 @@ function buildMandalayHacienda(b: WorldBuilder, mg: Merger, paths: TrafficPath[]
   paths.push(...stripEnd(b, mg, { sgn: 1, pts: ePts, road: e, stripPhase: strip, sidePhase: side, stop: stopOf(name), counts: [3, 3, 3, 3], blade: 'Las Vegas Blvd S' }));
 
   // ---- west frontage: Mandalay Bay's main entrance (south side), the W tower, the garage; Luxor's south doors
-  const gold = mat(0xc9a14a, 0.35, 0.6);
-  mg.box(gold, -62, 1.6, 622.6, 4.6, 3.2, 1.2, 0, true); // monument base
-  sign(b, 'MANDALAY BAY', 6.2, 1.3, -62, 4.1, 622.0, Math.PI, { style: 'serif', fill: 'gold', edge: '#3a2a08', sub: 'MAIN ENTRANCE • HOUSE OF BLUES • SHARK REEF', subFill: '#f4e2b0' });
-  b.collider(-64.3, -59.7, 622, 623.2, 0, 3.2, true);
+  mandalayGate(b, mg, -62, 625.4);
   sign(b, 'W', 4, 4, -102, 40, 620.35, Math.PI, { style: 'sans', fill: '#ffffff' });
   sign(b, 'W LAS VEGAS', 6, 0.9, -102, 3.6, 620.3, Math.PI, { style: 'sans', fill: '#ffffff', bg: '#111114', scale: 0.62, spacing: 0.2 });
   streetGarage(b, mg, -160, -116, 622.4, 668, 5, 'Mandalay Bay Self Parking', 'n', 'MANDALAY BAY  SELF PARKING', '#7a5a1a');
@@ -241,4 +238,63 @@ function buildMandalayHacienda(b: WorldBuilder, mg: Merger, paths: TrafficPath[]
   // ---- east frontage: the Diamond lot's fence (southStrip.ts) and the vacant lot north; an event-parking sign
   sign(b, 'HACIENDA AVE • EVENT PARKING →', 6.4, 0.7, 40, 1.9, 632.2, Math.PI, { style: 'sans', fill: '#ffffff', bg: '#0a2a5a', scale: 0.7 });
   mg.box(mat(0x5a5e66, 0.5, 0.6), 40, 0.8, 632.35, 0.12, 1.6, 0.12);
+}
+
+/**
+ * Mandalay Bay's main entrance gate on Mandalay Bay Rd (after the street photos): a sandstone gatehouse with a
+ * deep cornice over an arched passage, low carved walls either side with MANDALAY BAY in gold, a winged griffin
+ * crouching on each wall, and teal lamp standards with glass lanterns. Faces north onto the road.
+ */
+function mandalayGate(b: WorldBuilder, mg: Merger, x: number, z: number): void {
+  const stone = mat(0xcbb38c, 0.85);
+  const carved = mat(0xb89c74, 0.9);
+  const dark = mat(0x2a2418, 0.9);
+  const teal = mat(0x2f6f73, 0.45, 0.4);
+  // gatehouse: two piers, the lintel and the cornice, a dark arched passage between
+  for (const s of [-1, 1]) {
+    mg.box(stone, x + s * 2.9, 3, z, 1.8, 6, 3.4, 0, true);
+    b.collider(x + s * 2.9 - 0.9, x + s * 2.9 + 0.9, z - 1.7, z + 1.7, 0, 6, true);
+  }
+  mg.box(stone, x, 5.2, z, 4.0, 1.6, 3.4, 0, true);
+  mg.box(carved, x, 6.35, z, 8.6, 0.7, 4.4, 0, true);
+  mg.box(stone, x, 6.95, z, 7.4, 0.5, 3.8);
+  mg.box(dark, x, 2.2, z + 1.6, 4.0, 4.4, 0.2);
+  const arch = new THREE.CylinderGeometry(2.0, 2.0, 0.3, 14, 1, false, -Math.PI / 2, Math.PI);
+  arch.rotateX(Math.PI / 2);
+  mg.at(dark, arch, x, 4.4, z - 1.72);
+  for (const s of [-1, 1]) mg.box(carved, x + s * 2.9, 3, z - 1.75, 1.2, 5.2, 0.12);
+  // the flanking walls with the name, and a griffin on each
+  for (const s of [-1, 1]) {
+    const wx = x + s * 8.4;
+    mg.box(stone, wx, 1.3, z - 0.4, 7.2, 2.6, 2.4, 0, true);
+    mg.box(carved, wx, 2.75, z - 0.4, 7.6, 0.3, 2.8);
+    b.collider(wx - 3.6, wx + 3.6, z - 1.6, z + 0.8, 0, 2.6, true);
+    sign(b, 'MANDALAY BAY', 5.2, 0.6, wx, 1.5, z - 1.62, Math.PI, { style: 'serif', fill: 'gold', edge: '#3a2a08', spacing: 0.12 });
+    // the griffin: haunches, chest, head and beak, two swept wings
+    const gx = wx + s * 0.6;
+    const gy = 2.9;
+    const sand = mat(0xa88a64, 0.9);
+    mg.box(sand, gx, gy + 0.9, z + 0.2, 1.8, 1.8, 2.6, 0, true);
+    mg.box(sand, gx, gy + 2.1, z - 0.8, 1.4, 1.8, 1.2, 0, true);
+    mg.box(sand, gx, gy + 3.2, z - 1.1, 0.9, 0.9, 1.0);
+    mg.box(sand, gx, gy + 3.05, z - 1.75, 0.4, 0.35, 0.6);
+    for (const w of [-1, 1]) {
+      const wing = new THREE.BoxGeometry(0.25, 4.4, 2.2);
+      wing.translate(0, 2.2, 0);
+      wing.rotateX(-0.35);
+      wing.rotateZ(w * 0.32);
+      mg.at(sand, wing, gx + w * 0.75, gy + 1.4, z + 0.4, 0, true);
+    }
+  }
+  // teal lamp standards with lanterns (lit at night)
+  const lantern = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0xcfe8e4, emissive: 0xfff0c8, emissiveIntensity: 0.1, roughness: 0.3 }), 0.08, 1.6);
+  for (const lx of [x - 13.2, x - 4.6, x + 4.6, x + 13.2]) {
+    mg.box(teal, lx, 0.6, z - 2.2, 0.8, 1.2, 0.8);
+    mg.add(new THREE.CylinderGeometry(0.12, 0.16, 5.4, 8).translate(lx, 3.9, z - 2.2), teal);
+    for (const d of [-1, 1]) {
+      mg.add(new THREE.CylinderGeometry(0.06, 0.06, 1.3, 6).rotateZ(Math.PI / 2 - d * 0.5).translate(lx + d * 0.55, 6.6, z - 2.2), teal);
+      mg.add(new THREE.SphereGeometry(0.32, 10, 8).translate(lx + d * 1.1, 6.6, z - 2.2), lantern);
+    }
+    b.collider(lx - 0.4, lx + 0.4, z - 2.6, z - 1.8, 0, 6, true);
+  }
 }

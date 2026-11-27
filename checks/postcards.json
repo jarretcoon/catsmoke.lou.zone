@@ -58,6 +58,7 @@
     { "id": "harmon-koval-day", "label": "Harmon Ave at Koval Ln, looking east to Paradise Rd: Topgolf, the Grand Prix Plaza (day)", "time": "day", "tp": [175, 0.3, 225], "cam": [-1.5708, 0.1, 9], "maxCalls": 330 },
     { "id": "reno-ave-day", "label": "East Reno Ave from the Strip: ARCO, the ballpark arch, the Shrine of the Most Holy Redeemer (day)", "time": "day", "tp": [16, 0.3, 540], "cam": [-1.5708, 0.12, 9], "maxCalls": 520 },
     { "id": "mandalay-bay-rd-night", "label": "Mandalay Bay Rd from the Strip: the main entrance, the W tower, the tram (night)", "time": "night", "tp": [-16, 0.3, 622], "cam": [1.5708, 0.12, 9], "maxCalls": 830 },
+    { "id": "mandalay-gate-day", "label": "Mandalay Bay's main entrance gate on Mandalay Bay Rd: griffins, gold names, teal lanterns, like the street photo (day)", "time": "day", "tp": [-62, 0.3, 610], "cam": [3.1416, 0.12, 14], "maxCalls": 930 },
     { "id": "fashion-show-dr-day", "label": "Fashion Show Dr from the Strip: the Frontier lot, Trump International, the mall's north face (day)", "time": "day", "tp": [-16, 0.3, -492], "cam": [1.5708, 0.12, 9], "maxCalls": 490 },
     { "id": "resorts-world-ave-night", "label": "Resorts World Ave: the north motor lobby, McDonald's and Slots-A-Fun across (night)", "time": "night", "tp": [-16, 0.3, -666], "cam": [1.3, 0.12, 10], "maxCalls": 560 },
     { "id": "linq-sidewalk-night", "label": "Middle Strip sidewalk crowd by the Flamingo, looking south (night)", "time": "night", "tp": [15.5, 0.3, -80], "cam": [3.1416, 0.1, 6.5], "maxCalls": 1920 },
