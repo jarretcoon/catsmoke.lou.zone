@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { viewer, type WorldBuilder } from './builder';
 import { buildInNOut } from './food';
-import { basic, car, mat } from './props';
+import { basic, mat } from './props';
 import { flamingoPhase, tropicanaPhase } from './strip';
 import { L0, L1, L2, Merger, canvasTex, palmInto, paving, v3 } from './southKit';
 import type { FacadeSpec } from './textures';
@@ -241,7 +241,7 @@ function buildDeanMartinRoadNetwork(b: WorldBuilder, mg: Merger): void {
   flatRoad(b, -264, -185, 13.5, 88, 'x', 4, true, L1, 'W Twain Ave');
   flatRoad(b, -274, I15.flamingoZ, 19.5, 74, 'x', 6, true, L1, 'W Flamingo Rd');
   flatRoad(b, -284, I15.harmonZ, 13.5, 54, 'x', 4, true, L1, 'W Harmon Ave');
-  flatRoad(b, -278, I15.tropZ, 21.0, 64, 'x', 6, true, L1, 'W Tropicana Ave');
+  flatRoad(b, -274, I15.tropZ, 21.0, 72, 'x', 6, true, L1, 'W Tropicana Ave');
   flatRoad(b, -267, 180, 7.5, 72, 'x', 2, true, L1, 'Business Ln');
   flatRoad(b, -266, 199, 7.5, 70, 'x', 2, true, L1, 'Jerry Lewis Way');
   flatRoad(b, -306, 530, 8.5, 12, 'x', 2, true, L1, 'W Reno Ave'); // ends west at Polaris / Industrial Park
@@ -826,40 +826,41 @@ function buildMotel6AndSouthIndustrial(b: WorldBuilder, mg: Merger, lot: ParkedL
 function buildInNOutNorthWedge(b: WorldBuilder, mg: Merger, lot: ParkedLotBuilder): void {
   // East side north of Tropicana bridge between Dean Martin Dr & Joey Bishop Dr (4888 & 4838)
   // Positioned cleanly east of DM curve edge (-240 at z=415, -245 at z=428) with parking strictly off roadway!
-  paving(b, -241, -222, 395, 434, '#5a5c62', '#4c4e54', 4, L0);
-  b.restaurants.push(buildInNOut(b, -229.5, 427.5, -Math.PI / 2, { name: 'In-N-Out (4888 Dean Martin Dr)', standalone: true }));
-  // Drive-thru queue strictly east/behind building so postcard camera (-258, 421.6) stays clean & unobstructed
-  for (const [cx, cz, ry, col] of [
-    [-222.8, 420.0, 0, 0xf2f0eb],
-    [-222.8, 426.0, 0, 0x48505c],
-    [-222.8, 432.0, 0, 0x244e86],
-  ] as Array<[number, number, number, number]>) {
-    const qCar = car('sedan', col);
-    qCar.group.position.set(cx, 0, cz);
-    qCar.group.rotation.y = ry;
-    b.add(qCar.group);
-  }
-  b.zone('In-N-Out Burger (4888 Dean Martin Dr)', -245, -222, 420, 434);
+  // Real spot (OSM): north of Tropicana between Joey Bishop Dr and Dean Martin Dr, just past the foot of the
+  // Tropicana bridge. The store faces Dean Martin; the drive-thru runs along its south side, beside the bridge.
+  paving(b, -246, -222.8, 396, 432, '#5a5c62', '#4c4e54', 4, L0);
+  b.restaurants.push(
+    buildInNOut(b, -230, 421, -Math.PI / 2, {
+      name: 'In-N-Out (4888 Dean Martin Dr)',
+      standalone: true,
+      w: 12,
+      d: 10,
+      look: 'vegas',
+      address: '4888',
+      queueCars: 2,
+      patioXs: [1.6, 4.6],
+    })
+  );
+  b.zone('In-N-Out Burger (4888 Dean Martin Dr)', -246, -222.8, 412, 432);
 
   // 4838 S Dean Martin Dr: In-N-Out Company Store north of the burger restaurant
-  addBuilding(b, mg, { x: -229.5, z: 407.0, w: 12.0, d: 10.0, h: 5.4, wall: 0xf7f3eb, trim: 0xd81e2a, roof: 0x524e4a, label: 'In-N-Out Company Store' });
-  mg.box(mat(0xd81e2a, 0.45), -235.75, 3.2, 407.0, 1.3, 0.32, 9.4);
+  addBuilding(b, mg, { x: -227.2, z: 404.5, w: 8.0, d: 8.4, h: 5.4, wall: 0xf7f3eb, trim: 0xd81e2a, roof: 0x524e4a, label: 'In-N-Out Company Store' });
+  mg.box(mat(0xd81e2a, 0.45), -231.45, 3.2, 404.5, 0.5, 0.32, 8.0);
   const storeGlass = new THREE.MeshStandardMaterial({ color: 0x1b242e, emissive: 0xffe6b0, emissiveIntensity: 0.08, roughness: 0.14, metalness: 0.35 });
   b.nightGlow(storeGlass, 0.08, 1.0);
-  mg.box(storeGlass, -235.6, 1.6, 407.0, 0.12, 2.4, 7.2);
-  for (const dz of [-2.4, 0, 2.4]) mg.box(mat(0xd81e2a, 0.45), -235.68, 1.6, 407.0 + dz, 0.06, 2.4, 0.14);
-  signBoard(b, 'IN-N-OUT COMPANY STORE', '#d81e2a', '#ffffff', 9.0, 1.35, -235.8, 4.5, 407.0, -Math.PI / 2, '4838 DEAN MARTIN • TEES & GEAR', 0.14);
-  lot.bays(-236, -225, 396, 400, 3, 1, 0, 0.72, 4838);
+  mg.box(storeGlass, -231.3, 1.6, 404.5, 0.12, 2.4, 6.4);
+  for (const dz of [-2.1, 0, 2.1]) mg.box(mat(0xd81e2a, 0.45), -231.38, 1.6, 404.5 + dz, 0.06, 2.4, 0.14);
+  signBoard(b, 'IN-N-OUT COMPANY STORE', '#d81e2a', '#ffffff', 7.6, 1.2, -231.5, 4.5, 404.5, -Math.PI / 2, '4838 DEAN MARTIN • TEES & GEAR', 0.14);
   // A working shop: the merch counter just inside the west doors
   b.shopSpots.push({
     kind: 'store',
-    position: new THREE.Vector3(-237.2, 0, 407.0),
+    position: new THREE.Vector3(-232.6, 0, 404.5),
     radius: 2.6,
     label: 'In-N-Out Company Store',
     catalog: 'in-n-out-store',
     hint: 'shirts, hats, mugs, keychains',
   });
-  b.zone('In-N-Out Company Store (4838 Dean Martin)', -242, -222, 396, 419);
+  b.zone('In-N-Out Company Store (4838 Dean Martin)', -236, -222.8, 396, 411);
 
   // West side NW of Tropicana: Grove Business Park, NAPA (4675), Trapped! Escape Room (4760)
   // NOTE: Real late-2026 NW corner (z = 392..436) is open paved Tropicana turn setback & utility apron (NO Wendy's / NO Sinclair here!)

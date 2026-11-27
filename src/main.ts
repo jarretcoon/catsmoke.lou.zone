@@ -2006,7 +2006,7 @@ function step(now: number, render = true): void {
         if (npc.knock) continue;
         const dx = npc.mesh.position.x - carPos.x;
         const dz = npc.mesh.position.z - carPos.z;
-        if (dx * dx + dz * dz > 3.2) continue;
+        if (dx * dx + dz * dz > 3.2 || Math.abs(npc.mesh.position.y - carPos.y) > 1.5) continue;
         crowd.knockdown(npc, driving.velocity.x + dx, driving.velocity.z + dz, Math.min(9, Math.abs(driving.speed) * 0.5));
         S.stats.knockdowns += 1;
         degen.add(75, 'Pedestrian Bowling');
@@ -2267,6 +2267,18 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'check') {
       catYaw = yaw;
       catHolder.rotation.y = yaw;
     },
+    /** Dev-only: put Lou behind the wheel of a traffic car at (x, z) facing `yaw` (0 = south, π/2 = east, -π/2 = west). */
+    driveAt: (x: number, z: number, yaw: number) => {
+      const car = world.trafficVehicles.find((c) => !c.hijacked && c.halfLen >= 2.5 && c.halfLen <= 3.6) ?? world.trafficVehicles[0];
+      if (driving.active) driving.exit(tmpV);
+      car.mesh.position.set(x, 0, z);
+      car.mesh.rotation.set(0, yaw, 0);
+      car.speed = 0;
+      enterCar(car);
+      return { x, z };
+    },
+    /** Dev-only: where the player's car is (null when on foot). */
+    carPos: () => (driving.active ? driving.car!.mesh.position.toArray().map((v) => +v.toFixed(2)) : null),
     /** Dev-only: re-apply the graphics level (after tweaking `__tiers`). */
     applyQuality,
     /** Dev-only: render one frame (with bloom when on) and return the canvas as a JPEG data URL. Works in a background tab. */
