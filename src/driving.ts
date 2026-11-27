@@ -8,6 +8,13 @@ export interface DriveInput {
   handbrake: boolean;
 }
 
+/** How far up a car climbs in one step (ramps are sampled per metre; kerbs and planters stay walls). */
+const STEP_UP = 0.85;
+/** Ramp slabs: the nose meets the next step before the wheels do, so a ramp only blocks when it's clearly a wall. */
+const RAMP_UP = 1.75;
+/** The drivable world: the Strip's ground plus the west bay out to Valley View (Dean Martin Dr, I-15, the bridges). */
+const DRIVE_WEST = -307;
+
 /** Arcade GTA-style driving for a hijacked traffic car. */
 export class PlayerDriving {
   car: TrafficCar | null = null;
@@ -16,6 +23,19 @@ export class PlayerDriving {
   private readonly abandoned: Array<{ car: TrafficCar; t: number }> = [];
   private readonly fwd = new THREE.Vector3();
   readonly velocity = new THREE.Vector3();
+  /** Vertical speed (falling off a ledge); the car otherwise rides the ground, ramps and bridge decks. */
+  private vy = 0;
+
+  /** Highest drivable surface under (x, z) that the car can climb onto from height y. */
+  private groundAt(x: number, z: number, y: number, colliders: PlatformBox[]): number {
+    let g = 0;
+    for (const b of colliders) {
+      if (b.isWall || b.topY > y + (b.ramp ? RAMP_UP : STEP_UP) || b.topY <= g) continue;
+      if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
+      g = b.topY;
+    }
+    return g;
+  }
 
   get active(): boolean {
     return !!this.car;
@@ -57,7 +77,9 @@ export class PlayerDriving {
     this.abandoned.push({ car, t: 0 });
     const side = new THREE.Vector3(Math.cos(this.heading), 0, -Math.sin(this.heading));
     out.copy(car.mesh.position).addScaledVector(side, 1.8);
-    out.y = 0.3;
+    out.y = car.mesh.position.y + 0.3;
+    car.mesh.rotation.x = 0;
+    this.vy = 0;
     this.car = null;
     this.speed = 0;
     return out;
@@ -95,17 +117,18 @@ export class PlayerDriving {
     this.velocity.copy(this.fwd).multiplyScalar(this.speed);
     const p = car.mesh.position;
     p.addScaledVector(this.velocity, dt);
-    car.mesh.rotation.set(0, this.heading, -steerRate * 0.02 * Math.sign(this.speed));
     car.speed = Math.abs(this.speed);
 
-    // Buildings, walls, poles: circle vs box push-out
+    // Buildings, walls, poles: circle vs box push-out. Anything the car can climb (a ramp step, a low
+    // deck edge) or that's overhead (a bridge deck it passes under) doesn't block it.
     let crashed = false;
     const r = 1.15;
     for (const centerOff of [car.halfLen * 0.55, -car.halfLen * 0.55]) {
       const cx = p.x + this.fwd.x * centerOff;
       const cz = p.z + this.fwd.z * centerOff;
       for (const b of colliders) {
-        if (b.topY < 0.6 || b.minY > 1.4) continue;
+        if (b.minY > p.y + 1.4) continue;
+        if (b.isWall ? b.topY < p.y + 0.6 : b.topY <= p.y + (b.ramp ? RAMP_UP : STEP_UP)) continue;
         const nx = THREE.MathUtils.clamp(cx, b.minX, b.maxX);
         const nz = THREE.MathUtils.clamp(cz, b.minZ, b.maxZ);
         const dx = cx - nx;
@@ -123,7 +146,7 @@ export class PlayerDriving {
     }
     // Shove traffic out of the way
     for (const o of others) {
-      if (o === car) continue;
+      if (o === car || Math.abs(o.mesh.position.y - p.y) > 2) continue;
       const dx = o.mesh.position.x - p.x;
       const dz = o.mesh.position.z - p.z;
       const d = Math.hypot(dx, dz);
@@ -137,8 +160,25 @@ export class PlayerDriving {
       }
     }
     // Keep inside the map
-    p.x = THREE.MathUtils.clamp(p.x, STRIP.flamingoWest + 4, STRIP.flamingoEast - 4);
+    p.x = THREE.MathUtils.clamp(p.x, DRIVE_WEST, STRIP.flamingoEast - 4);
     p.z = THREE.MathUtils.clamp(p.z, STRIP.north + 4, STRIP.south - 4);
+
+    // Ride the ground: climb ramps and decks, fall off edges, and pitch the body to the slope.
+    const g = this.groundAt(p.x, p.z, p.y, colliders);
+    if (g >= p.y - 0.05) {
+      p.y = g;
+      this.vy = 0;
+    } else {
+      this.vy -= 18 * dt;
+      p.y = Math.max(g, p.y + this.vy * dt);
+      if (p.y === g) this.vy = 0;
+    }
+    const reach = car.halfLen * 0.7;
+    const gF = this.groundAt(p.x + this.fwd.x * reach, p.z + this.fwd.z * reach, p.y, colliders);
+    const gB = this.groundAt(p.x - this.fwd.x * reach, p.z - this.fwd.z * reach, p.y, colliders);
+    const pitch = p.y - g > 0.3 ? car.mesh.rotation.x : -Math.atan2(gF - gB, reach * 2);
+    car.mesh.rotation.order = 'YXZ';
+    car.mesh.rotation.set(THREE.MathUtils.lerp(car.mesh.rotation.x, pitch, Math.min(1, dt * 10)), this.heading, -steerRate * 0.02 * Math.sign(this.speed));
     return { crashed };
   }
 

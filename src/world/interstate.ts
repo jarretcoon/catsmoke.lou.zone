@@ -3,6 +3,7 @@ import type { WorldBuilder } from './builder';
 import { basic, mat } from './props';
 import { L0, L1, Merger, v3 } from './southKit';
 import { buildInstancedTraffic, flatRoad, freewayGantrySign, lightPoolMat, roadStripMat, type TrafficLane } from './westKit';
+import { deckTop, easedProfile, pathFrom, smoothPath, sweepBox, sweptMat, type PathPt } from './bridgeKit';
 
 /**
  * Interstate 15 (I-15) and its Las Vegas Resort Corridor interchanges:
@@ -24,17 +25,21 @@ export const I15 = {
   flamingoZ: 0.0,
 };
 
-/** Smooth walkable bridge deck height profile for East-West cross arterials over I-15. */
-function bridgeProfile(x: number, eBase: number, eSpan: number, wSpan: number, wBase: number, deckH: number): number {
-  if (x >= eBase || x <= wBase) return 0;
-  if (x >= eSpan) return ((eBase - x) / (eBase - eSpan)) * deckH;
-  if (x <= wSpan) return ((x - wBase) / (wSpan - wBase)) * deckH;
-  return deckH;
-}
+/**
+ * Bridge spans: [eBase, eSpan, wSpan, wBase, deck height]. The deck is flat from eSpan to wSpan and eases
+ * down to grade at the two abutments.
+ * Tropicana (real, from OSM): the structure starts just east of Frank Sinatra Dr and lands just past
+ * Joey Bishop Dr, ~115 real m short of Dean Martin Dr; Frank Sinatra Dr, I-15 and Joey Bishop Dr all pass
+ * underneath. The deck is low enough to stay drivable at the game's compressed scale (6.6 m).
+ */
+const TROP_SPAN = [-114, -146, -211, -238, 6.6] as const;
+const HARMON_SPAN = [-148, -171, -236, -260, 6.8] as const;
+const FLAMINGO_SPAN = [-148, -171, -217, -239, 6.8] as const;
+const spanY = (s: readonly [number, number, number, number, number]) => (x: number) => easedProfile(x, s[0], s[1], s[2], s[3], s[4]);
 
-export const tropicanaY = (x: number) => bridgeProfile(x, -114, -144, -223, -246, 7.2);
-export const harmonY = (x: number) => bridgeProfile(x, -148, -171, -236, -260, 6.8);
-export const flamingoY = (x: number) => bridgeProfile(x, -148, -171, -217, -239, 6.8);
+export const tropicanaY = spanY(TROP_SPAN);
+export const harmonY = spanY(HARMON_SPAN);
+export const flamingoY = spanY(FLAMINGO_SPAN);
 
 export function buildInterstate(b: WorldBuilder): void {
   const mg = new Merger();
@@ -126,182 +131,148 @@ function buildSoundWalls(b: WorldBuilder, mg: Merger): void {
 
 // ================================================================ Bridges & Tropicana Ramps
 
-function buildBridge(
-  b: WorldBuilder,
-  mg: Merger,
-  zCenter: number,
-  wTotal: number,
-  lanes: number,
-  eBase: number,
-  eSpan: number,
-  wSpan: number,
-  wBase: number,
-  deckH: number,
-  name: string
-): void {
-  const concrete = mat(0xa8a298, 0.86);
-  const parapet = mat(0xc4bdb0, 0.84);
-  const railMat = mat(0x3a3f46, 0.45, 0.72);
-  const asphalt = roadStripMat(lanes, eBase - wBase, true);
-  const sidewalkMat = mat(0xbab3a6, 0.85);
+/** Below this deck height an approach sits on a solid retained fill; above it, it's an open slab on piers. */
+const FILL_H = 3.0;
+/** Pier lines that stay clear of every travel lane: Frank Sinatra's west curb, the I-15 median, Joey Bishop's east curb. */
+const PIER_XS = [-157.2, -172.6, -193.5, -214.6];
+
+function buildBridge(b: WorldBuilder, mg: Merger, zCenter: number, wTotal: number, lanes: number, span: readonly [number, number, number, number, number], name: string): void {
+  const [eBase, eSpan, wSpan, wBase, deckH] = span;
+  const prof = spanY(span);
   const halfW = wTotal / 2;
-  const roadW = wTotal - 4.4;
-  const stepX = 1.5;
+  const roadHalf = halfW - 2.2;
+  const concrete = sweptMat(0xb3ada2, 0.88);
+  const fascia = sweptMat(0xc9c3b6, 0.82);
+  const walkMat = sweptMat(0xbdb6a8, 0.86);
+  const fillMat = sweptMat(0xc2b296, 0.92);
+  const railMat = sweptMat(0x59606a, 0.45, 0.7);
 
-  // Flat central bridge deck over Frank Sinatra Dr & I-15
-  const spanLen = eSpan - wSpan;
-  const xc = (eSpan + wSpan) / 2;
-  mg.box(concrete, xc, deckH - 0.65, zCenter, spanLen, 1.3, wTotal, 0, true);
-  const deckSurf = new THREE.Mesh(new THREE.PlaneGeometry(roadW, spanLen), asphalt);
-  deckSurf.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
-  deckSurf.position.set(xc, deckH + 0.025, zCenter);
-  deckSurf.receiveShadow = true;
-  b.add(deckSurf);
+  // Centreline every metre from the east abutment to the west one.
+  const pts: THREE.Vector3[] = [];
+  for (let x = eBase; x > wBase; x -= 1) pts.push(new THREE.Vector3(x, prof(x), zCenter));
+  pts.push(new THREE.Vector3(wBase, 0, zCenter));
+  const path: PathPt[] = pathFrom(pts);
 
-  // Sidewalks, low Jersey curbs & open steel bridge guardrails along North and South deck edges
+  // Road surface: one continuous strip with the lane texture, no seams between ramp and span.
+  const road = new THREE.Mesh(deckTop(path, roadHalf, 0.035), roadStripMat(lanes, eBase - wBase, true));
+  road.receiveShadow = true;
+  b.add(road);
+  // Deck slab (1.2 m), sidewalks with a curb, a concrete parapet with a steel rail on top.
+  for (const g of sweepBox(path, -halfW, halfW, -1.2, 0, { top: false, bottom: true })) mg.add(g, concrete, true);
   for (const s of [-1, 1]) {
-    const swZ = zCenter + s * (halfW - 1.1);
-    const railZ = zCenter + s * (halfW - 0.15);
-    mg.box(sidewalkMat, xc, deckH + 0.08, swZ, spanLen, 0.16, 2.2);
-    mg.box(parapet, xc, deckH + 0.26, railZ, spanLen, 0.52, 0.3);
-    mg.box(railMat, xc, deckH + 0.84, railZ, spanLen, 0.08, 0.12);
-    mg.box(railMat, xc, deckH + 1.18, railZ, spanLen, 0.1, 0.15);
-    for (let px = wSpan + 3; px <= eSpan - 3; px += 6) {
-      mg.box(railMat, px, deckH + 0.85, railZ, 0.08, 0.68, 0.1);
+    const l0 = s * roadHalf;
+    const l1 = s * (halfW - 0.32);
+    for (const g of sweepBox(path, Math.min(l0, l1), Math.max(l0, l1), 0, 0.17)) mg.add(g, walkMat);
+    const p0 = s * (halfW - 0.32);
+    const p1 = s * halfW;
+    for (const g of sweepBox(path, Math.min(p0, p1), Math.max(p0, p1), -1.2, 0.82)) mg.add(g, fascia, true);
+    for (const g of sweepBox(path, Math.min(p0, p1) + 0.08, Math.max(p0, p1) - 0.08, 1.02, 1.12)) mg.add(g, railMat);
+    for (let x = eSpan; x >= wSpan; x -= 3) mg.box(railMat, x, deckH + 0.92, zCenter + s * (halfW - 0.16), 0.08, 0.22, 0.08);
+  }
+  // Retained fill under the low ends of both approaches (MSE panel walls), open underneath elsewhere.
+  for (const [a, c] of [
+    [eBase, eSpan],
+    [wSpan, wBase],
+  ]) {
+    const seg = path.filter((q) => q.p.x <= Math.max(a, c) && q.p.x >= Math.min(a, c) && q.p.y <= FILL_H + 0.5 && q.p.y > 0.05);
+    if (seg.length < 2) continue;
+    for (const g of sweepBox(seg, -halfW + 0.05, halfW - 0.05, (q) => -q.p.y, -1.2, { top: false })) mg.add(g, fillMat, true);
+    for (let i = 0; i < seg.length; i += 3) {
+      const q = seg[i];
+      for (const s of [-1, 1]) mg.box(sweptMat(0xb4a487, 0.92), q.p.x, q.p.y / 2 - 0.6, zCenter + s * (halfW - 0.02), 0.06, Math.max(0.1, q.p.y - 1.2), 0.06);
     }
   }
-  // Colliders for flat main deck + bridge walls
-  b.collider(wSpan, eSpan, zCenter - halfW, zCenter + halfW, 0, deckH, false);
-  b.collider(wSpan, eSpan, zCenter - halfW - 0.3, zCenter - halfW + 0.3, deckH, deckH + 1.6, true);
-  b.collider(wSpan, eSpan, zCenter + halfW - 0.3, zCenter + halfW + 0.3, deckH, deckH + 1.6, true);
-
-  // Support piers at shoulders + median (clear of travel lanes!)
-  for (const px of [eSpan - 2, -169.5, I15.medianX, wSpan + 2]) {
-    for (const pz of [zCenter - halfW * 0.65, zCenter + halfW * 0.65]) {
-      mg.beam(concrete, v3(px, 0, pz), v3(px, deckH - 1.1, pz), 0.72, 10, 0.66, true);
-      b.collider(px - 0.75, px + 0.75, pz - 0.75, pz + 0.75, 0, deckH - 1.0, true);
+  // Hammerhead piers on lane-free lines only.
+  for (const px of PIER_XS) {
+    const y = prof(px);
+    if (y < FILL_H) continue;
+    for (const pz of [zCenter - halfW * 0.5, zCenter + halfW * 0.5]) {
+      mg.beam(concrete, v3(px, 0, pz), v3(px, y - 2.0, pz), 0.62, 12, 0.62, true);
+      b.collider(px - 0.65, px + 0.65, pz - 0.65, pz + 0.65, 0, y - 1.3, true);
     }
+    mg.box(concrete, px, y - 1.65, zCenter, 1.5, 0.9, wTotal - 1.4, 0, true);
   }
 
-  // Stepped solid ramp embankments at both ends (keep visual fill slightly below tilted asphalt so steps never poke through)
-  const emitSlope = (xStart: number, xEnd: number) => {
-    const totalLen = xEnd - xStart;
-    const steps = Math.max(12, Math.round(totalLen / stepX));
-    const dx = totalLen / steps;
-    const stepDrop = (deckH / steps) * 0.65;
-    for (let i = 0; i < steps; i++) {
-      const xm = xStart + (i + 0.5) * dx;
-      const ym = bridgeProfile(xm, eBase, eSpan, wSpan, wBase, deckH);
-      const visH = Math.max(0.02, ym - stepDrop);
-      mg.box(concrete, xm, visH / 2, zCenter, dx + 0.04, visH, wTotal, 0, true);
-      b.collider(xm - dx / 2, xm + dx / 2, zCenter - halfW, zCenter + halfW, 0, ym, false);
-      b.collider(xm - dx / 2, xm + dx / 2, zCenter - halfW - 0.3, zCenter - halfW + 0.3, ym, ym + 1.4, true);
-      b.collider(xm - dx / 2, xm + dx / 2, zCenter + halfW - 0.3, zCenter + halfW + 0.3, ym, ym + 1.4, true);
-    }
-    // Single tilted planar asphalt roadway & parapets over the slope (zero zigzags)
-    const ang = Math.atan2(
-      bridgeProfile(xStart, eBase, eSpan, wSpan, wBase, deckH) - bridgeProfile(xEnd, eBase, eSpan, wSpan, wBase, deckH),
-      totalLen
-    );
-    const hyp = Math.hypot(totalLen, deckH);
-    const rPlane = new THREE.Mesh(new THREE.PlaneGeometry(roadW, hyp), roadStripMat(lanes, hyp, true));
-    const xm = (xStart + xEnd) / 2;
-    rPlane.rotation.order = 'YXZ';
-    rPlane.rotation.y = Math.PI / 2;
-    rPlane.rotation.x = -Math.PI / 2 + ang;
-    rPlane.position.set(xm, deckH / 2 + 0.06, zCenter);
-    rPlane.receiveShadow = true;
-    b.add(rPlane);
-    for (const s of [-1, 1]) {
-      const sw = new THREE.BoxGeometry(hyp, 0.18, 2.2);
-      sw.rotateZ(-ang);
-      mg.at(sidewalkMat, sw, xm, deckH / 2 + 0.1, zCenter + s * (halfW - 1.1));
-      const p = new THREE.BoxGeometry(hyp, 0.54, 0.3);
-      p.rotateZ(-ang);
-      mg.at(parapet, p, xm, deckH / 2 + 0.32, zCenter + s * (halfW - 0.15));
-      const r = new THREE.BoxGeometry(hyp, 0.1, 0.14);
-      r.rotateZ(-ang);
-      mg.at(railMat, r, xm, deckH / 2 + 0.96, zCenter + s * (halfW - 0.15));
-    }
-  };
+  // Colliders, one per metre: the deck is a walkable slab (solid down to the ground only over the fills,
+  // so cars and the cat can pass underneath), with parapet walls on both edges.
+  for (let i = 0; i < path.length - 1; i++) {
+    const x1 = path[i].p.x;
+    const x0 = path[i + 1].p.x;
+    const top = Math.max(path[i].p.y, path[i + 1].p.y);
+    if (top < 0.05) continue;
+    b.collider(x0, x1, zCenter - halfW, zCenter + halfW, top < FILL_H ? 0 : top - 1.2, top, false).ramp = true;
+    b.collider(x0, x1, zCenter - halfW - 0.05, zCenter - halfW + 0.32, top, top + 1.15, true);
+    b.collider(x0, x1, zCenter + halfW - 0.32, zCenter + halfW + 0.05, top, top + 1.15, true);
+  }
 
-  emitSlope(wBase, wSpan);
-  emitSlope(eSpan, eBase);
-
-  // Bridge light poles standing cleanly on the north bridge deck parapet (avoid extending down through freeway lanes)
+  // Bridge light poles on the north parapet.
   const brPole = mat(0x565a62, 0.45, 0.72);
   const brBulb = basic(0xffe09c);
   for (let x = wSpan + 6; x <= eSpan - 6; x += 22) {
-    const px = x;
-    const pz = zCenter - halfW + 0.4;
-    mg.beam(brPole, v3(px, deckH + 1.0, pz), v3(px, deckH + 7.4, pz), 0.09, 6, 0.06);
-    mg.beam(brPole, v3(px, deckH + 7.2, pz), v3(px, deckH + 7.6, pz + 2.0), 0.05, 5, 0.035);
-    mg.box(brPole, px, deckH + 7.62, pz + 2.0, 0.5, 0.12, 0.28);
-    mg.box(brBulb, px, deckH + 7.52, pz + 2.0, 0.36, 0.05, 0.18);
+    const pz = zCenter - halfW + 0.16;
+    mg.beam(brPole, v3(x, deckH + 0.82, pz), v3(x, deckH + 7.4, pz), 0.09, 6, 0.06);
+    mg.beam(brPole, v3(x, deckH + 7.2, pz), v3(x, deckH + 7.6, pz + 2.0), 0.05, 5, 0.035);
+    mg.box(brPole, x, deckH + 7.62, pz + 2.0, 0.5, 0.12, 0.28);
+    mg.box(brBulb, x, deckH + 7.52, pz + 2.0, 0.36, 0.05, 0.18);
   }
 
   b.zone(name, wBase, eBase, zCenter - halfW, zCenter + halfW);
   b.feature({ kind: 'road', x: (eBase + wBase) / 2, z: zCenter, w: eBase - wBase, d: wTotal, color: '#45444c', label: name });
 }
 
-function buildOverpassesAndRamps(b: WorldBuilder, mg: Merger): void {
-  // 1. Widened Tropicana Ave Overpass (z = 442.7, 6 lanes + wide pedestrian sidewalks)
-  buildBridge(b, mg, I15.tropZ, 21.0, 6, -114, -144, -226, -246, 7.2, 'Tropicana Ave Bridge (I-15)');
-
-  // 2. Tropicana SB-to-EB Flyover Viaduct (iconic curving flyover from I-15 SB over I-15 down to Tropicana EB!)
-  const viaduct = mat(0x9e988e, 0.85);
-  const deckAsph = roadStripMat(2, 120, false);
-  const flyPts: Array<[number, number, number]> = [
-    [-210.5, 0.05, 396],
-    [-210.5, 1.8, 412],
-    [-208.0, 5.2, 430],
-    [-198.0, 9.6, 452],
-    [-180.0, 10.2, 461],
-    [-156.0, 7.2, 460],
-    [-134.0, 2.8, 456],
-    [-114.0, 0.05, 451],
+/**
+ * The SB I-15 → EB Tropicana flyover (OSM layer 2): it climbs off the southbound lanes north of Tropicana,
+ * crosses high over the Tropicana bridge, swings east south of it over I-15 and Frank Sinatra Dr, and comes
+ * down onto eastbound Tropicana before New York-New York's drive. Piers stand only on lane-free spots.
+ */
+function buildFlyover(b: WorldBuilder, mg: Merger): void {
+  const pts: Array<[number, number, number, boolean]> = [
+    [-210.5, 0.03, 366, false],
+    [-211.2, 1.6, 384, false],
+    [-213.6, 4.6, 402, false],
+    [-214.6, 8.2, 420, true],
+    [-214.3, 11.6, 438, false],
+    [-210.0, 13.0, 455, false],
+    [-200.0, 13.0, 465, false],
+    [-193.5, 12.6, 468.5, true],
+    [-173.0, 11.0, 470, true],
+    [-157.2, 8.8, 467.5, true],
+    [-139.0, 5.6, 463, true],
+    [-121.0, 2.6, 459.6, true],
+    [-104.0, 0.03, 457.6, false],
   ];
-  for (let i = 0; i < flyPts.length - 1; i++) {
-    const [ax, ay, az] = flyPts[i];
-    const [bx, by, bz] = flyPts[i + 1];
-    const dx = bx - ax;
-    const dz = bz - az;
-    const flatLen = Math.hypot(dx, dz);
-    const dy = by - ay;
-    const len3 = Math.hypot(flatLen, dy);
-    const yaw = Math.atan2(dx, dz);
-    const pitch = -Math.atan2(dy, flatLen);
-    const xm = (ax + bx) / 2;
-    const ym = (ay + by) / 2;
-    const zm = (az + bz) / 2;
-
-    const gDeck = new THREE.BoxGeometry(7.2, 0.9, len3 + 0.6);
-    gDeck.rotateX(pitch);
-    gDeck.rotateY(yaw);
-    mg.at(viaduct, gDeck, xm, ym - 0.45, zm, 0, true);
-
-    const rTop = new THREE.Mesh(new THREE.PlaneGeometry(6.2, len3 + 0.4), deckAsph);
-    rTop.rotation.order = 'YXZ';
-    rTop.rotation.y = yaw;
-    rTop.rotation.x = -Math.PI / 2 + pitch;
-    rTop.position.set(xm, ym + 0.03, zm);
-    b.add(rTop);
-
-    // Viaduct edge barriers + cylindrical piers
-    for (const side of [-3.3, 3.3]) {
-      const rail = new THREE.BoxGeometry(0.35, 0.9, len3 + 0.5);
-      rail.translate(side, 0.45, 0);
-      rail.rotateX(pitch);
-      rail.rotateY(yaw);
-      mg.at(mat(0xc2bbb0, 0.85), rail, xm, ym, zm);
-    }
-    if (ym > 2.2) {
-      mg.beam(viaduct, v3(ax, 0, az), v3(ax, ay - 0.5, az), 0.72, 8, 0.65, true);
-      b.collider(ax - 0.75, ax + 0.75, az - 0.75, az + 0.75, 0, ay, true);
-    }
+  const path = smoothPath(
+    pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+    1.5
+  );
+  const concrete = sweptMat(0xaba59a, 0.86);
+  const barrier = sweptMat(0xc8c1b4, 0.84);
+  const half = 3.7;
+  const road = new THREE.Mesh(deckTop(path, half - 0.45, 0.035), roadStripMat(2, 170, false));
+  road.receiveShadow = true;
+  b.add(road);
+  for (const g of sweepBox(path, -half, half, -1.1, 0, { top: false, bottom: true })) mg.add(g, concrete, true);
+  for (const s of [-1, 1]) {
+    const a = s * (half - 0.45);
+    const c = s * half;
+    for (const g of sweepBox(path, Math.min(a, c), Math.max(a, c), -1.1, 0.9)) mg.add(g, barrier, true);
   }
+  for (const [x, y, z, pier] of pts) {
+    if (!pier) continue;
+    mg.beam(concrete, v3(x, 0, z), v3(x, y - 1.9, z), 0.7, 12, 0.7, true);
+    mg.box(concrete, x, y - 1.5, z, 2.2, 0.8, 2.2, 0, true);
+    b.collider(x - 0.72, x + 0.72, z - 0.72, z + 0.72, 0, y - 1.1, true);
+  }
+  b.zone('I-15 SB → Tropicana EB Flyover', -216, -104, 455, 472);
+}
 
-  // 3. I-15 NB & SB On/Off Ramps at Tropicana & Flamingo
+function buildOverpassesAndRamps(b: WorldBuilder, mg: Merger): void {
+  // 1. Tropicana Ave bridge (6 lanes + sidewalks) over Frank Sinatra Dr, I-15 and Joey Bishop Dr.
+  buildBridge(b, mg, I15.tropZ, 21.0, 6, TROP_SPAN, 'Tropicana Ave Bridge (I-15)');
+  // 2. The SB-to-EB flyover, high over the bridge.
+  buildFlyover(b, mg);
+
+  // 3. Flamingo Rd loop on/off ramps on the west side of I-15 (z = 12..72)
   const emitRampSlab = (ax: number, az: number, bx: number, bz: number, w: number) => {
     const len = Math.hypot(bx - ax, bz - az);
     const yaw = Math.atan2(bx - ax, bz - az);
@@ -313,20 +284,13 @@ function buildOverpassesAndRamps(b: WorldBuilder, mg: Merger): void {
     me.receiveShadow = true;
     b.add(me);
   };
-  // NB Off-Ramp & On-Ramp near Tropicana
-  emitRampSlab(-175, 515, -162, 462, 6.4);
-  emitRampSlab(-162, 424, -174.5, 365, 6.2);
-  // SB Tropicana On-Ramp (clear east of Joey Bishop Dr)
-  emitRampSlab(-216.0, 482, -212.0, 526, 5.4);
-  // Flamingo Rd Loop On/Off Ramps on west side of I-15 (z = 12..72)
   emitRampSlab(-212, 65, -228, 12, 6.4);
   emitRampSlab(-226, 22, -211, -18, 5.8);
 
-  // 4. Harmon Ave Overpass Bridge (z = 221, spanning over Frank Sinatra Dr, I-15 & Dean Martin Dr to -260)
-  buildBridge(b, mg, I15.harmonZ, 13.5, 4, -148, -171, -236, -260, 6.8, 'Harmon Ave Bridge (I-15)');
-
-  // 5. Flamingo Rd Overpass Bridge (z = 0, connecting Strip Flamingo Rd over Frank Sinatra & I-15 to Dean Martin at -239)
-  buildBridge(b, mg, I15.flamingoZ, 19.5, 6, -148, -171, -217, -239, 6.8, 'Flamingo Rd Bridge (I-15)');
+  // 4. Harmon Ave bridge (z = 221) over Frank Sinatra Dr, I-15 and Dean Martin Dr.
+  buildBridge(b, mg, I15.harmonZ, 13.5, 4, HARMON_SPAN, 'Harmon Ave Bridge (I-15)');
+  // 5. Flamingo Rd bridge (z = 0) over Frank Sinatra Dr and I-15 to Dean Martin Dr.
+  buildBridge(b, mg, I15.flamingoZ, 19.5, 6, FLAMINGO_SPAN, 'Flamingo Rd Bridge (I-15)');
 }
 
 // ================================================================ Overhead Green Freeway Gantries

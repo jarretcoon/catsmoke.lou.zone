@@ -14,6 +14,8 @@ export interface PlatformBox {
   minY: number;
   topY: number;
   isWall?: boolean;
+  /** A bridge approach or deck slab: cars drive up it rather than into it. */
+  ramp?: boolean;
 }
 
 export type GameType = 'slots' | 'roulette' | 'blackjack' | 'craps';

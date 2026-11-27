@@ -114,10 +114,199 @@ function burgerProp(): THREE.Group {
   return g;
 }
 
+// In-N-Out, Las Vegas look (from free-licence photos of the Las Vegas stores): white stucco with a
+// corniced parapet and red pinstripes, an entry tower and a back-corner tower under red clay-tile hip roofs,
+// the yellow arrow logo with red IN-N-OUT letters, red awnings with the white palm-tree valance, and a
+// red tile band low on the walls.
+let tileTex: THREE.CanvasTexture | null = null;
+function clayTileMat(): THREE.MeshStandardMaterial {
+  tileTex ??= (() => {
+    const t = canvasTex(128, 128, (ctx) => {
+      ctx.fillStyle = '#a9472e';
+      ctx.fillRect(0, 0, 128, 128);
+      for (let r = 0; r < 8; r++) {
+        ctx.fillStyle = r % 2 ? '#9a3f28' : '#b3533a';
+        ctx.fillRect(0, r * 16, 128, 11);
+        ctx.fillStyle = 'rgba(40,14,8,0.55)';
+        ctx.fillRect(0, r * 16 + 12, 128, 4);
+        for (let c = 0; c < 8; c++) {
+          ctx.fillStyle = 'rgba(255,214,180,0.16)';
+          ctx.fillRect(c * 16 + (r % 2) * 8 + 3, r * 16 + 1, 5, 9);
+        }
+      }
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(4, 2);
+    return t;
+  })();
+  return new THREE.MeshStandardMaterial({ map: tileTex, roughness: 0.78 });
+}
+
+let logoTex: THREE.CanvasTexture | null = null;
+function inNOutLogo(): THREE.CanvasTexture {
+  logoTex ??= canvasTex(512, 384, (ctx) => {
+    ctx.clearRect(0, 0, 512, 384);
+    // The yellow arrow: a bar running right into an arrowhead, with the diagonal stroke dropping from its tail.
+    ctx.fillStyle = '#ffc72c';
+    ctx.strokeStyle = '#c99400';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(78, 70);
+    ctx.lineTo(372, 70);
+    ctx.lineTo(372, 36);
+    ctx.lineTo(452, 104);
+    ctx.lineTo(372, 172);
+    ctx.lineTo(372, 136);
+    ctx.lineTo(176, 136);
+    ctx.lineTo(262, 330);
+    ctx.lineTo(214, 352);
+    ctx.lineTo(78, 136);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // IN-N-OUT in red with a white edge, across the arrow.
+    let px = 104;
+    const fit = () => (ctx.font = `italic 900 ${px}px "Arial Black", Impact, system-ui, sans-serif`);
+    fit();
+    while (ctx.measureText('IN-N-OUT').width > 440 && px > 40) {
+      px -= 4;
+      fit();
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeText('IN-N-OUT', 256, 236);
+    ctx.fillStyle = '#d81e2a';
+    ctx.fillText('IN-N-OUT', 256, 236);
+  });
+  return logoTex;
+}
+
+let valanceTex: THREE.CanvasTexture | null = null;
+function palmValance(): THREE.CanvasTexture {
+  valanceTex ??= (() => {
+    const t = canvasTex(256, 64, (ctx) => {
+      ctx.fillStyle = '#fbfaf6';
+      ctx.fillRect(0, 0, 256, 64);
+      ctx.fillStyle = '#d81e2a';
+      ctx.strokeStyle = '#d81e2a';
+      for (let i = 0; i < 4; i++) {
+        const cx = 32 + i * 64;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 3, 50);
+        ctx.quadraticCurveTo(cx - 1, 32, cx + 3, 18);
+        ctx.stroke();
+        for (const [dx, dy] of [
+          [-14, 6],
+          [-10, -4],
+          [0, -8],
+          [10, -4],
+          [14, 6],
+        ]) {
+          ctx.beginPath();
+          ctx.moveTo(cx + 3, 18);
+          ctx.quadraticCurveTo(cx + 3 + dx * 0.5, 18 + dy - 4, cx + 3 + dx, 18 + dy);
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+      }
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let x = 0; x <= 256; x += 4) ctx.lineTo(x, 57 + Math.sin(x / 8) * 2.5);
+      ctx.stroke();
+    });
+    t.wrapS = THREE.RepeatWrapping;
+    return t;
+  })();
+  return valanceTex;
+}
+
+type Frame = ReturnType<typeof frame>;
+
+function hipRoof(w: number, d: number, h: number): THREE.Mesh {
+  const g = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1);
+  g.rotateY(Math.PI / 4);
+  g.scale(w, h, d);
+  g.translate(0, h / 2, 0);
+  const m = new THREE.Mesh(g, clayTileMat());
+  m.castShadow = true;
+  return m;
+}
+
+function awning(b: WorldBuilder, f: Frame, lx: number, lz: number, w: number, y: number, localYaw: number): void {
+  const red = mat(0xd81e2a, 0.55);
+  const g = new THREE.Group();
+  const top = mesh(new THREE.BoxGeometry(w, 0.05, 1.25), red, 0, 0, 0, true);
+  top.rotation.x = 0.52;
+  top.position.set(0, 0.32, 0.55);
+  g.add(top);
+  const valMat = new THREE.MeshStandardMaterial({ map: palmValance().clone(), roughness: 0.7 });
+  valMat.map!.repeat.set(Math.max(1, Math.round(w / 1.6)), 1);
+  valMat.map!.needsUpdate = true;
+  const val = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.42), valMat);
+  val.position.set(0, -0.12, 1.1);
+  g.add(val);
+  for (const s of [-1, 1]) g.add(mesh(new THREE.BoxGeometry(0.04, 0.5, 1.1), red, s * (w / 2), 0.08, 0.6));
+  f.add(b, g, lx, y, lz, localYaw);
+}
+
+function vegasShell(b: WorldBuilder, f: Frame, W: number, D: number, H: number, address: string): void {
+  const stucco = mat(0xf6f2ea, 0.8);
+  const red = mat(0xd81e2a, 0.5);
+  const tileRed = mat(0xc41a26, 0.35);
+  // Parapet with a cornice and two red pinstripes, all the way round.
+  for (const s of [-1, 1]) {
+    f.add(b, mesh(new THREE.BoxGeometry(W + 0.5, 1.25, 0.36), stucco, 0, 0, 0, true), 0, H + 0.95, s * (D / 2 + 0.05));
+    f.add(b, mesh(new THREE.BoxGeometry(0.36, 1.25, D + 0.5), stucco, 0, 0, 0, true), s * (W / 2 + 0.05), H + 0.95, 0);
+    f.add(b, mesh(new THREE.BoxGeometry(W + 1.0, 0.2, 0.62), stucco), 0, H + 1.62, s * (D / 2 + 0.05));
+    f.add(b, mesh(new THREE.BoxGeometry(0.62, 0.2, D + 1.0), stucco), s * (W / 2 + 0.05), H + 1.62, 0);
+    for (const dy of [1.18, 1.32]) {
+      f.add(b, mesh(new THREE.BoxGeometry(W + 0.54, 0.06, 0.38), red), 0, H + dy, s * (D / 2 + 0.05));
+      f.add(b, mesh(new THREE.BoxGeometry(0.38, 0.06, D + 0.54), red), s * (W / 2 + 0.05), H + dy, 0);
+    }
+    // Red tile band low on the outside walls.
+    f.add(b, mesh(new THREE.BoxGeometry(0.06, 0.34, D + 0.4), tileRed), s * (W / 2 + 0.22), 0.78, 0);
+  }
+  f.add(b, mesh(new THREE.BoxGeometry(W + 0.4, 0.34, 0.06), tileRed), 0, 0.78, -D / 2 - 0.22);
+  for (const sx of [-1, 1]) f.add(b, mesh(new THREE.BoxGeometry(W / 2 - 2, 0.3, 0.06), tileRed), sx * (W / 4 + 1), 0.8, D / 2 + 0.17);
+
+  // Entry tower over the doors: two stucco piers and a header standing proud of the glass, the tower box above
+  // the roof, a clay-tile hip roof, the logo and the street number.
+  const tz = D / 2 + 0.45;
+  for (const s of [-1, 1]) f.box(b, s * 2.35, 0, tz, 0.6, H + 0.4, 0.9, stucco);
+  f.add(b, mesh(new THREE.BoxGeometry(5.3, H - 3.0 + 0.4, 0.9), stucco, 0, 0, 0, true), 0, 3.0 + (H - 3.0 + 0.4) / 2, tz);
+  f.add(b, mesh(new THREE.BoxGeometry(5.3, 3.0, 4.2), stucco, 0, 0, 0, true), 0, H + 1.9, D / 2 - 1.65);
+  f.add(b, mesh(new THREE.BoxGeometry(5.8, 0.2, 4.7), stucco), 0, H + 3.45, D / 2 - 1.65);
+  f.add(b, hipRoof(6.2, 5.1, 1.55), 0, H + 3.52, D / 2 - 1.65);
+  const logoMat = new THREE.MeshStandardMaterial({ map: inNOutLogo(), transparent: true, roughness: 0.45, emissive: 0xffffff, emissiveMap: inNOutLogo(), emissiveIntensity: 0.1 });
+  b.nightGlow(logoMat, 0.1, 1.1);
+  f.add(b, new THREE.Mesh(new THREE.PlaneGeometry(4.2, 3.15), logoMat), 0, H + 1.85, D / 2 + 0.47);
+  if (address) f.add(b, textPlate(address, 1.4, 0.42, '#f6f2ea', '#b8141f', 'bold'), 0, 3.35, tz + 0.47);
+
+  // Back-corner tower with its own tile roof and a second logo facing the side (the bridge, here).
+  const bx = W / 2 - 2.2;
+  const bz = -D / 2 + 2.2;
+  f.add(b, mesh(new THREE.BoxGeometry(4.4, 2.5, 4.4), stucco, 0, 0, 0, true), bx, H + 1.6, bz);
+  f.add(b, mesh(new THREE.BoxGeometry(4.9, 0.2, 4.9), stucco), bx, H + 2.92, bz);
+  f.add(b, hipRoof(5.3, 5.3, 1.4), bx, H + 3.0, bz);
+  f.add(b, new THREE.Mesh(new THREE.PlaneGeometry(3.7, 2.75), logoMat), bx + 2.21, H + 1.7, bz, Math.PI / 2);
+
+  // Awnings over the front windows, and over two side windows facing the drive-thru.
+  for (const sx of [-1, 1]) awning(b, f, sx * (W / 4 + 1), D / 2 + 0.1, W / 2 - 2.2, 3.55, 0);
+  const sideGlass = new THREE.MeshStandardMaterial({ color: 0x1d2630, emissive: 0xffe2b0, emissiveIntensity: 0.06, roughness: 0.12, metalness: 0.4 });
+  b.nightGlow(sideGlass, 0.06, 0.9);
+  for (const lz of [-0.8, 3.2]) {
+    f.add(b, mesh(new THREE.BoxGeometry(0.08, 2.1, 2.8), sideGlass), W / 2 + 0.22, 2.1, lz);
+    awning(b, f, W / 2 + 0.2, lz, 3.0, 3.5, Math.PI / 2);
+  }
+}
+
 // =====================================================================================
 // In-N-Out: spotless, slammed busy, the good one.
 // =====================================================================================
-export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number, opts: { name: string; standalone: boolean; w?: number; d?: number; y?: number; patio?: boolean; inLine?: boolean }): RestaurantDef {
+export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number, opts: { name: string; standalone: boolean; w?: number; d?: number; y?: number; patio?: boolean; inLine?: boolean; look?: 'vegas'; address?: string; queueCars?: number; patioXs?: number[] }): RestaurantDef {
   const y0 = opts.y ?? 0;
   const f = frame(x, z, rotY, y0);
   const W = opts.w ?? 18;
@@ -156,14 +345,14 @@ export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number,
 
   // Roof: red fascia band with the yellow stripe + roof slab
   f.box(b, 0, H, 0, W + 0.6, 0.35, D + 0.6, white, false, false);
-  for (const s of [-1, 1]) {
+  if (opts.look === 'vegas') vegasShell(b, f, W, D, H, opts.address ?? '');
+  else for (const s of [-1, 1]) {
     f.add(b, mesh(new THREE.BoxGeometry(W + 1.2, 1.1, 0.25), red), 0, H + 0.6, s * (D / 2 + 0.42));
     f.add(b, mesh(new THREE.BoxGeometry(W + 1.22, 0.16, 0.27), yellow), 0, H + 0.12, s * (D / 2 + 0.42));
     f.add(b, mesh(new THREE.BoxGeometry(0.25, 1.1, D + 1.2), red), s * (W / 2 + 0.42), H + 0.6, 0);
     f.add(b, mesh(new THREE.BoxGeometry(0.27, 0.16, D + 1.22), yellow), s * (W / 2 + 0.42), H + 0.12, 0);
   }
-  const front = textPlate('In-N-Out Burger', 9, 1.0, '#d81e2a', '#ffffff', 'italic bold');
-  f.add(b, front, 0, H + 0.6, D / 2 + 0.56);
+  if (opts.look !== 'vegas') f.add(b, textPlate('In-N-Out Burger', 9, 1.0, '#d81e2a', '#ffffff', 'italic bold'), 0, H + 0.6, D / 2 + 0.56);
 
   // Counter, registers, kitchen with grill + fryers, menu board, number board
   const counterZ = -D / 2 + 4.2;
@@ -301,8 +490,8 @@ export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number,
     f.add(b, p, -W / 2 - 2.2 + s * 0.8, 0, D / 2 + 1.5);
   }
   }
-  for (let i = 0; i < (opts.patio === false ? 0 : 4); i++) {
-    const lx = -6 + i * 4;
+  const patioXs = opts.patio === false ? [] : (opts.patioXs ?? [-6, -2, 2, 6]);
+  for (const lx of patioXs) {
     const lz = D / 2 + 3;
     f.add(b, table(0xf7f5f0, 0xc8ccd4, 4, 0xd81e2a), lx, 0, lz);
     const umb = new THREE.Group();
@@ -312,17 +501,18 @@ export function buildInNOut(b: WorldBuilder, x: number, z: number, rotY: number,
     b.collider(...aabb(f.p(lx, lz), 0.65, 0.45), y0, y0 + 0.8, true);
     tables.push({ pos: f.p(lx + 0.3, lz + 0.75), yaw: f.yaw(Math.PI), taken: null });
   }
-  if (opts.patio !== false) f.add(b, planter(W, 0.9, 0xff4d4d), 0, 0, D / 2 + 5.2);
+  if (opts.patio !== false && !opts.patioXs) f.add(b, planter(W, 0.9, 0xff4d4d), 0, 0, D / 2 + 5.2);
 
   // Drive-thru lane with a permanent line of cars (it is ALWAYS like this)
   if (opts.standalone) {
     const lane = mat(0x2b2b30, 0.85);
-    const laneMesh = mesh(new THREE.PlaneGeometry(4, D + 10), lane);
+    const nCars = opts.queueCars ?? 5;
+    const laneMesh = mesh(new THREE.PlaneGeometry(4, nCars < 5 ? D + 4 : D + 10), lane);
     laneMesh.rotation.x = -Math.PI / 2;
     f.add(b, laneMesh, W / 2 + 3, 0.04, -1);
     laneMesh.rotation.set(-Math.PI / 2, 0, -rotY);
     const colors = [0xffffff, 0x222222, 0xc4161c, 0x2d4f8c, 0x6b6f76, 0xf2f2f0];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < nCars; i++) {
       const c = car(i % 3 === 0 ? 'suv' : 'sedan', colors[i % colors.length]);
       f.add(b, c.group, W / 2 + 3, 0, D / 2 - 1 - i * 5.4, Math.PI);
       b.collider(...aabb(f.p(W / 2 + 3, D / 2 - 1 - i * 5.4), 1.0, 2.4), 0, 1.6, true);
