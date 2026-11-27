@@ -205,6 +205,7 @@ export function buildHarrahsWalkIn(b: WorldBuilder): void {
     maxZ: CZ1,
     height: CH,
     entrance: { side: 'west', at: NORTH_Z, width: 6 },
+    bare: ['west'],
     extraEntrances: [{ side: 'west', at: ARCH_Z, width: 9.8, inner: true }],
     interior: {
       ceiling: 'tray',

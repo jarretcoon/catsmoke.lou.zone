@@ -32,8 +32,10 @@ export interface HallSpec {
   /** Sides with no wall at all (the hall opens straight into a neighbour). */
   open?: Side[];
   roof?: THREE.Material;
-  /** Roof slab colour (also the underside the camera can hit). */
+  /** Wall thickness (default 1.2). */
   t?: number;
+  /** Leave the roof off (the caller builds its own, e.g. round a skylight). */
+  noRoof?: boolean;
 }
 
 /** Walls (with door gaps and lintels), the roof slab and the colliders for a lobby / atrium / arcade box. */
@@ -62,7 +64,7 @@ export function hallShell(b: WorldBuilder, s: HallSpec): GateBox {
     }
     seg(cur, hi, 0, s.h);
   }
-  b.box((s.x0 + s.x1) / 2, s.h, (s.z0 + s.z1) / 2, s.x1 - s.x0 + t, 0.6, s.z1 - s.z0 + t, s.roof ?? s.wall, false, true);
+  if (!s.noRoof) b.box((s.x0 + s.x1) / 2, s.h, (s.z0 + s.z1) / 2, s.x1 - s.x0 + t, 0.6, s.z1 - s.z0 + t, s.roof ?? s.wall, false, true);
   return gateOf(s.x0, s.x1, s.z0, s.z1, s.h, [...s.doors, ...(s.open ?? []).map((side) => ({ side, at: side === 'east' || side === 'west' ? (s.z0 + s.z1) / 2 : (s.x0 + s.x1) / 2, width: side === 'east' || side === 'west' ? s.z1 - s.z0 : s.x1 - s.x0 }))]);
 }
 
@@ -616,4 +618,89 @@ export function drumPendant(k: Kit, x: number, y: number, z: number, r: number, 
 export function tableLamp(k: Kit, x: number, y: number, z: number, shade: number): void {
   k.cyl(vcMat(0.3, 0.8), 0xc8a050, x, y + 0.15, z, 0.02, 0.05, 0.3, 6);
   k.cyl(glowMat(), shade, x, y + 0.38, z, 0.08, 0.14, 0.18, 10);
+}
+
+// ---------------------------------------------------------------- outside walls
+const facadeCache = new Map<string, THREE.MeshStandardMaterial>();
+/**
+ * A tiling outside-wall bay (one bay per `bay` metres): stucco, pilasters, an arched window of lit
+ * shop glass with a sill and keystone; only the glass glows after dark. For the sides of the walk-in
+ * podiums that the street front code doesn't dress.
+ */
+export function archFacade(b: WorldBuilder, wall: string, trim: string, glass: string, glow: string): THREE.MeshStandardMaterial {
+  const key = wall + trim + glass + glow;
+  let m = facadeCache.get(key);
+  if (m) return m;
+  const arch = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const x0 = w * 0.24;
+    const x1 = w * 0.76;
+    const yTop = h * 0.22;
+    const yBot = h * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(x0, yBot);
+    ctx.lineTo(x0, yTop + (x1 - x0) / 2);
+    ctx.arc((x0 + x1) / 2, yTop + (x1 - x0) / 2, (x1 - x0) / 2, Math.PI, 0);
+    ctx.lineTo(x1, yBot);
+    ctx.closePath();
+  };
+  const map = canvasTex(
+    256,
+    320,
+    (ctx, w, h) => {
+      ctx.fillStyle = wall;
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = trim;
+      ctx.fillRect(0, 0, w * 0.08, h);
+      ctx.fillRect(w * 0.92, 0, w * 0.08, h);
+      ctx.fillRect(0, h * 0.95, w, h * 0.05);
+      arch(ctx, w, h);
+      const g = ctx.createLinearGradient(0, h * 0.2, 0, h * 0.9);
+      g.addColorStop(0, glass);
+      g.addColorStop(1, '#3a2a1a');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = trim;
+      ctx.lineWidth = 8;
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(w / 2, h * 0.24);
+      ctx.lineTo(w / 2, h * 0.9);
+      ctx.moveTo(w * 0.24, h * 0.52);
+      ctx.lineTo(w * 0.76, h * 0.52);
+      ctx.stroke();
+      ctx.fillStyle = trim;
+      ctx.fillRect(w * 0.2, h * 0.9, w * 0.6, h * 0.03);
+      ctx.fillRect(w * 0.46, h * 0.16, w * 0.08, h * 0.07);
+    },
+    true
+  );
+  const emis = canvasTex(
+    256,
+    320,
+    (ctx, w, h) => {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+      arch(ctx, w, h);
+      ctx.fillStyle = glow;
+      ctx.fill();
+    },
+    true
+  );
+  m = b.nightGlow(new THREE.MeshStandardMaterial({ map, emissive: 0xffffff, emissiveMap: emis, emissiveIntensity: 0.05, roughness: 0.75 }), 0.05, 0.75);
+  facadeCache.set(key, m);
+  return m;
+}
+
+/** Lay an archFacade plane on an outside wall face (centre x/z, `len` long, facing `ry`), bays every `bay` m. */
+export function facadePlane(b: WorldBuilder, m: THREE.Material, x: number, z: number, len: number, ry: number, y0 = 0.4, h = 5.6, bay = 4.5): void {
+  if (len < 0.5) return;
+  const g = new THREE.PlaneGeometry(len, h);
+  const uv = g.attributes.uv as THREE.BufferAttribute;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, (uv.getX(i) * len) / bay);
+  const me = new THREE.Mesh(g, m);
+  me.position.set(x, y0 + h / 2, z);
+  me.rotation.y = ry;
+  me.receiveShadow = true;
+  b.add(me);
 }

@@ -89,4 +89,29 @@ Object.assign(CATALOGS, {
       food('fs-coffee', 'Cold Brew', 'A sprint for 2 min.', 6, 1, 1.12, 120, '☕'),
     ],
   },
+  // ---------------------------------------------------------------- The Palazzo
+  'palazzo-lavo': {
+    title: 'LAVO Lounge',
+    sub: 'Italian restaurant & lounge • The Palazzo',
+    greeting: 'Buonasera. Table for one cat?',
+    bye: 'Ciao',
+    items: [
+      drink('lv-negroni', 'Negroni', '🍹 for 2 min. Swag points for ordering it right.', 22, 120, { degen: [8, 'Five-Star Feline'] }),
+      drink('lv-spritz', 'Aperol Spritz', '🍹 for 90 s.', 19, 90),
+      drink('lv-limoncello', 'Limoncello Shot', '🍹 for 60 s.', 12, 60),
+      food('lv-meatball', 'The One-Pound Meatball', 'LAVO’s famous one. Tips ×1.4 for 3 min, and Lou naps after.', 36, 1.4, 0.95, 180, '🍝', 'FAMOUS'),
+    ],
+  },
+  'palazzo-shop': {
+    title: 'The Palazzo Shop',
+    sub: 'Venetian glass • perfume • gelato • Grand Canal Shoppes',
+    greeting: 'Benvenuti! Everything is from Venice. Mostly.',
+    bye: 'Grazie',
+    items: [
+      item('pz-glass-cat', 'Keepsakes', 'Murano Glass Cat', 'A tiny glass tabby. It looks like Lou. Collectible.', 42, { collect: true, degen: [10, 'Souvenir Hoarder'] }, 'NEW'),
+      item('pz-lantern', 'Keepsakes', 'Silk Atrium Lantern', 'Like the ones under the dome. Collectible.', 28, { collect: true }),
+      item('pz-fedora', 'Wear', 'Rat Pack Fedora', 'Wearable • +2 Swag. The Sands stood right here.', 120, { wear: 'fedora' }),
+      item('pz-gelato', 'Snacks', 'Pistachio Gelato', 'A sprint for 90 s.', 9, { speed: 1.15, secs: 90, icon: '🍨' }),
+    ],
+  },
 });
