@@ -253,6 +253,10 @@ export function squashZ(b: WorldBuilder, z0: number, z1: number, n0: number, bui
   const nRoot = b.root.children.length;
   const nCol = b.colliders.length;
   const nZone = b.zones.length;
+  const nFeat = b.mapFeatures.length;
+  const nPick = b.cigPickups.length;
+  const nProp = b.props.length;
+  const nTour = b.crowd.tourists.length;
   build();
   const g = new THREE.Group();
   g.position.z = z1;
@@ -274,6 +278,18 @@ export function squashZ(b: WorldBuilder, z0: number, z1: number, n0: number, bui
     zn.maxZ = f(zn.maxZ);
     zn.area = (zn.maxX - zn.minX) * (zn.maxZ - zn.minZ);
   }
+  for (let i = nFeat; i < b.mapFeatures.length; i++) {
+    const m = b.mapFeatures[i];
+    m.z = f(m.z);
+    m.d *= k;
+  }
+  for (let i = nPick; i < b.cigPickups.length; i++) {
+    const p = b.cigPickups[i];
+    p.position.z = f(p.position.z);
+    p.mesh.position.z = p.position.z;
+  }
+  for (let i = nProp; i < b.props.length; i++) b.props[i].obj.position.z = f(b.props[i].obj.position.z);
+  for (let i = nTour; i < b.crowd.tourists.length; i++) for (const pt of b.crowd.tourists[i].pts) pt[1] = f(pt[1]);
 }
 
 function sign(b: WorldBuilder, text: string, w: number, h: number, x: number, y: number, z: number, rot: number, o: Parameters<typeof letters>[4]): void {

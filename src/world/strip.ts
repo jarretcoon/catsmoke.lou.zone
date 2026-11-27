@@ -92,10 +92,11 @@ export function inMouth(z: number, s: -1 | 1, pad = 0): boolean {
 export const CROSSWALKS: StripCrossing[] = [
   { z: -797, name: 'Circus Circus Dr', offset: 6, road: 'west' },
   { z: -735.3, name: 'Circus Circus main entrance', offset: 3, road: 'west' },
-  { z: -669.8, name: 'Resorts World Ave', offset: 12 },
+  // Resorts World Ave and Fashion Show Dr (west only): roads by northCrossRoads.ts
+  { z: -666.4, name: 'Resorts World Ave', offset: 12, mouth: [-682.9, -670.1], mouthSide: 'west', stop: [-685.2, -663.8], poles: [-663.2, -686.2] },
   { z: -615.3, name: 'Convention Center Dr', offset: 2, road: 'east' },
   { z: -573.1, name: 'Genting Blvd', offset: 8 },
-  { z: -475.3, name: 'Fashion Show Dr', offset: 4 },
+  { z: -494.4, name: 'Fashion Show Dr', offset: 4, mouth: [-490.4, -477.6], mouthSide: 'west', stop: [-496.8, -475.2], poles: [-474.6, -497.2] },
   { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both', bridged: true, eastStub: 40 },
   // Harmon: the crosswalk is on the south leg (the 2012 bridge carries the north one); the road is crossRoads.ts's
   { z: 226, name: 'Harmon Ave', offset: 3, mouth: [207.8, 221.8], stop: [205.6, 230.4], poles: [229.6, 223.3] },

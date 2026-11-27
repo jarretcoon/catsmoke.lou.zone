@@ -363,6 +363,13 @@ export function buildSouthNeighbours(b: WorldBuilder, zS: number, zN: number): v
   const objs: THREE.Object3D[] = [];
   // ---- the vacant lot (Westward Ho, razed 2006): dirt, weeds, windscreen fence along the sidewalk
   const lotN = zN + 12.5;
+  // (Resorts World Ave now takes this strip: crossRoads.ts passes zS at the lot's north edge and the lot is skipped)
+  if (zS - lotN > 4) buildWestwardHoLot(b, objs, zS, lotN);
+  // ---- McDonald's: charcoal box, wood-slat bays, the yellow arch blade, glass to the Strip, drive-thru
+  buildMcDonalds(b, objs, zS, zN, lotN);
+}
+
+function buildWestwardHoLot(b: WorldBuilder, objs: THREE.Object3D[], zS: number, lotN: number): void {
   b.floor(-40, (zS + lotN) / 2, 42, zS - lotN, mat(0xa8926e, 0.98), 0.014);
   windscreenFence(objs, -19.6, zS - 0.6, -19.6, lotN + 0.4);
   windscreenFence(objs, -19.6, lotN + 0.4, -60, lotN + 0.4);
@@ -373,8 +380,9 @@ export function buildSouthNeighbours(b: WorldBuilder, zS: number, zN: number): v
   b.add(lotSign, -20.0, 3.3, (zS + lotN) / 2, HALF_PI);
   objs.push(boxM(0.12, 3.4, 0.12, mat(0x9a9ea4, 0.4, 0.7), -20.2, 1.7, (zS + lotN) / 2 - 2), boxM(0.12, 3.4, 0.12, mat(0x9a9ea4, 0.4, 0.7), -20.2, 1.7, (zS + lotN) / 2 + 2));
   b.zone('Vacant lot (former Westward Ho)', -60, -19, lotN, zS);
+}
 
-  // ---- McDonald's: charcoal box, wood-slat bays, the yellow arch blade, glass to the Strip, drive-thru
+function buildMcDonalds(b: WorldBuilder, objs: THREE.Object3D[], zS: number, zN: number, lotN: number): void {
   const mz = (lotN + zN) / 2 - 0.4;
   const mx0 = -24.5;
   const mx1 = -38;

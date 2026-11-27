@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { squashZ } from './harmonAve';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { bakeGroup } from '../meshBake';
 import type { WorldBuilder } from './builder';
@@ -26,9 +27,9 @@ import { bulbPath, bulbRect, letterFace, letters, neonPanel } from './signKit';
  */
 export function buildNorthStrip(b: WorldBuilder): void {
   buildFashionShow(b);
-  buildFrontierLot(b);
+  squashZ(b, -476.5, -575.6, -492.6, () => buildFrontierLot(b)); // Fashion Show Dr runs along its south fence (northCrossRoads.ts)
   buildResortsWorld(b);
-  buildSouthNeighbours(b, -671, -697);
+  buildSouthNeighbours(b, -684.2, -697); // Resorts World Ave takes the old lot's strip (northCrossRoads.ts)
   buildSlotsAFun(b);
   buildCircusCircus(b);
   buildNorthNeighbours(b, Z_CCDR, STRIP.north);
