@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { WorldBuilder } from './builder';
 import { mat, mesh } from './props';
-import { STRIP } from './strip';
+import { inMouth, STRIP } from './strip';
 import { canvasTex } from './themedKit';
 
 /*
@@ -164,6 +164,7 @@ export function buildCurbBollards(b: WorldBuilder, deuceStops: Array<{ z: number
     for (let z = STRIP.north + 8; z < STRIP.south - 8; z += 1.55) {
       if (Math.abs(z) < 28 || Math.abs(z - STRIP.tropicanaZ) < 28 || Math.abs(z + 407) < 21 || (z > 880 && z < 960)) continue;
       if (crossings.some((c) => Math.abs(c.z - z) < (c.road ? 12 : 6))) continue;
+      if (inMouth(z, s, 1.5)) continue; // a cross street's mouth (crossRoads.ts)
       if (deuceStops.some((d) => d.side === s && Math.abs(d.z - z) < 4.5)) continue;
       // driveway mouths (Bellagio's main drive, Wynn's)
       if ((s < 0 && z > 93 && z < 112) || (s > 0 && z > -561 && z < -545)) continue;
