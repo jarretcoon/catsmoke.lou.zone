@@ -125,9 +125,13 @@ function buildReno(b: WorldBuilder, mg: Merger, paths: TrafficPath[]): void {
   const tan = mat(0xd9c3a0, 0.85);
   const roofM = mat(0x6e5a48, 0.8);
   b.box(84, 0, 556, 32, 9, 20, tan, true);
-  const roof = new THREE.BoxGeometry(33, 0.6, 21);
-  roof.rotateX(-0.12);
-  mg.at(roofM, roof, 84, 10.2, 556);
+  // the nave's pitched roof (a gable running east-west) and a clerestory band under its eaves
+  const gable = new THREE.CylinderGeometry(12.2, 12.2, 33, 3, 1);
+  gable.rotateZ(Math.PI / 2);
+  gable.rotateX(Math.PI / 6);
+  gable.scale(1, 0.34, 0.9);
+  mg.at(roofM, gable, 84, 9.0 + 12.2 * 0.34 * 0.5, 556);
+  mg.box(mat(0x3a5a7a, 0.3, 0.3), 84, 8.4, 545.95, 31, 0.8, 0.1);
   b.box(68.5, 0, 545.5, 4.5, 24, 4.5, tan, true); // bell tower
   mg.box(mat(0xf2ead8, 0.6), 68.5, 26.2, 545.5, 0.35, 4.4, 0.35);
   mg.box(mat(0xf2ead8, 0.6), 68.5, 27.2, 545.5, 2.2, 0.35, 0.35);
