@@ -832,3 +832,117 @@ export function offsetLine(pts: P[], o: number, reverse = false): P[] {
 }
 
 export { v3 };
+
+// ---------------------------------------------------------------- a cross street meeting the Boulevard
+/** Arc length of the point on a polyline closest to (x, z). */
+export function sOn(pts: P[], x: number, z: number): number {
+  const fr = frames(pts);
+  let best = Infinity;
+  let bs = 0;
+  for (let i = 0; i < fr.length - 1; i++) {
+    const a = fr[i];
+    const c = fr[i + 1];
+    const dx = c.x - a.x;
+    const dz = c.z - a.z;
+    const L2 = dx * dx + dz * dz || 1;
+    const k = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.z) * dz) / L2, 0, 1);
+    const d = Math.hypot(x - (a.x + dx * k), z - (a.z + dz * k));
+    if (d < best) {
+      best = d;
+      bs = a.s + k * Math.sqrt(L2);
+    }
+  }
+  return bs;
+}
+
+const STRIP_CURB = 11.6;
+const STRIP_LANES = [3.1, 6.5, 9.9];
+
+export interface StripRoad {
+  /** +1 east of the Boulevard, −1 west */
+  sgn: 1 | -1;
+  /** the outward centreline, first point at the Boulevard curb */
+  pts: P[];
+  road: BuiltRoad;
+  /** the Boulevard's own phase for its lanes here, and the side street's */
+  stripPhase: (t: number) => Phase;
+  sidePhase: (t: number) => Phase;
+  /** Boulevard stop lines (southbound z, northbound z) */
+  stop: [number, number];
+  /** signals further out: arc length along the road and the phase, for the outbound / inbound lanes */
+  outStops?: Array<[number, (t: number) => Phase]>;
+  inStops?: Array<[number, (t: number) => Phase]>;
+  counts?: [number, number, number, number];
+  speed?: number;
+  /** blade on the side street's signal arm */
+  blade?: string;
+}
+
+/**
+ * The Boulevard end of a cross street: the crosswalk across its mouth, the inbound stop bar and turn
+ * arrows, its signal on the inbound corner, and traffic turning in from (and out onto) the Boulevard.
+ */
+export function stripEnd(b: WorldBuilder, mg: Merger, o: StripRoad, cull: [P, number], seed: number): void {
+  const { road, sgn } = o;
+  const half = road.W / 2;
+  crosswalk(mg, road, 3.2);
+  stopBar(mg, road, 5.6, -half + 0.4, road.laneOffset(-1, 1) + 1.5);
+  laneArrow(mg, road, 12, road.laneOffset(-1, 0), -1, 'right');
+  laneArrow(mg, road, 12, road.laneOffset(-1, 1), -1, 'left');
+  const p = at(road.fr, 6.2);
+  const po = -(half + 0.9);
+  const reach = half + 0.4 - Math.abs(road.laneOffset(-1, 1)) + 3.4;
+  signal(b, p.x + p.rx * po, p.z + p.rz * po, p.rx, p.rz, Math.max(4.4, Math.min(7.2, reach + 2.2)), o.sidePhase, o.blade ?? 'Las Vegas Blvd S');
+
+  const L = STRIP_LANES;
+  const sp = o.speed ?? 11;
+  const [cOut0, cOut1, cIn0, cIn1] = o.counts ?? [4, 3, 4, 3];
+  const outC = offsetLine(o.pts, road.laneOffset(1, 0));
+  const outI = offsetLine(o.pts, road.laneOffset(1, 1));
+  const inC = offsetLine(o.pts, road.laneOffset(-1, 0), true);
+  const inI = offsetLine(o.pts, road.laneOffset(-1, 1), true);
+  const zc = o.pts[0][1];
+  const paths: TrafficPath[] = [];
+  const mk = (pts: P[], count: number, stops: Array<[number, number, (t: number) => Phase]>) => paths.push({ pts, count, speed: sp, stops: stops.map(([x, z, ph]) => ({ s: sOn(pts, x, z), phase: ph })) });
+  const roadPt = (s: number, off: number): [number, number] => {
+    const q = at(road.fr, s);
+    return [q.x + q.rx * off, q.z + q.rz * off];
+  };
+  const outward = (line: P[], from: number) => line.filter((q) => (q[0] - from) * sgn > 0);
+  const xIn = sgn * (STRIP_CURB + 6);
+  // outbound curb lane: a right turn in from the Boulevard's curb lane (northbound for east roads, southbound for west)
+  const dzR = -sgn; // that lane's heading in z
+  const zO0 = outC[0][1];
+  mk(
+    [[sgn * L[2], zc - dzR * 45], [sgn * L[2], zc - dzR * 9], ...turn(sgn * L[2], zc - dzR * 9, sgn * L[2], zO0, xIn, zO0), ...outward(outC, xIn - sgn * 0.5)],
+    cOut0,
+    (o.outStops ?? []).map(([s, ph]) => [...roadPt(s, road.laneOffset(1, 0)), ph])
+  );
+  // outbound inner lane: a left turn in from the opposite inner lane, held by the Boulevard's signal
+  const dzL = sgn; // the opposite direction's heading
+  const zO1 = outI[0][1];
+  const xI1 = -sgn * L[1];
+  const stopZ = sgn > 0 ? o.stop[0] : o.stop[1];
+  mk(
+    [[xI1, zc - dzL * 50], [xI1, stopZ + dzL * 1.5], ...turn(xI1, stopZ + dzL * 1.5, xI1 + sgn * 2, zO1, sgn * (STRIP_CURB + 2), zO1), ...outward(outI, sgn * (STRIP_CURB + 1.5))],
+    cOut1,
+    [[xI1, stopZ, o.stripPhase], ...(o.outStops ?? []).map(([s, ph]) => [...roadPt(s, road.laneOffset(1, 1)), ph] as [number, number, (t: number) => Phase])]
+  );
+  // inbound curb lane: a right turn out onto the Boulevard's curb lane
+  const zI0 = inC[inC.length - 1][1];
+  const sideStop = (x: number, z: number): [number, number, (t: number) => Phase] => [x, z, o.sidePhase];
+  mk(
+    [...inC.filter((q) => (q[0] - xIn) * sgn > 0), [xIn, zI0], ...turn(xIn, zI0, sgn * L[2], zI0, sgn * L[2], zI0 + dzR * 9), [sgn * L[2], zI0 + dzR * 9], [sgn * L[2], zI0 + dzR * 90]],
+    cIn0,
+    [...(o.inStops ?? []).map(([s, ph]) => [...roadPt(s, road.laneOffset(-1, 0)), ph] as [number, number, (t: number) => Phase]), sideStop(sgn * (STRIP_CURB + 5.4), zI0)]
+  );
+  // inbound inner lane: a left turn out onto the far side of the Boulevard
+  const zI1 = inI[inI.length - 1][1];
+  const xo = sgn * (STRIP_CURB + 5.4);
+  mk(
+    [...inI.filter((q) => (q[0] - xo) * sgn > 0), [xo, zI1], ...turn(xo, zI1, -sgn * L[1], zI1, -sgn * L[1], zI1 + dzL * 12), [-sgn * L[1], zI1 + dzL * 12], [-sgn * L[1], zI1 + dzL * 95]],
+    cIn1,
+    [...(o.inStops ?? []).map(([s, ph]) => [...roadPt(s, road.laneOffset(-1, 1)), ph] as [number, number, (t: number) => Phase]), sideStop(xo, zI1)]
+  );
+  pathTraffic(b, paths, cull[0], cull[1], seed);
+}
