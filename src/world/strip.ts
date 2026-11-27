@@ -271,7 +271,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   b.add(cross);
   b.feature({ kind: 'road', x: crossMid, z: 0, w: crossLen, d: STRIP.flamingoHalf * 2, color: '#3b3a40' });
   b.zone('Flamingo Rd & Las Vegas Blvd', -STRIP.sidewalkOuter, STRIP.sidewalkOuter, -STRIP.flamingoWalk, STRIP.flamingoWalk);
-  // --- Tropicana Ave (west surface stops at -114 where interstate.ts Dropicana overpass ramp starts) ---
+  // --- Tropicana Ave (west surface stops at -114 where interstate.ts Tropicana overpass ramp starts) ---
   const tropWest = -114;
   const tropLen = STRIP.flamingoEast - tropWest;
   const tropMid = (STRIP.flamingoEast + tropWest) / 2;

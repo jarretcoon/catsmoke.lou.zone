@@ -15,6 +15,24 @@ const drink = (id: string, name: string, desc: string, price: number, buzz: numb
 const food = (id: string, name: string, desc: string, price: number, tip: number, speed: number, secs: number, icon: string, tag?: string) => item(id, 'Food', name, desc, price, { tip, speed, secs, icon }, tag);
 
 export const CATALOGS: Record<string, ShopCatalog> = {
+  // ---------------------------------------------------------------- Dean Martin Dr: the In-N-Out Company Store (4838)
+  'in-n-out-store': {
+    title: 'In-N-Out Burger Company Store',
+    sub: 'Shirts • Hats • Mugs • Keychains • 4838 Dean Martin Dr',
+    greeting: 'Welcome in! The burgers are next door, the merch is right here.',
+    bye: 'Thanks, have a great day',
+    items: [
+      item('ino-tee-palms', 'Shirts', 'Crossed Palms Tee', 'The red-and-yellow palm trees shirt. Lou naps on it. Collectible.', 22, { collect: true, degen: [8, 'Double-Double Devotee'] }),
+      item('ino-tee-cruiser', 'Shirts', 'Vegas Cruiser Tee', 'A hot-rod and the Strip on the back. Collectible.', 24, { collect: true, degen: [8, 'Double-Double Devotee'] }),
+      item('ino-hoodie', 'Shirts', 'Red Logo Hoodie', 'Big enough to be Lou’s new bed. Collectible.', 45, { collect: true, degen: [12, 'Double-Double Devotee'] }, 'NEW'),
+      item('ino-trucker', 'Hats', 'Red Arrow Trucker Hat', 'Wearable • +1 Swag (Lou wears his trucker cap)', 18, { wear: 'trucker-hat' }),
+      item('ino-paper-hat', 'Hats', 'Paper Crew Hat', 'The folded paper cap the crew wears. Lou shreds it in four seconds. Collectible.', 3, { collect: true, degen: [4, 'Crew Member (Honorary)'] }),
+      item('ino-mug', 'Mugs', 'Classic Logo Mug', 'Red and white, holds coffee or one small cat. Collectible.', 14, { collect: true, degen: [6, 'Double-Double Devotee'] }),
+      item('ino-tumbler', 'Mugs', 'Palm Tree Tumbler', 'Keeps a shake cold on the Strip. Collectible.', 20, { collect: true }),
+      item('ino-keychain-cup', 'Keychains', 'Drink Cup Keychain', 'A tiny cup with the palms on it. Collectible.', 6, { collect: true, degen: [5, 'Souvenir Hoarder'] }),
+      item('ino-keychain-burger', 'Keychains', 'Double-Double Keychain', 'A rubber burger. Lou bats it under the counter. Collectible.', 7, { collect: true, degen: [5, 'Souvenir Hoarder'] }),
+    ],
+  },
   // ---------------------------------------------------------------- souvenirs
   'linq-souvenirs': {
     title: 'Welcome to Fabulous Las Vegas',

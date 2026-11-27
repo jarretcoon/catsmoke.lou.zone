@@ -8,7 +8,7 @@ import { buildInstancedTraffic, flatRoad, freewayGantrySign, lightPoolMat, roadS
  * Interstate 15 (I-15) and its Las Vegas Resort Corridor interchanges:
  * - I-15 NB & SB mainlines (x = -213 .. -173, z = -860 .. +920), center Jersey barrier,
  *   high-mast sodium freeway lighting, ribbed desert-concrete sound walls, overhead gantries.
- * - Tropicana Ave / I-15 Interchange ("Dropicana" 2025/2026 layout): widened Tropicana bridge
+ * - Tropicana Ave / I-15 Interchange (2025/2026 layout): widened Tropicana bridge
  *   over Frank Sinatra Dr & I-15 (-114 -> -246), SB-to-EB flyover ramp, on/off ramps.
  * - Harmon Ave & Flamingo Rd walkable overpass bridges crossing I-15 to Dean Martin Dr.
  */
@@ -124,7 +124,7 @@ function buildSoundWalls(b: WorldBuilder, mg: Merger): void {
   wallRun(I15.westWallX, 498, 880);
 }
 
-// ================================================================ Bridges & Dropicana Ramps
+// ================================================================ Bridges & Tropicana Ramps
 
 function buildBridge(
   b: WorldBuilder,
@@ -245,10 +245,10 @@ function buildBridge(
 }
 
 function buildOverpassesAndRamps(b: WorldBuilder, mg: Merger): void {
-  // 1. Widened "Dropicana" Tropicana Ave Overpass (z = 442.7, 6 lanes + wide pedestrian sidewalks)
+  // 1. Widened Tropicana Ave Overpass (z = 442.7, 6 lanes + wide pedestrian sidewalks)
   buildBridge(b, mg, I15.tropZ, 21.0, 6, -114, -144, -226, -246, 7.2, 'Tropicana Ave Bridge (I-15)');
 
-  // 2. Dropicana SB-to-EB Flyover Viaduct (iconic curving flyover from I-15 SB over I-15 down to Tropicana EB!)
+  // 2. Tropicana SB-to-EB Flyover Viaduct (iconic curving flyover from I-15 SB over I-15 down to Tropicana EB!)
   const viaduct = mat(0x9e988e, 0.85);
   const deckAsph = roadStripMat(2, 120, false);
   const flyPts: Array<[number, number, number]> = [
@@ -375,6 +375,6 @@ function buildFreewayTraffic(b: WorldBuilder): void {
     { axis: 'x', lanePos: I15.flamingoZ - 4.0, min: -290, max: -146, dir: -1, count: 5, speed: 13, yAt: flamingoY },
   ];
 
-  // Tight cull radius around I-15 core (Flamingo -> Dropicana -> Allegiant corridor)
+  // Tight cull radius around I-15 core (Flamingo -> Tropicana -> Allegiant corridor)
   buildInstancedTraffic(b, lanes, [-195, 220], 360);
 }

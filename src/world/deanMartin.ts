@@ -21,11 +21,12 @@ import {
   type TrafficLane,
 } from './westKit';
 import { I15 } from './interstate';
+import { buildValleyViewBackdrop } from './valleyViewBackdrop';
 
 /**
  * Dean Martin Drive & the west-of-I-15 corridor (late-2026 layout, OSM & local listings verified):
  * Runs north from 5201 Hotel Galaxy / 5155 Shooting Center & Hollywood Car Museum / 5115 Auto Bays /
- * 5085 Motel 6 (I-15 Stadium) / Tropicana Wash, through the Dropicana right-in/right-out + Joey Bishop Dr
+ * 5085 Motel 6 (I-15 Stadium) / Tropicana Wash, through the Tropicana right-in/right-out + Joey Bishop Dr
  * underpass corridor (4975 Hampton Inn, 4940 Home2 Suites, 4920 TownePlace Suites, 3201 Chevron,
  * 3235 Jack in the Box, 3333 dark former Wendy's, 3457 McDonald's, 4888 In-N-Out Burger, 4838 In-N-Out
  * Company Store), past Grove Business Park / Hilton Garden Inn / Homewood Suites / Panorama Towers /
@@ -52,13 +53,14 @@ export function buildDeanMartin(b: WorldBuilder): void {
 
   buildBayGroundAndEdges(b, mg);
   buildDeanMartinRoadNetwork(b, mg);
-  buildDropicanaCornersSouth(b, mg, lot);
+  buildTropicanaCornersSouth(b, mg, lot);
   buildMotel6AndSouthIndustrial(b, mg, lot);
   buildInNOutNorthWedge(b, mg, lot);
   buildCityCenterWestRow(b, mg, lot);
   buildTommyRockersAndTwainCorridor(b, mg, lot);
   buildVisualSouthExtension(b, mg);
   buildBillboardsAndSignals(b, mg);
+  buildValleyViewBackdrop(b);
 
   mg.flush(b);
   lot.emit(b, -252, 265, 380);
@@ -160,7 +162,7 @@ function buildBayGroundAndEdges(b: WorldBuilder, mg: Merger): void {
   }
 }
 
-// ================================================================ Roads, 5-Lane TWLTL, Dropicana Median & Signals
+// ================================================================ Roads, 5-Lane TWLTL, Tropicana Median & Signals
 
 function angledRoadSeg(
   b: WorldBuilder,
@@ -204,14 +206,14 @@ function buildDeanMartinRoadNetwork(b: WorldBuilder, mg: Merger): void {
   angledRoadSeg(b, DM_FLAM_X, 40, DM_MAIN_X, 92, 16.4, 5, true);
   flatRoad(b, DM_MAIN_X, 239, 16.4, 296, 'z', 5, true, L1, 'Dean Martin Dr');
   angledRoadSeg(b, DM_MAIN_X, 386, DM_TROP_X, 424, 17.6, 5, true);
-  // Wide right-turn channelized flare approaching Dropicana & wrapping Hampton Inn down to z=482
+  // Wide right-turn channelized flare approaching Tropicana & wrapping Hampton Inn down to z=482
   flatRoad(b, DM_TROP_X, 453, 17.4, 58, 'z', 6, true, L1, 'Dean Martin Dr');
   angledRoadSeg(b, DM_TROP_X, 482, DM_MAIN_X, 502, 16.4, 5, true);
   flatRoad(b, DM_MAIN_X, 554, 16.4, 102, 'z', 5, true, L1, 'Dean Martin Dr');
 
   b.zone('Dean Martin Dr (Twain–Flamingo)', -255, -216, -196, 40);
   b.zone('Dean Martin Dr (Midtown–Harmon)', DM_MAIN_X - 9, DM_MAIN_X + 9, 80, 390);
-  b.zone('Dean Martin Dr (Dropicana)', DM_TROP_X - 10, DM_TROP_X + 10, 400, 495);
+  b.zone('Dean Martin Dr (Tropicana)', DM_TROP_X - 10, DM_TROP_X + 10, 400, 495);
   b.zone('Dean Martin Dr (South Industrial)', DM_MAIN_X - 9, DM_MAIN_X + 9, 500, 605);
 
   // Joey Bishop Dr: continuous N-S through-route running underneath Tropicana Bridge (-219.5)
@@ -232,7 +234,7 @@ function buildDeanMartinRoadNetwork(b: WorldBuilder, mg: Merger): void {
   flatRoad(b, POLARIS_X, 204, 9.5, 800, 'z', 2, true, L1, 'Polaris Ave');
   b.zone('Polaris Ave', POLARIS_X - 5, POLARIS_X + 5, -192, 600);
 
-  // Permanent NDOT Dropicana Raised Center Median blocking N-S through-crossing at Tropicana/Dean Martin!
+  // Permanent NDOT Tropicana Raised Center Median blocking N-S through-crossing at Tropicana/Dean Martin!
   const medConc = mat(0xb2aba0, 0.86);
   const yellowTrim = mat(0xd8a828, 0.65);
   mg.box(medConc, -278, 0.22, I15.tropZ, 64, 0.44, 1.8, 0, true);
@@ -241,7 +243,7 @@ function buildDeanMartinRoadNetwork(b: WorldBuilder, mg: Merger): void {
   b.collider(-310, -246, I15.tropZ - 0.9, I15.tropZ + 0.9, 0, 0.6, true);
   // Flamingo Rd raised median west of bridge
   mg.box(medConc, -273, 0.18, I15.flamingoZ, 62, 0.36, 1.5);
-  // Channelized right-turn islands & signage at Dropicana / Dean Martin
+  // Channelized right-turn islands & signage at Tropicana / Dean Martin
   signBoard(b, 'RIGHT TURN ONLY', '#f4f4ef', '#14181e', 2.4, 1.0, DM_TROP_X - 7.8, 2.8, I15.tropZ - 14.5, 0, 'NO THRU TRAFFIC', 0.1);
   signBoard(b, 'RIGHT TURN ONLY', '#f4f4ef', '#14181e', 2.4, 1.0, DM_TROP_X + 7.8, 2.8, I15.tropZ + 14.5, Math.PI, 'USE JOEY BISHOP DR', 0.1);
 
@@ -286,7 +288,7 @@ function buildDeanMartinRoadNetwork(b: WorldBuilder, mg: Merger): void {
   for (const dz of [-11, 11]) addCW(DM_FLAM_X, I15.flamingoZ + dz, 15.5, 2.6, true);
   for (const dx of [-10, 10]) addCW(DM_FLAM_X + dx, I15.flamingoZ, 18, 2.6, false);
   for (const dz of [-9.5, 9.5]) addCW(-224, -185 + dz, 15.5, 2.4, true);
-  // Dropicana right-turn & Tropicana approach pedestrian crossings
+  // Tropicana right-turn & Tropicana approach pedestrian crossings
   addCW(DM_TROP_X - 11.5, I15.tropZ, 19, 2.8, false);
   addCW(DM_TROP_X, I15.tropZ - 12.2, 16, 2.6, true);
   addCW(DM_TROP_X, I15.tropZ + 12.2, 16, 2.6, true);
@@ -305,9 +307,9 @@ function buildDeanMartinRoadNetwork(b: WorldBuilder, mg: Merger): void {
   b.collider(-235.6, -232.4, 225.6, 229.4, 0, 6.8, false);
 }
 
-// ================================================================ Dropicana South Quadrants (East & West)
+// ================================================================ Tropicana South Quadrants (East & West)
 
-function buildDropicanaCornersSouth(b: WorldBuilder, mg: Merger, lot: ParkedLotBuilder): void {
+function buildTropicanaCornersSouth(b: WorldBuilder, mg: Merger, lot: ParkedLotBuilder): void {
   // ---- EAST SIDE: Dual-Brand 8-Story Hotel Complex (4920 TownePlace Suites + 4940 Home2 Suites)
   // Shared 3-story architectural parking podium base (DesignCell dual-brand layout cleanly between Dean Martin -245 & Joey Bishop -223)
   const podiumMat = mat(0xb8afa2, 0.8);
@@ -832,10 +834,19 @@ function buildInNOutNorthWedge(b: WorldBuilder, mg: Merger, lot: ParkedLotBuilde
   for (const dz of [-2.4, 0, 2.4]) mg.box(mat(0xd81e2a, 0.45), -235.68, 1.6, 407.0 + dz, 0.06, 2.4, 0.14);
   signBoard(b, 'IN-N-OUT COMPANY STORE', '#d81e2a', '#ffffff', 9.0, 1.35, -235.8, 4.5, 407.0, -Math.PI / 2, '4838 DEAN MARTIN • TEES & GEAR', 0.14);
   lot.bays(-236, -225, 396, 400, 3, 1, 0, 0.72, 4838);
+  // A working shop: the merch counter just inside the west doors
+  b.shopSpots.push({
+    kind: 'store',
+    position: new THREE.Vector3(-237.2, 0, 407.0),
+    radius: 2.6,
+    label: 'In-N-Out Company Store',
+    catalog: 'in-n-out-store',
+    hint: 'shirts, hats, mugs, keychains',
+  });
   b.zone('In-N-Out Company Store (4838 Dean Martin)', -242, -222, 396, 419);
 
-  // West side NW of Dropicana: Grove Business Park, NAPA (4675), Trapped! Escape Room (4760)
-  // NOTE: Real late-2026 NW corner (z = 392..436) is open paved Dropicana turn setback & utility apron (NO Wendy's / NO Sinclair here!)
+  // West side NW of Tropicana: Grove Business Park, NAPA (4675), Trapped! Escape Room (4760)
+  // NOTE: Real late-2026 NW corner (z = 392..436) is open paved Tropicana turn setback & utility apron (NO Wendy's / NO Sinclair here!)
   paving(b, -284, -238, 352, 392, '#5c5a56', '#4c4a46', 4, L0);
   for (const [bx, bz, bw, bd, h, lbl] of [
     [-245, 359, 15, 13, 6.6, 'Grove Business Park'],
@@ -867,8 +878,17 @@ function buildInNOutNorthWedge(b: WorldBuilder, mg: Merger, lot: ParkedLotBuilde
     ctx.fillText('4675 POLARIS AVE', 114, 74);
   }, { depth: 0.14 });
   lot.bays(-257, -253, 355, 385, 1, 7, 0, 0.65, 4760);
-  // Landscaped gravel & desert buffer cleanly rounding the NW Dropicana corner (z = 394..430)
+  // Landscaped gravel & desert buffer cleanly rounding the NW Tropicana corner (z = 394..430)
   for (const tz of [404, 418, 428]) treeClusterInto(mg, -264, tz, 0.95, tz);
+  // The corner itself is an empty, fenced dirt parcel with a land-for-sale board facing Tropicana
+  chainFenceInto(b, mg, -300, 396, -270, 396);
+  chainFenceInto(b, mg, -270, 396, -270, 431);
+  chainFenceInto(b, mg, -270, 431, -300, 431);
+  mg.box(mat(0x8a7558, 0.98), -285, L0 + 0.01, 413.5, 29, 0.02, 34);
+  const signPost = mat(0x4a4c50, 0.6, 0.4);
+  mg.box(signPost, -288.5, 1.6, 432.4, 0.18, 3.2, 0.18);
+  mg.box(signPost, -283.5, 1.6, 432.4, 0.18, 3.2, 0.18);
+  signBoard(b, 'LAND FOR SALE', '#ffffff', '#1a3a6a', 6.2, 1.9, -286, 3.4, 432.6, 0, 'TROPICANA & DEAN MARTIN • COMMERCIAL', 0.12);
   b.zone('Grove Business Park & Trapped! (4760)', -302, -234, 350, 392);
 }
 
@@ -1061,7 +1081,7 @@ function buildBillboardsAndSignals(b: WorldBuilder, mg: Merger): void {
     b.collider(x - 0.16, x + 0.16, z - 0.16, z + 0.16, 0, 6.4, true);
   };
 
-  // Signalized: W Twain Ave (-185), W Flamingo Rd (0), and Dropicana right-turn / pedestrian signals (442.7)
+  // Signalized: W Twain Ave (-185), W Flamingo Rd (0), and Tropicana right-turn / pedestrian signals (442.7)
   // Note: Harmon Ave crosses ABOVE Dean Martin Dr on the I-15 overpass (no surface intersection signals on Dean Martin)
   for (const [cx, cz, sLat] of [
     [-223.5, -185, 8],
@@ -1102,7 +1122,7 @@ function buildDeanMartinTraffic(b: WorldBuilder): void {
     // North & Midtown stem (-190..388, 2 NB + 2 SB)
     { axis: 'z', lanePos: DM_MAIN_X - 4.8, min: -190, max: 386, dir: 1, count: 6, speed: 12.5 },
     { axis: 'z', lanePos: DM_MAIN_X + 4.8, min: -190, max: 386, dir: -1, count: 6, speed: 12.5 },
-    // Joey Bishop Dr continuous N-S under Tropicana Bridge (bypasses Dropicana raised median)
+    // Joey Bishop Dr continuous N-S under Tropicana Bridge (bypasses Tropicana raised median)
     { axis: 'z', lanePos: JOEY_X - 1.7, min: 392, max: 490, dir: 1, count: 3, speed: 10.5 },
     { axis: 'z', lanePos: JOEY_X + 1.7, min: 392, max: 490, dir: -1, count: 3, speed: 10.5 },
     // South corridor past Motel 6, 5115 Auto, 5155 Museum down toward Stadium

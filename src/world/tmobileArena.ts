@@ -434,7 +434,7 @@ function drawTMobileWordmark(
 
 function makeArenaBronzeTex(): { map: THREE.CanvasTexture; roughnessMap: THREE.CanvasTexture } {
   const map = canvasTex(512, 512, (ctx) => {
-    ctx.fillStyle = '#b4875e';
+    ctx.fillStyle = '#c9ad88';
     ctx.fillRect(0, 0, 512, 512);
     const cols = 36;
     const cw = 512 / cols;
@@ -444,9 +444,9 @@ function makeArenaBronzeTex(): { map: THREE.CanvasTexture; roughnessMap: THREE.C
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const shade = 0.88 + R() * 0.24;
-        const cr = Math.min(255, Math.round(188 * shade));
-        const cg = Math.min(255, Math.round(142 * shade));
-        const cb = Math.min(255, Math.round(100 * shade));
+        const cr = Math.min(255, Math.round(208 * shade));
+        const cg = Math.min(255, Math.round(180 * shade));
+        const cb = Math.min(255, Math.round(142 * shade));
         ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
         ctx.fillRect(c * cw, r * rh, cw, rh);
         // slim vertical metallic fin highlight & dark reveal
@@ -545,10 +545,10 @@ function makeSoffitGlowTex(): THREE.CanvasTexture {
 
 function makeRibbedBandTex(): THREE.CanvasTexture {
   return canvasTex(256, 128, (ctx) => {
-    ctx.fillStyle = '#5e4f4b';
+    ctx.fillStyle = '#b3a088';
     ctx.fillRect(0, 0, 256, 128);
     for (let y = 0; y < 128; y += 8) {
-      ctx.fillStyle = y % 16 === 0 ? 'rgba(220,196,184,0.22)' : 'rgba(20,16,18,0.42)';
+      ctx.fillStyle = y % 16 === 0 ? 'rgba(250,236,214,0.35)' : 'rgba(60,48,40,0.38)';
       ctx.fillRect(0, y, 256, 3);
     }
   });
@@ -576,26 +576,26 @@ function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
   // Cantilevered lower-deck overhang profile (broad center lip, dramatic pointed prow on left +Z)
   const deckOverhang = (a: number): number => {
     const base = 2.2 + Math.max(0, Math.cos(a * 0.9)) * 3.0;
-    const prow = 5.8 * Math.exp(-Math.pow((a - 0.84) / 0.24, 2));
+    const prow = 3.6 * Math.exp(-Math.pow((a - 0.84) / 0.24, 2));
     return base + prow;
   };
-  const deckSoffitY = (a: number): number => 6.8 + 1.5 * Math.exp(-Math.pow((a - 0.84) / 0.28, 2));
-  const deckTopY = (a: number): number => 8.1 + 0.95 * Math.exp(-Math.pow((a - 0.84) / 0.3, 2));
+  const deckSoffitY = (a: number): number => 6.15 + 1.1 * Math.exp(-Math.pow((a - 0.84) / 0.28, 2));
+  const deckTopY = (a: number): number => 8.45 + 0.8 * Math.exp(-Math.pow((a - 0.84) / 0.3, 2));
 
   // Shared Architectural Materials
   const bronzeTex = makeArenaBronzeTex();
   const bronzeSkin = new THREE.MeshStandardMaterial({
     map: bronzeTex.map,
     roughnessMap: bronzeTex.roughnessMap,
-    roughness: 0.34,
-    metalness: 0.78,
+    roughness: 0.46,
+    metalness: 0.42,
   });
-  const bronzeWing = mat(0x9e704a, 0.38, 0.72);
+  const bronzeWing = mat(0xc6a985, 0.42, 0.45);
   const darkMetal = mat(0x28262b, 0.36, 0.76);
   const gunmetalRib = new THREE.MeshStandardMaterial({
     map: makeRibbedBandTex(),
-    roughness: 0.3,
-    metalness: 0.76,
+    roughness: 0.4,
+    metalness: 0.45,
   });
   const slateDeck = mat(0x323036, 0.65, 0.25);
   const silverFrame = mat(0xcfd4dc, 0.28, 0.84);
@@ -732,7 +732,7 @@ function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
   }
 
   // ---- Lower-Left Box Office Podium + Blue Ticket Kiosks (matching the photo under the left prow)
-  const boxBronze = mat(0x524238, 0.48, 0.55);
+  const boxBronze = mat(0x8a7560, 0.55, 0.35);
   const boxDark = mat(0x221c18, 0.65, 0.3);
   const boxFrontPts = sample(8, 0.94, 0.48, (a) => {
     const [lx, lz] = pt(LOBBY_RX + 2.8, LOBBY_RZ + 2.8, a);
@@ -836,8 +836,19 @@ function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
   });
   // Glowing magenta soffit underside (normals point DOWNWARD -Y toward plaza & lobby!)
   mg.add(arenaRibbonGeo(deckInBot, deckOutBot, 1, 1, true), soffitMat);
-  // Thick angled brushed-bronze outer fascia lip (normals point OUTWARD +X!)
-  mg.add(arenaRibbonGeo(deckOutBot, deckOutTop, 1, 1, true), bronzeWing, true);
+  // Thick curved fascia lip, washed pink from the uplights below (champagne top edge -> hot pink bottom)
+  const lipTex = canvasTex(16, 128, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 0, 128);
+    g.addColorStop(0, '#c9ae94');
+    g.addColorStop(0.1, '#c4889c');
+    g.addColorStop(0.4, '#e8489e');
+    g.addColorStop(1, '#ff2c9c');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 16, 128);
+  });
+  const lipMat = new THREE.MeshStandardMaterial({ map: lipTex, emissiveMap: lipTex, emissive: 0xffffff, emissiveIntensity: 0.32, roughness: 0.5, metalness: 0.2 });
+  b.nightGlow(lipMat, 0.32, 0.7);
+  mg.add(arenaRibbonGeo(deckOutBot, deckOutTop, 1, 1, true), lipMat, true);
   // Top terrace surface (normals point UPWARD +Y!) + frameless glass balcony railing
   mg.add(arenaRibbonGeo(deckOutTop, deckInTop, 1, 1, true), slateDeck);
   const deckRailTop = sample(DECK_N, deckA1, deckA0, (a) => {
@@ -1013,11 +1024,11 @@ function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
         const [lx, lz] = pt(SKIN_RX - 0.5, SKIN_RZ - 0.5, a);
         return [lx, 18.8, lz];
       }),
-      1,
-      1,
+      10,
+      2.5,
       true
     ),
-    darkMetal,
+    bronzeSkin,
     true
   );
   for (let band = 0; band < 7; band++) {
@@ -1061,8 +1072,8 @@ function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
     ),
     bronzeSkin
   );
-  // Low oval roof cap
-  const roofCap = new THREE.Mesh(new THREE.CylinderGeometry(SKIN_RX - 1.4, SKIN_RX - 0.55, 1.3, 40, 1), darkMetal);
+  // Low oval roof cap (light, like the real one from the air)
+  const roofCap = new THREE.Mesh(new THREE.CylinderGeometry(SKIN_RX - 1.4, SKIN_RX - 0.55, 1.3, 40, 1), mat(0xc9ccd0, 0.62, 0.25)); // the real roof is a pale silver-white
   roofCap.scale.set(1, 1, (SKIN_RZ - 0.55) / (SKIN_RX - 0.55));
   roofCap.position.set(ARENA_X, 19.7, ARENA_Z);
   roofCap.rotation.y = ARENA_YAW;
@@ -1167,7 +1178,7 @@ function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
       ledCtx.fillStyle = sg;
       ledCtx.fillRect(0, 0, w, h);
 
-      drawTMobileWordmark(ledCtx, w * 0.51, h * 0.72, 1.02, '#ffffff', true, true);
+      drawTMobileWordmark(ledCtx, w * 0.5, h * 0.78, 1.32, '#ffffff', true, true);
     } else if (cycle < 17) {
       // Slide 2: Vegas Golden Knights promo
       const g = ledCtx.createLinearGradient(0, 0, w, h);
