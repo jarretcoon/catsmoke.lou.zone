@@ -99,8 +99,9 @@ export const CROSSWALKS: StripCrossing[] = [
   { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both', bridged: true, eastStub: 40 },
   // Harmon: the crosswalk is on the south leg (the 2012 bridge carries the north one); the road is crossRoads.ts's
   { z: 226, name: 'Harmon Ave', offset: 3, mouth: [207.8, 221.8], stop: [205.6, 230.4], poles: [229.6, 223.3] },
-  { z: 529.6, name: 'Reno Ave', offset: 7 },
-  { z: 621.1, name: 'Mandalay Bay Rd / Hacienda', offset: 13 },
+  // Reno and Mandalay Bay Rd / Hacienda: roads by southCrossRoads.ts, crosswalks on the south legs; both are offset crossings
+  { z: 545.4, name: 'Reno Ave', offset: 7, mouth: [526.6, 541.4], mouthEast: [525.5, 538.5], stop: [523.4, 549.8], poles: [549.2, 542.6] },
+  { z: 635.4, name: 'Mandalay Bay Rd / Hacienda', offset: 13, mouth: [605.1, 619.9], mouthEast: [618.5, 631.5], stop: [602.9, 639.8], poles: [639.2, 632.8] },
   { z: 716.2, name: 'Four Seasons Dr', offset: 5 },
   { z: 806.7, name: 'Russell Rd', offset: 9, road: 'both' },
   { z: 100, name: 'Bellagio Dr / Paris', offset: 9 },

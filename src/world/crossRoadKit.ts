@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { viewer, type WorldBuilder } from './builder';
 import { mat, signalLamps, trafficSignal } from './props';
-import { placed } from './signKit';
+import { letters, placed } from './signKit';
 import { Merger, canvasTex, palmInto, v3 } from './southKit';
 import { streetBlade } from './stripSigns';
 import { cobraPoleInto, getCarGeos, lightPoolMat } from './westKit';
@@ -945,4 +945,38 @@ export function stripEnd(b: WorldBuilder, mg: Merger, o: StripRoad, cull: [P, nu
     [...(o.inStops ?? []).map(([s, ph]) => [...roadPt(s, road.laneOffset(-1, 1)), ph] as [number, number, (t: number) => Phase]), sideStop(xo, zI1)]
   );
   pathTraffic(b, paths, cull[0], cull[1], seed);
+}
+
+/**
+ * A parking garage seen from the street: concrete decks with open bays (dark slots between the slabs),
+ * stair towers at the corners, a sign on the street face. Solid to walk into.
+ */
+export function streetGarage(b: WorldBuilder, mg: Merger, x0: number, x1: number, z0: number, z1: number, levels: number, label: string, face: 'n' | 's' | 'e' | 'w', signText?: string, signBg = '#1d2a4a'): void {
+  const w = x1 - x0;
+  const d = z1 - z0;
+  const cx = (x0 + x1) / 2;
+  const cz = (z0 + z1) / 2;
+  const H = 3.2;
+  const h = levels * H + 1.1;
+  const slab = mat(0xbab4aa, 0.85);
+  const gap = mat(0x22252a, 0.9);
+  const core = mat(0xa8a196, 0.8);
+  mg.box(gap, cx, h / 2, cz, w - 0.4, h, d - 0.4, 0, true);
+  for (let k = 0; k <= levels; k++) mg.box(slab, cx, k * H + 0.55, cz, w, 1.1, d);
+  for (const [px, pz] of [
+    [x0 + 1.6, z0 + 1.6],
+    [x1 - 1.6, z1 - 1.6],
+  ]) mg.box(core, px, h / 2 + 0.6, pz, 3.2, h + 1.2, 3.2, 0, true);
+  // columns on the long faces
+  for (let x = x0 + 4; x < x1 - 2; x += 8) for (const z of [z0 + 0.15, z1 - 0.15]) mg.box(slab, x, h / 2, z, 0.5, h, 0.3);
+  for (let z = z0 + 4; z < z1 - 2; z += 8) for (const x of [x0 + 0.15, x1 - 0.15]) mg.box(slab, x, h / 2, z, 0.3, h, 0.5);
+  b.collider(x0, x1, z0, z1, 0, h, true);
+  b.building(cx, cz, w, d, '#9a958c', label);
+  if (signText) {
+    const fx = face === 'e' ? x1 + 0.08 : face === 'w' ? x0 - 0.08 : cx;
+    const fz = face === 's' ? z1 + 0.08 : face === 'n' ? z0 - 0.08 : cz;
+    const rot = face === 's' ? 0 : face === 'n' ? Math.PI : face === 'e' ? Math.PI / 2 : -Math.PI / 2;
+    const len = face === 'n' || face === 's' ? w : d;
+    b.add(letters(b, signText, Math.min(len * 0.6, signText.length * 0.62), 1.0, { style: 'sans', fill: '#ffffff', bg: signBg, rule: '#ffffff', scale: 0.62 }), fx, h - 1.4, fz, rot);
+  }
 }
