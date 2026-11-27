@@ -77,7 +77,7 @@
     { "id": "in-n-out-linq", "label": "In-N-Out at its real LINQ spot, across the fountain (night)", "time": "night", "tp": [100, 0.3, -100.5], "cam": [3.1416, 0.1, 8], "maxCalls": 1800 },
     { "id": "linq-fountain-night", "label": "The promenade fountain, Brooklyn Bowl and the High Roller (night)", "time": "night", "tp": [96, 0.3, -104.2], "cam": [-1.5708, 0.16, 7], "maxCalls": 1500 },
     { "id": "linq-souvenir-shop", "label": "Inside Welcome to Fabulous Las Vegas, the promenade souvenir shop (night)", "time": "night", "tp": [67, 0.3, -116], "cam": [0, 0.1, 3], "maxCalls": 1500 },
-    { "id": "crowd-close-night", "label": "People up close: the crowd waiting at the Harmon Ave crosswalk (night)", "time": "night", "tp": [11.6, 0.3, 226], "cam": [-1.2, 0.02, 2.2], "maxCalls": 760 },
+    { "id": "crowd-close-night", "label": "People up close: the crowd waiting at the Harmon Ave crosswalk (night)", "time": "night", "tp": [11.6, 0.3, 226], "cam": [-1.2, 0.02, 2.2], "maxCalls": 880 },
     { "id": "tmobile-arena-dusk", "label": "T-Mobile Arena from Toshiba Plaza at dusk (sunset)", "time": "sunset", "tp": [-89, 0.3, 368.6], "face": -1.21, "cam": [1.93, 0.02, 13], "maxCalls": 950 },
     { "id": "tmobile-arena-night", "label": "T-Mobile Arena & Toshiba Plaza: glass atrium, LED video mesh and stage (night)", "time": "night", "tp": [-92, 0.3, 376], "face": -1.21, "cam": [2.05, 0.02, 12], "maxCalls": 950 },
     { "id": "toshiba-plaza-day", "label": "Toshiba Plaza from The Park: Beerhaus, Dolby Live, Plaza Stage and T-Mobile Arena (day)", "time": "day", "tp": [-78, 0.3, 360], "cam": [1.45, 0.12, 16], "maxCalls": 850 },
