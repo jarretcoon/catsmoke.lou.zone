@@ -36,8 +36,8 @@ export function buildBackdrop(b: WorldBuilder): void {
   b.box((xW + xE) / 2, 0, zN, xE - xW, 0.8, 1.2, edgeMat, false, false);
   b.box((xW + xE) / 2, 0, zS, xE - xW, 0.8, 1.2, edgeMat, false, false);
   // The west edge opens into T-Mobile Arena, I-15 bridges & Dean Martin Dr's bay (deanMartin.ts walls it)
-  const bayWN = -22;
-  const bayWS = 544;
+  const bayWN = -196;
+  const bayWS = 605;
   b.box(xW, 0, (zN + bayWN) / 2, 1.2, 0.8, bayWN - zN, edgeMat, false, false);
   b.box(xW, 0, (bayWS + zS) / 2, 1.2, 0.8, zS - bayWS, edgeMat, false, false);
   // The east edge opens into the Sphere district's bay (Sands Ave, Manhattan St, Hughes Center: sphereDistrict.ts walls it)

@@ -11,10 +11,11 @@ import { addBuilding, chainFenceInto, cobraPoleInto, flatRoad, lightPoolMat, Par
  * Top Round, Hello Kitty Cafe, Luke's Lobster, Tom's Watch Bar) and Frank Sinatra Dr south of z = 352.
  */
 
-const ARENA_X = -135;
-const ARENA_Z = 394;
-const ARENA_RX = 20.5;
-const ARENA_RZ = 23.0;
+const ARENA_X = -135.5;
+const ARENA_Z = 392.5;
+const ARENA_YAW = 0.36; // front (+X local) faces ENE toward Toshiba Plaza & The Park
+const ARENA_RX = 19.5; // depth radius (front-to-back)
+const ARENA_RZ = 26.5; // width radius (wide oval bowl facing plaza)
 
 export function buildTMobileArea(b: WorldBuilder): void {
   const mg = new Merger();
@@ -33,8 +34,7 @@ export function buildTMobileArea(b: WorldBuilder): void {
 function extendThePark(b: WorldBuilder, mg: Merger): void {
   // Continuous desert travertine promenade west from Park MGM (-63.5) across Toshiba Plaza to Arena East
   paving(b, -63.5, -114, 344, 376, '#cbb89c', '#a8957a', 4, L0);
-  paving(b, -97, -116, 376, 421, '#b8ab98', '#968976', 4, L0);
-  paving(b, -86, -98, 376, 396, '#b8ab98', '#968976', 4, L0);
+  paving(b, -88, -116, 376, 421, '#b8ab98', '#968976', 4, L0);
 
   // Extended Corten weathered-steel perforated shade canopies matching southStrip.ts
   const steel = mat(0x7a5a40, 0.8, 0.4);
@@ -43,7 +43,7 @@ function extendThePark(b: WorldBuilder, mg: Merger): void {
     [-70, 355],
     [-82, 352],
     [-74, 369],
-    [-95, 372],
+    [-94, 363],
   ]) {
     mg.beam(steel, v3(tx, 0, tz), v3(tx, 6.2, tz), 0.25, 8, 0.17, true);
     for (let k = 0; k < 4; k++) {
@@ -74,20 +74,20 @@ function extendThePark(b: WorldBuilder, mg: Merger): void {
   });
   b.add(mesh(new THREE.PlaneGeometry(10.6, 1.4), sheet, -69.5, 0.75, 367.92));
 
-  // Desert trees & agave beds along the walk
+  // Desert trees & agave beds along the walk (keeping central Toshiba Plaza vista unobstructed)
   for (const [tx, tz, sc, sd] of [
     [-66, 368, 1.15, 2],
     [-91, 355, 1.1, 4],
-    [-108, 368, 1.2, 5],
-    [-110, 408, 1.1, 7],
+    [-112, 362, 1.15, 5],
+    [-110, 412, 1.1, 7],
   ] as Array<[number, number, number, number]>) {
     treeClusterInto(mg, tx, tz, sc, sd);
   }
   let pSeed = 310;
   for (const [px, pz] of [
     [-77, 373],
-    [-89, 374],
-    [-109, 359],
+    [-89, 363],
+    [-109, 358],
     [-112, 415],
   ]) {
     palmInto(mg, px, pz, 7.6 + (pSeed % 3) * 0.7, pSeed++);
@@ -284,25 +284,24 @@ function buildToshibaPlaza(b: WorldBuilder, mg: Merger): void {
     b.collider(sx - hw, sx + hw, sz - hd, sz + hd, 0, 0.85);
   };
 
-  buildStage(-103, 364.5, 8.2, 4.8, 0.42, 'TOSHIBA PLAZA', magenta);
-  buildStage(-86, 374.5, 6.4, 4.0, -0.35, 'FAN ZONE STAGE', stageGlow);
+  buildStage(-94, 361.5, 7.6, 4.4, 0.32, 'TOSHIBA PLAZA', magenta);
+  buildStage(-98, 415.0, 5.6, 3.6, -2.5, 'FAN ZONE STAGE', stageGlow);
 
-  // ---- Terraced plaza stone seating planters & festival truss light towers
+  // ---- Terraced plaza stone seating planters & festival truss light towers (framing the open plaza vista)
   const stone = mat(0x9a8f80, 0.8);
   for (const [bx, bz, bw, bd] of [
-    [-93, 366.2, 5.2, 1.4],
-    [-99, 376.5, 5.0, 1.4],
-    [-108, 381.0, 4.2, 1.4],
+    [-88, 365.5, 4.8, 1.3],
+    [-100, 408.5, 4.6, 1.3],
   ]) {
     mg.box(stone, bx, 0.35, bz, bw, 0.7, bd);
     b.collider(bx - bw / 2, bx + bw / 2, bz - bd / 2, bz + bd / 2, 0, 0.7);
   }
-  // 4 festival light & banner pylons ringing Toshiba Plaza
+  // 4 festival light & banner pylons ringing Toshiba Plaza perimeter
   for (const [lx, lz] of [
     [-81, 359],
-    [-98, 362],
-    [-104, 377],
-    [-82, 375],
+    [-105, 361],
+    [-88, 412],
+    [-106, 415],
   ]) {
     mg.beam(truss, v3(lx, 0, lz), v3(lx, 10.5, lz), 0.18, 6, 0.16);
     mg.box(magenta, lx, 8.5, lz, 0.5, 2.4, 0.5);
@@ -312,199 +311,993 @@ function buildToshibaPlaza(b: WorldBuilder, mg: Merger): void {
 
   // Plaza feature + zone + map label
   b.feature({ kind: 'park', x: -97, z: 369, w: 32, d: 28, color: '#bfa88a', label: 'Toshiba Plaza' });
-  b.zone('Toshiba Plaza', -115, -78, 357, 389);
-  b.pickup(-103, 1.25, 364.5, 3, 'Toshiba Plaza Stage Pack', false);
+  b.zone('Toshiba Plaza', -115, -78, 357, 412);
+  b.pickup(-94, 1.25, 361.5, 3, 'Toshiba Plaza Stage Pack', false);
 }
 
 // ================================================================ T-Mobile Arena Architecture
 
-function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
-  const N = 32;
-  const H = 22.0;
+/** Transform local arena coords (lx = front +X, lz = left +Z) into world space. */
+function arenaToWorld(lx: number, y: number, lz: number): [number, number, number] {
+  const c = Math.cos(ARENA_YAW);
+  const s = Math.sin(ARENA_YAW);
+  return [ARENA_X + lx * c + lz * s, y, ARENA_Z - lx * s + lz * c];
+}
 
-  // Materials: Populous "Desert Side" copper/bronze sedimentary cladding + dark slate + Strip-side glass
-  const bronzeShingle = [
-    mat(0x8d5730, 0.36, 0.74),
-    mat(0xc18a3f, 0.32, 0.78),
-    mat(0x633b22, 0.42, 0.68),
-    mat(0xd4a456, 0.3, 0.8),
-  ];
-  const darkSteel = mat(0x1b1e25, 0.38, 0.78);
-  const lightRoof = mat(0xd2d6dc, 0.42, 0.58);
-  const concourseGlow = new THREE.MeshStandardMaterial({
-    color: 0x262834,
-    emissive: 0xffc980,
-    emissiveIntensity: 0.32,
-    roughness: 0.3,
+/** Build a smooth indexed quad-strip ribbon in local arena coordinates (rotated + translated to world). */
+function arenaRibbonGeo(
+  botPts: Array<[number, number, number]>,
+  topPts: Array<[number, number, number]>,
+  uRepeat = 1,
+  vRepeat = 1,
+  flip = false
+): THREE.BufferGeometry {
+  const n = botPts.length;
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const u = (i / (n - 1)) * uRepeat;
+    const b = arenaToWorld(botPts[i][0], botPts[i][1], botPts[i][2]);
+    const t = arenaToWorld(topPts[i][0], topPts[i][1], topPts[i][2]);
+    pos.push(b[0], b[1], b[2], t[0], t[1], t[2]);
+    uv.push(u, 0, u, vRepeat);
+  }
+  for (let i = 0; i < n - 1; i++) {
+    const a = i * 2;
+    const b = a + 1;
+    const c = a + 2;
+    const d = a + 3;
+    if (!flip) idx.push(a, b, c, b, d, c);
+    else idx.push(a, c, b, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Draw the T-Mobile "T" with flanking pixel dots + "Mobile" + "ARENA" + curved swoosh. */
+function drawTMobileWordmark(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baselineY: number,
+  scale: number,
+  color: string,
+  includeSwoosh: boolean,
+  includeWelcome: boolean
+): void {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+
+  if (includeWelcome) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `700 ${Math.round(25 * scale)}px "Segoe UI", Arial, sans-serif`;
+    ctx.letterSpacing = `${Math.round(2.5 * scale)}px`;
+    ctx.fillText('WELCOME TO', cx - 340 * scale, baselineY - 102 * scale);
+  }
+
+  // Stylized slab-serif "T" + two square dots on left/right of stem
+  const tx = cx - 345 * scale;
+  const th = 84 * scale;
+  const tw = 60 * scale;
+  const ty = baselineY - th;
+  const sw = 13 * scale;
+  // Top bar + hanging end serifs
+  ctx.fillRect(tx, ty, tw, 11 * scale);
+  ctx.fillRect(tx, ty, 7 * scale, 22 * scale);
+  ctx.fillRect(tx + tw - 7 * scale, ty, 7 * scale, 22 * scale);
+  // Central stem + bottom serif
+  ctx.fillRect(tx + (tw - sw) / 2, ty, sw, th);
+  ctx.fillRect(tx + tw * 0.22, baselineY - 9 * scale, tw * 0.56, 9 * scale);
+  // Two iconic square pixel dots flanking stem
+  const dot = 10 * scale;
+  ctx.fillRect(tx + 4 * scale, baselineY - 42 * scale, dot, dot);
+  ctx.fillRect(tx + tw - 4 * scale - dot, baselineY - 42 * scale, dot, dot);
+
+  // "Mobile" in bold serif
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.letterSpacing = `${Math.round(-1 * scale)}px`;
+  ctx.font = `bold ${Math.round(84 * scale)}px Georgia, "Times New Roman", serif`;
+  const mobileX = tx + tw + 4 * scale;
+  ctx.fillText('Mobile', mobileX, baselineY);
+  const mobileW = ctx.measureText('Mobile').width;
+
+  // "ARENA" in tracked geometric uppercase sans-serif
+  ctx.letterSpacing = `${Math.round(12 * scale)}px`;
+  ctx.font = `600 ${Math.round(54 * scale)}px "Segoe UI", Arial, sans-serif`;
+  const arenaX = mobileX + mobileW + 28 * scale;
+  ctx.fillText('ARENA', arenaX, baselineY - 2 * scale);
+
+  // White curved swoosh arc sweeping from above Mobile/ARENA down the right side
+  if (includeSwoosh) {
+    const s0x = mobileX + mobileW * 0.65;
+    const s0y = baselineY - 96 * scale;
+    const cpX = arenaX + 215 * scale;
+    const cpY = baselineY - 100 * scale;
+    const s1x = arenaX + 288 * scale;
+    const s1y = baselineY + 22 * scale;
+    ctx.beginPath();
+    ctx.moveTo(s0x, s0y);
+    ctx.quadraticCurveTo(cpX, cpY, s1x, s1y);
+    ctx.quadraticCurveTo(cpX - 8 * scale, cpY + 12 * scale, s0x, s0y + 2 * scale);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function makeArenaBronzeTex(): { map: THREE.CanvasTexture; roughnessMap: THREE.CanvasTexture } {
+  const map = canvasTex(512, 512, (ctx) => {
+    ctx.fillStyle = '#b4875e';
+    ctx.fillRect(0, 0, 512, 512);
+    const cols = 36;
+    const cw = 512 / cols;
+    const rows = 8;
+    const rh = 512 / rows;
+    const R = WEST_RNG(717);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const shade = 0.88 + R() * 0.24;
+        const cr = Math.min(255, Math.round(188 * shade));
+        const cg = Math.min(255, Math.round(142 * shade));
+        const cb = Math.min(255, Math.round(100 * shade));
+        ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+        ctx.fillRect(c * cw, r * rh, cw, rh);
+        // slim vertical metallic fin highlight & dark reveal
+        ctx.fillStyle = 'rgba(255,232,200,0.28)';
+        ctx.fillRect(c * cw + 1, r * rh, 2.2, rh);
+        ctx.fillStyle = 'rgba(42,28,18,0.42)';
+        ctx.fillRect(c * cw, r * rh, 1.4, rh);
+      }
+      ctx.fillStyle = 'rgba(46,32,20,0.34)';
+      ctx.fillRect(0, r * rh, 512, 2);
+    }
   });
-  b.nightGlow(concourseGlow, 0.32, 0.72);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  const roughnessMap = canvasTex(256, 256, (ctx) => {
+    ctx.fillStyle = 'rgb(0,82,0)';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let c = 0; c < 36; c++) {
+      ctx.fillStyle = c % 2 === 0 ? 'rgb(0,62,0)' : 'rgb(0,104,0)';
+      ctx.fillRect(c * (256 / 36) + 1, 0, 5, 256);
+    }
+  });
+  roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+  return { map, roughnessMap };
+}
 
-  const atriumGlass = new THREE.MeshStandardMaterial({
-    color: 0x385874,
+function makeLobbyInteriorTex(): THREE.CanvasTexture {
+  return canvasTex(1024, 256, (ctx) => {
+    const bg = ctx.createLinearGradient(0, 0, 0, 256);
+    bg.addColorStop(0, '#54123c');
+    bg.addColorStop(0.32, '#341a28');
+    bg.addColorStop(1, '#1a161e');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 1024, 256);
+
+    // Warm magenta & rose concourse ceiling wash inside lobby
+    const mag = ctx.createLinearGradient(0, 0, 0, 120);
+    mag.addColorStop(0, 'rgba(255,48,156,0.72)');
+    mag.addColorStop(1, 'rgba(255,48,156,0)');
+    ctx.fillStyle = mag;
+    ctx.fillRect(0, 0, 1024, 120);
+
+    // Warm lit concourse depth bays + horizontal balcony slab
+    for (let x = 28; x < 1024; x += 88) {
+      ctx.fillStyle = 'rgba(255,216,170,0.22)';
+      ctx.fillRect(x + 12, 74, 62, 162);
+      ctx.fillStyle = 'rgba(22,18,22,0.85)';
+      ctx.fillRect(x, 0, 10, 256);
+    }
+    ctx.fillStyle = 'rgba(34,28,32,0.8)';
+    ctx.fillRect(0, 114, 1024, 10);
+
+    // Diagonal interior escalator trusses visible through lobby glass
+    ctx.strokeStyle = 'rgba(255,236,204,0.62)';
+    ctx.lineWidth = 5;
+    for (const [x0, y0, x1, y1] of [
+      [180, 236, 360, 118],
+      [350, 236, 510, 118],
+      [680, 236, 520, 118],
+      [850, 236, 690, 118],
+    ]) {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+    // Subtle pink interior signage glow
+    ctx.fillStyle = 'rgba(226,0,116,0.45)';
+    ctx.fillRect(438, 80, 148, 30);
+    ctx.fillStyle = '#fff4fa';
+    ctx.font = 'bold 15px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('T-Mobile ARENA', 512, 100);
+  });
+}
+
+function makeSoffitGlowTex(): THREE.CanvasTexture {
+  return canvasTex(512, 256, (ctx) => {
+    const g = ctx.createLinearGradient(0, 256, 0, 0);
+    g.addColorStop(0, '#ff40b8');
+    g.addColorStop(0.32, '#ff1292');
+    g.addColorStop(0.75, '#e00074');
+    g.addColorStop(1, '#8c084e');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 512, 256);
+    // Subtle architectural soffit panel seams
+    ctx.strokeStyle = 'rgba(90,0,48,0.28)';
+    ctx.lineWidth = 2;
+    for (let x = 0; x <= 512; x += 32) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 256);
+      ctx.stroke();
+    }
+  });
+}
+
+function makeRibbedBandTex(): THREE.CanvasTexture {
+  return canvasTex(256, 128, (ctx) => {
+    ctx.fillStyle = '#5e4f4b';
+    ctx.fillRect(0, 0, 256, 128);
+    for (let y = 0; y < 128; y += 8) {
+      ctx.fillStyle = y % 16 === 0 ? 'rgba(220,196,184,0.22)' : 'rgba(20,16,18,0.42)';
+      ctx.fillRect(0, y, 256, 3);
+    }
+  });
+}
+
+function makeRoofLettersTex(): THREE.CanvasTexture {
+  return canvasTex(1024, 160, (ctx) => {
+    ctx.clearRect(0, 0, 1024, 160);
+    // Crisp dark return shadow for daytime legibility against clouds/sky
+    drawTMobileWordmark(ctx, 512 + 3, 124 + 3, 1.12, '#1f232c', false, false);
+    // Bright brushed silver-white front face
+    drawTMobileWordmark(ctx, 512, 124, 1.12, '#f4f7fc', false, false);
+  });
+}
+
+function buildArenaStructure(b: WorldBuilder, mg: Merger): void {
+  const pt = (rx: number, rz: number, a: number): [number, number] => [Math.cos(a) * rx, Math.sin(a) * rz];
+  // Sample decreasingly or strictly between a0 -> a1 (when a0 > a1, runs LEFT +Z to RIGHT -Z so u=0..1 reads left-to-right!)
+  const sample = (n: number, a0: number, a1: number, fn: (a: number, k: number) => [number, number, number]) => {
+    const out: Array<[number, number, number]> = [];
+    for (let i = 0; i <= n; i++) out.push(fn(a0 + (i / n) * (a1 - a0), i / n));
+    return out;
+  };
+
+  // Cantilevered lower-deck overhang profile (broad center lip, dramatic pointed prow on left +Z)
+  const deckOverhang = (a: number): number => {
+    const base = 2.2 + Math.max(0, Math.cos(a * 0.9)) * 3.0;
+    const prow = 5.8 * Math.exp(-Math.pow((a - 0.84) / 0.24, 2));
+    return base + prow;
+  };
+  const deckSoffitY = (a: number): number => 6.8 + 1.5 * Math.exp(-Math.pow((a - 0.84) / 0.28, 2));
+  const deckTopY = (a: number): number => 8.1 + 0.95 * Math.exp(-Math.pow((a - 0.84) / 0.3, 2));
+
+  // Shared Architectural Materials
+  const bronzeTex = makeArenaBronzeTex();
+  const bronzeSkin = new THREE.MeshStandardMaterial({
+    map: bronzeTex.map,
+    roughnessMap: bronzeTex.roughnessMap,
+    roughness: 0.34,
+    metalness: 0.78,
+  });
+  const bronzeWing = mat(0x9e704a, 0.38, 0.72);
+  const darkMetal = mat(0x28262b, 0.36, 0.76);
+  const gunmetalRib = new THREE.MeshStandardMaterial({
+    map: makeRibbedBandTex(),
+    roughness: 0.3,
+    metalness: 0.76,
+  });
+  const slateDeck = mat(0x323036, 0.65, 0.25);
+  const silverFrame = mat(0xcfd4dc, 0.28, 0.84);
+  const blueGlass = new THREE.MeshStandardMaterial({
+    color: 0x2068b8,
+    emissive: 0x0e3468,
+    emissiveIntensity: 0.42,
+    roughness: 0.08,
+    metalness: 0.86,
+  });
+  b.nightGlow(blueGlass, 0.32, 0.72);
+
+  const lobbyGlass = new THREE.MeshStandardMaterial({
+    color: 0x2a3b4e,
     roughness: 0.08,
     metalness: 0.72,
     transparent: true,
-    opacity: 0.56,
+    opacity: 0.38,
+    side: THREE.DoubleSide,
   });
-  const magentaFin = new THREE.MeshStandardMaterial({
-    color: 0xe20074,
-    emissive: 0xe20074,
-    emissiveIntensity: 0.45,
-    roughness: 0.25,
+  const concourseGlass = new THREE.MeshStandardMaterial({
+    color: 0x161c26,
+    emissive: 0x38142a,
+    emissiveIntensity: 0.28,
+    roughness: 0.1,
+    metalness: 0.82,
   });
-  b.nightGlow(magentaFin, 0.4, 1.35);
+  b.nightGlow(concourseGlass, 0.2, 0.65);
 
-  // Ellipse point helper (angle 0 = +x east facing Toshiba Plaza)
-  const pt = (rx: number, rz: number, a: number): [number, number] => [ARENA_X + Math.cos(a) * rx, ARENA_Z + Math.sin(a) * rz];
+  const interiorTex = makeLobbyInteriorTex();
+  const interiorMat = new THREE.MeshStandardMaterial({
+    map: interiorTex,
+    emissiveMap: interiorTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.48,
+    roughness: 0.5,
+  });
+  b.nightGlow(interiorMat, 0.42, 1.15);
 
-  // Inner lit drum + concourse core (slightly inset behind glass & bronze panels)
-  const core = new THREE.Mesh(new THREE.CylinderGeometry(18.6, 18.2, H - 1.2, 28, 1), concourseGlow);
-  core.scale.set(ARENA_RX / 20.5, 1, ARENA_RZ / 20.5);
-  core.position.set(ARENA_X, (H - 1.2) / 2, ARENA_Z);
-  b.add(core);
+  const soffitTex = makeSoffitGlowTex();
+  const soffitMat = new THREE.MeshStandardMaterial({
+    map: soffitTex,
+    emissiveMap: soffitTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.72,
+    roughness: 0.44,
+    metalness: 0.12,
+  });
+  b.nightGlow(soffitMat, 0.72, 0.96);
 
-  // Segmented outer facade: Strip Side (angle -1.25..+1.15 rad: E/NE glass atrium) vs Desert Side (copper/gold bands)
-  for (let i = 0; i < N; i++) {
-    const a0 = -Math.PI + (i / N) * Math.PI * 2;
-    const a1 = -Math.PI + ((i + 1) / N) * Math.PI * 2;
-    const am = (a0 + a1) / 2;
-    const isAtrium = Math.abs(am) < 1.15;
+  const railGlass = new THREE.MeshStandardMaterial({
+    color: 0x9ec6e4,
+    transparent: true,
+    opacity: 0.35,
+    roughness: 0.08,
+    metalness: 0.5,
+    side: THREE.DoubleSide,
+  });
 
-    const p0 = pt(ARENA_RX, ARENA_RZ, a0);
-    const p1 = pt(ARENA_RX, ARENA_RZ, a1);
-    const xm = (p0[0] + p1[0]) / 2;
-    const zm = (p0[1] + p1[1]) / 2;
-    const segLen = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + 0.15;
-    const yaw = Math.atan2(p1[0] - p0[0], p1[1] - p0[1]);
+  // ---- 1. Ground Glass Lobby Curtain Wall + Interior Concourse + Entry Doors + Box Office (y = 0 .. 5.4)
+  const LOBBY_RX = ARENA_RX - 1.2;
+  const LOBBY_RZ = ARENA_RZ - 1.2;
+  const LOBBY_H = 5.4;
 
-    if (isAtrium) {
-      // Sweeping 85-ft Strip-side glass curtain wall + bronze mullions + open entry band
-      const isEntryDoor = Math.abs(am) < 0.42;
-      if (!isEntryDoor) {
-        mg.box(atriumGlass, xm, H / 2, zm, 0.18, H, segLen, yaw);
-      } else {
-        // Upper glass atrium above 5m entrance doors + warm recessed portal frame
-        mg.box(atriumGlass, xm, 5 + (H - 5) / 2, zm, 0.18, H - 5, segLen, yaw);
-      }
-      // Structural steel/magenta fin mullions between bays
-      const finMat = i % 2 === 0 ? magentaFin : darkSteel;
-      mg.box(finMat, p0[0], H / 2, p0[1], 0.42, H + 0.4, 0.36, am);
-      // Second-level exterior concourse floor band visible through glass
-      mg.box(darkSteel, xm, 7.2, zm, 0.9, 0.45, segLen, yaw);
-      mg.box(darkSteel, xm, 14.2, zm, 0.7, 0.35, segLen, yaw);
-    } else {
-      // Desert Side: solid inner wall + 5 stacked bronze/copper/gold sedimentary undulating horizontal tiers
-      mg.box(darkSteel, xm, H / 2, zm, 0.6, H, segLen, yaw, true);
-      for (let tier = 0; tier < 5; tier++) {
-        const th = 3.8;
-        const ty = 2.0 + tier * 4.2;
-        const wave = Math.sin(am * 3 + tier * 1.1) * 0.45;
-        const bPt0 = pt(ARENA_RX + 0.55 + wave, ARENA_RZ + 0.55 + wave, a0);
-        const bPt1 = pt(ARENA_RX + 0.55 + wave, ARENA_RZ + 0.55 + wave, a1);
-        const bx = (bPt0[0] + bPt1[0]) / 2;
-        const bz = (bPt0[1] + bPt1[1]) / 2;
-        const blen = Math.hypot(bPt1[0] - bPt0[0], bPt1[1] - bPt0[1]) + 0.2;
-        mg.box(bronzeShingle[(tier + (i % 2)) % bronzeShingle.length], bx, ty, bz, 0.75, th, blen, yaw, true);
-      }
-      // Accent bronze vertical ribs every 2 panels
-      if (i % 2 === 0) mg.box(darkSteel, p0[0], H / 2, p0[1], 0.45, H, 0.35, am);
+  // Lit interior lobby backdrop curving behind the glass curtain wall (a = +1.05 -> -0.95)
+  mg.add(
+    arenaRibbonGeo(
+      sample(24, 1.05, -0.95, (a) => {
+        const [lx, lz] = pt(LOBBY_RX - 2.1, LOBBY_RZ - 2.1, a);
+        return [lx, 0.05, lz];
+      }),
+      sample(24, 1.05, -0.95, (a) => {
+        const [lx, lz] = pt(LOBBY_RX - 2.1, LOBBY_RZ - 2.1, a);
+        return [lx, LOBBY_H - 0.05, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    interiorMat
+  );
+
+  // Outer curved lobby glass curtain wall (a = +0.96 -> -0.88)
+  mg.add(
+    arenaRibbonGeo(
+      sample(28, 0.96, -0.88, (a) => {
+        const [lx, lz] = pt(LOBBY_RX, LOBBY_RZ, a);
+        return [lx, 0, lz];
+      }),
+      sample(28, 0.96, -0.88, (a) => {
+        const [lx, lz] = pt(LOBBY_RX, LOBBY_RZ, a);
+        return [lx, LOBBY_H, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    lobbyGlass
+  );
+
+  // Vertical mullions & row of double glass entry doors across the front center (a = -0.38 .. +0.42)
+  for (let i = 0; i <= 28; i++) {
+    const a = -0.88 + (i / 28) * (0.96 + 0.88);
+    const [lx, lz] = pt(LOBBY_RX + 0.05, LOBBY_RZ + 0.05, a);
+    const [wx, , wz] = arenaToWorld(lx, 0, lz);
+    const isDoorZone = a >= -0.38 && a <= 0.42;
+    mg.box(isDoorZone ? silverFrame : darkMetal, wx, LOBBY_H / 2, wz, 0.1, LOBBY_H, 0.12, ARENA_YAW - a);
+    if (isDoorZone && i < 28) {
+      const aMid = a + 0.032;
+      const [dx, dz] = pt(LOBBY_RX + 0.12, LOBBY_RZ + 0.12, aMid);
+      const [dwx, , dwz] = arenaToWorld(dx, 0, dz);
+      mg.box(silverFrame, dwx, 1.32, dwz, 0.05, 2.64, 0.05, ARENA_YAW - aMid);
+      mg.box(silverFrame, dwx, 1.12, dwz, 0.09, 0.05, 0.68, ARENA_YAW - aMid);
     }
   }
-
-  // ---- Signature Y-Shaped Structural Super-Columns on East / NE Atrium
-  for (const ang of [-0.95, -0.58, -0.2, 0.2, 0.58, 0.95]) {
-    const base = pt(ARENA_RX + 1.8, ARENA_RZ + 1.8, ang);
-    const split = v3(base[0], 7.4, base[1]);
-    const nx = Math.cos(ang);
-    const nz = Math.sin(ang);
-    mg.beam(darkSteel, v3(base[0], 0, base[1]), split, 0.34, 8, 0.28, true);
-    // Two diagonal Y arms sweeping up to roof fascia & balcony
-    mg.beam(darkSteel, split, v3(base[0] + nx * 1.2 - nz * 1.4, H + 0.2, base[1] + nz * 1.2 + nx * 1.4), 0.22, 6, 0.18);
-    mg.beam(darkSteel, split, v3(base[0] + nx * 1.2 + nz * 1.4, H + 0.2, base[1] + nz * 1.2 - nx * 1.4), 0.22, 6, 0.18);
-    b.collider(base[0] - 0.45, base[0] + 0.45, base[1] - 0.45, base[1] + 0.45, 0, 8, true);
+  // Horizontal transoms across glass lobby (door header at 2.65 m + upper transom at 4.05 m)
+  for (const ty of [2.65, 4.05]) {
+    mg.add(
+      arenaRibbonGeo(
+        sample(28, 0.96, -0.88, (a) => {
+          const [lx, lz] = pt(LOBBY_RX + 0.06, LOBBY_RZ + 0.06, a);
+          return [lx, ty - 0.05, lz];
+        }),
+        sample(28, 0.96, -0.88, (a) => {
+          const [lx, lz] = pt(LOBBY_RX + 0.06, LOBBY_RZ + 0.06, a);
+          return [lx, ty + 0.05, lz];
+        }),
+        1,
+        1,
+        true
+      ),
+      darkMetal
+    );
   }
 
-  // ---- Sweeping Oval Cantilevered Roof Canopy + Crown Drum + Rooftop "T-MOBILE ARENA" Signs
-  const canopyOuter = new THREE.Mesh(
-    new THREE.CylinderGeometry(ARENA_RX + 3.4, ARENA_RX + 2.0, 1.3, 36, 1),
-    darkSteel
+  // ---- Lower-Left Box Office Podium + Blue Ticket Kiosks (matching the photo under the left prow)
+  const boxBronze = mat(0x524238, 0.48, 0.55);
+  const boxDark = mat(0x221c18, 0.65, 0.3);
+  const boxFrontPts = sample(8, 0.94, 0.48, (a) => {
+    const [lx, lz] = pt(LOBBY_RX + 2.8, LOBBY_RZ + 2.8, a);
+    return [lx, 0, lz];
+  });
+  const boxTopPts = sample(8, 0.94, 0.48, (a) => {
+    const [lx, lz] = pt(LOBBY_RX + 2.8, LOBBY_RZ + 2.8, a);
+    return [lx, 3.35, lz];
+  });
+  mg.add(arenaRibbonGeo(boxFrontPts, boxTopPts, 1, 1, true), boxBronze, true);
+  // Roof + recessed ticket counter band on Box Office
+  mg.add(
+    arenaRibbonGeo(
+      boxTopPts,
+      sample(8, 0.94, 0.48, (a) => {
+        const [lx, lz] = pt(LOBBY_RX, LOBBY_RZ, a);
+        return [lx, 3.35, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    darkMetal
   );
-  canopyOuter.scale.set(1, 1, (ARENA_RZ + 3.0) / (ARENA_RX + 3.4));
-  canopyOuter.position.set(ARENA_X, H + 0.65, ARENA_Z);
-  canopyOuter.castShadow = true;
-  b.add(canopyOuter);
+  // Dark recessed teller window strip on Box Office front
+  mg.add(
+    arenaRibbonGeo(
+      sample(6, 0.86, 0.55, (a) => {
+        const [lx, lz] = pt(LOBBY_RX + 2.84, LOBBY_RZ + 2.84, a);
+        return [lx, 0.95, lz];
+      }),
+      sample(6, 0.86, 0.55, (a) => {
+        const [lx, lz] = pt(LOBBY_RX + 2.84, LOBBY_RZ + 2.84, a);
+        return [lx, 2.2, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    boxDark
+  );
+  const boMid = pt(LOBBY_RX + 2.94, LOBBY_RZ + 2.94, 0.72);
+  const boW = arenaToWorld(boMid[0], 2.74, boMid[1]);
+  const boTex = canvasTex(512, 80, (ctx) => {
+    ctx.clearRect(0, 0, 512, 80);
+    ctx.fillStyle = '#e8cf9c';
+    ctx.font = '700 42px "Segoe UI", Arial, sans-serif';
+    ctx.letterSpacing = '6px';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('BOX OFFICE', 256, 40);
+  });
+  const boMat = b.nightGlow(
+    new THREE.MeshStandardMaterial({ map: boTex, emissiveMap: boTex, emissive: 0xffffff, emissiveIntensity: 0.45, alphaTest: 0.25, roughness: 0.4 }),
+    0.3,
+    0.85
+  );
+  const boMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 0.7), boMat);
+  boMesh.position.set(boW[0], boW[1], boW[2]);
+  boMesh.rotation.y = Math.PI / 2 + ARENA_YAW - 0.72;
+  b.add(boMesh);
 
-  const upperCrown = new THREE.Mesh(new THREE.CylinderGeometry(16.5, 19.2, 3.6, 32, 1), lightRoof);
-  upperCrown.scale.set(1, 1, ARENA_RZ / ARENA_RX);
-  upperCrown.position.set(ARENA_X, H + 3.0, ARENA_Z);
-  b.add(upperCrown);
-
-  // Magenta perimeter roof LED halo ring
-  const halo = new THREE.TorusGeometry(ARENA_RX + 3.45, 0.16, 6, 48);
-  halo.rotateX(Math.PI / 2);
-  halo.scale(1, 1, (ARENA_RZ + 3.05) / (ARENA_RX + 3.45));
-  mg.at(magentaFin, halo, ARENA_X, H + 0.65, ARENA_Z);
-
-  // ---- Projecting Second-Level Exterior VIP Balconies & Overhead Plaza Stage
-  const balcMat = mat(0x282b33, 0.4, 0.72);
-  const railMat = new THREE.MeshStandardMaterial({ color: 0x9fc8e8, transparent: true, opacity: 0.45, roughness: 0.1 });
-  const balcPt = pt(ARENA_RX + 2.6, ARENA_RZ + 2.6, -0.05);
-  mg.box(balcMat, balcPt[0], 7.0, balcPt[1], 5.6, 0.55, 15.0, -0.05, true);
-  mg.box(magentaFin, balcPt[0] + 2.85, 7.0, balcPt[1], 0.14, 0.25, 15.0, -0.05);
-  mg.box(railMat, balcPt[0] + 2.75, 7.8, balcPt[1], 0.1, 1.0, 14.8, -0.05);
-  signBoard(b, 'ARENA STAGE • LIVE', '#120814', '#ffffff', 9.0, 1.15, balcPt[0] + 2.95, 7.05, balcPt[1], Math.PI / 2, 'VIP TERRACE & FAN OVERLOOK', 0.14);
-
-  // ---- Signature Ground Atrium Entrance Canopy & Bollard Plaza facing East/NE (-113, 393)
-  const entPt = pt(ARENA_RX + 2.2, ARENA_RZ + 2.2, -0.02);
-  mg.box(darkSteel, entPt[0], 4.5, entPt[1], 5.4, 0.55, 13.5, -0.02, true);
-  mg.box(magentaFin, entPt[0] + 2.72, 4.5, entPt[1], 0.16, 0.22, 13.5, -0.02);
-  signBoard(b, 'T-MOBILE ARENA', '#140812', '#ff2d95', 12.2, 1.95, entPt[0] + 2.85, 5.1, entPt[1], Math.PI / 2, 'LAS VEGAS • HOME OF CHAMPIONS');
-  // Security bollards in front of main doors
-  const bollardMat = mat(0x282b32, 0.4, 0.78);
-  for (let z = 385.5; z <= 401.5; z += 2.2) {
-    mg.beam(bollardMat, v3(-111.5, 0, z), v3(-111.5, 0.9, z), 0.14, 8);
-    b.collider(-111.7, -111.3, z - 0.18, z + 0.18, 0, 0.9, true);
+  // Two bright blue self-service ticket kiosks just right of Box Office
+  const kioskBlue = basic(0x1678ff);
+  for (const ka of [0.43, 0.455]) {
+    const kp = pt(LOBBY_RX + 2.3, LOBBY_RZ + 2.3, ka);
+    const kw = arenaToWorld(kp[0], 0.95, kp[1]);
+    mg.box(darkMetal, kw[0], 0.95, kw[2], 0.52, 1.9, 0.55, ARENA_YAW - ka, true);
+    mg.box(kioskBlue, kw[0] + 0.14, 1.15, kw[2], 0.32, 0.95, 0.48, ARENA_YAW - ka);
   }
 
-  // ---- Massive ~9,000 sq ft Exterior Curved/Angled LED Media Mesh facing Toshiba Plaza & The Park
-  const arenaLed = new LedBoard(
-    'T-MOBILE ARENA',
-    ['GOLDEN KNIGHTS HOCKEY', 'UFC FIGHT NIGHT LIVE', 'WORLD TOUR CONCERT', 'THE PARK • TOSHIBA PLAZA'],
-    ['#b8923a', '#d81e2a', '#e20074', '#1e78d4'],
-    512,
-    256
-  ).withShows([
-    { name: 'VEGAS GOLDEN KNIGHTS', sub: 'PUCK DROP 7 PM • FORTRESS', color: '#9a7a2c', art: 'singer' },
-    { name: 'ARENA WORLD TOUR', sub: 'SOLD OUT • DOORS 6:30 PM', color: '#8a0a5a', art: 'dj' },
-    { name: 'CHAMPIONSHIP BOUT', sub: 'MAIN CARD • LIVE TONIGHT', color: '#8e1420', art: 'cirque' },
-  ]);
-  const ledFace = new THREE.MeshBasicMaterial({ map: arenaLed.tex });
-  const ledGroup = new THREE.Group();
-  // Two slightly curved giant fascia panels facing NE (-0.35 rad) directly toward Toshiba Plaza & The Park
-  const panelAngles = [-0.62, -0.22];
-  for (const ang of panelAngles) {
-    const p = pt(ARENA_RX + 1.15, ARENA_RZ + 1.15, ang);
-    const pm = new THREE.Mesh(new THREE.BoxGeometry(0.45, 7.6, 10.2), [ledFace, darkSteel, darkSteel, darkSteel, darkSteel, darkSteel]);
-    pm.position.set(p[0], 14.8, p[1]);
-    pm.rotation.y = -ang;
-    ledGroup.add(pm);
+  // Subtle low dark security bollards across plaza doors (no chunky white poles!)
+  for (let a = -0.36; a <= 0.36; a += 0.09) {
+    const bp = pt(LOBBY_RX + 3.6, LOBBY_RZ + 3.6, a);
+    const bw = arenaToWorld(bp[0], 0, bp[1]);
+    mg.beam(darkMetal, v3(bw[0], 0, bw[2]), v3(bw[0], 0.85, bw[2]), 0.09, 8);
+    b.collider(bw[0] - 0.14, bw[0] + 0.14, bw[2] - 0.14, bw[2] + 0.14, 0, 0.85, true);
   }
-  b.add(ledGroup);
-  arenaLed.at(ARENA_X + 18, 14.8, ARENA_Z - 6);
-  b.every((_dt, t) => arenaLed.draw(t));
 
-  // Freeway-facing west rooftop crown sign (facing I-15 NB/SB commuters)
-  signBoard(b, 'T-MOBILE ARENA', '#140812', '#ff2d95', 18, 3.0, ARENA_X - ARENA_RX * 0.88, H + 3.2, ARENA_Z, -Math.PI / 2, 'NEXT EXIT • TROPICANA AVE');
+  // ---- 2. Sweeping Cantilevered Lower Deck ("thick curved lip" + bright magenta underside glow)
+  const DECK_N = 48;
+  const deckA0 = -1.14;
+  const deckA1 = 1.16;
+  const deckInBot = sample(DECK_N, deckA1, deckA0, (a) => {
+    const [lx, lz] = pt(LOBBY_RX - 0.2, LOBBY_RZ - 0.2, a);
+    return [lx, LOBBY_H, lz];
+  });
+  const deckOutBot = sample(DECK_N, deckA1, deckA0, (a) => {
+    const ov = deckOverhang(a);
+    const [lx, lz] = pt(LOBBY_RX + ov, LOBBY_RZ + ov, a);
+    return [lx, deckSoffitY(a), lz];
+  });
+  const deckOutTop = sample(DECK_N, deckA1, deckA0, (a) => {
+    const ov = deckOverhang(a) + 0.35;
+    const [lx, lz] = pt(LOBBY_RX + ov, LOBBY_RZ + ov, a);
+    return [lx, deckTopY(a), lz];
+  });
+  const deckInTop = sample(DECK_N, deckA1, deckA0, (a) => {
+    const [lx, lz] = pt(LOBBY_RX - 0.2, LOBBY_RZ - 0.2, a);
+    return [lx, deckTopY(a), lz];
+  });
+  // Glowing magenta soffit underside (normals point DOWNWARD -Y toward plaza & lobby!)
+  mg.add(arenaRibbonGeo(deckInBot, deckOutBot, 1, 1, true), soffitMat);
+  // Thick angled brushed-bronze outer fascia lip (normals point OUTWARD +X!)
+  mg.add(arenaRibbonGeo(deckOutBot, deckOutTop, 1, 1, true), bronzeWing, true);
+  // Top terrace surface (normals point UPWARD +Y!) + frameless glass balcony railing
+  mg.add(arenaRibbonGeo(deckOutTop, deckInTop, 1, 1, true), slateDeck);
+  const deckRailTop = sample(DECK_N, deckA1, deckA0, (a) => {
+    const ov = deckOverhang(a) + 0.22;
+    const [lx, lz] = pt(LOBBY_RX + ov, LOBBY_RZ + ov, a);
+    return [lx, deckTopY(a) + 0.85, lz];
+  });
+  mg.add(arenaRibbonGeo(deckOutTop, deckRailTop, 1, 1, true), railGlass);
+  // Left prow end wall closing the cantilevered prow cleanly
+  const prowEndIn = arenaToWorld(pt(LOBBY_RX - 0.2, LOBBY_RZ - 0.2, deckA1)[0], LOBBY_H, pt(LOBBY_RX - 0.2, LOBBY_RZ - 0.2, deckA1)[1]);
+  const prowEndOut = arenaToWorld(
+    pt(LOBBY_RX + deckOverhang(deckA1), LOBBY_RZ + deckOverhang(deckA1), deckA1)[0],
+    deckTopY(deckA1),
+    pt(LOBBY_RX + deckOverhang(deckA1), LOBBY_RZ + deckOverhang(deckA1), deckA1)[1]
+  );
+  mg.box(darkMetal, (prowEndIn[0] + prowEndOut[0]) / 2, (prowEndIn[1] + prowEndOut[1]) / 2, (prowEndIn[2] + prowEndOut[2]) / 2, 3.2, 1.8, 0.35, ARENA_YAW - deckA1);
 
-  // Night magenta/amber architectural light wash onto Toshiba Plaza (two selective spots/lights)
-  b.light(0xe20074, 0, 26, ARENA_X + ARENA_RX + 4, 9, ARENA_Z - 5);
-  b.light(0xffb86a, 0, 22, -96, 8, 368);
+  // ---- 3. Mid Dark Glass Concourse Gallery (y = 8.0 .. 11.2, recessed between lower deck & LED screen)
+  const MID_RX = ARENA_RX + 0.2;
+  const MID_RZ = ARENA_RZ + 0.2;
+  mg.add(
+    arenaRibbonGeo(
+      sample(30, 0.95, -0.85, (a) => {
+        const [lx, lz] = pt(MID_RX, MID_RZ, a);
+        return [lx, 8.0, lz];
+      }),
+      sample(30, 0.95, -0.85, (a) => {
+        const [lx, lz] = pt(MID_RX, MID_RZ, a);
+        return [lx, 11.3, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    concourseGlass
+  );
+  // Dark structural mullions across mid-concourse gallery
+  for (let i = 0; i <= 20; i++) {
+    const a = -0.82 + (i / 20) * (0.92 + 0.82);
+    const [lx, lz] = pt(MID_RX + 0.08, MID_RZ + 0.08, a);
+    const [wx, , wz] = arenaToWorld(lx, 0, lz);
+    mg.box(darkMetal, wx, 9.65, wz, 0.14, 3.3, 0.16, ARENA_YAW - a);
+  }
+  mg.add(
+    arenaRibbonGeo(
+      sample(24, 0.95, -0.85, (a) => {
+        const [lx, lz] = pt(MID_RX + 0.1, MID_RZ + 0.1, a);
+        return [lx, 9.55, lz];
+      }),
+      sample(24, 0.95, -0.85, (a) => {
+        const [lx, lz] = pt(MID_RX + 0.1, MID_RZ + 0.1, a);
+        return [lx, 9.75, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    darkMetal
+  );
 
-  // Cylinder approximation collider + world map building + zone
-  b.collider(ARENA_X - ARENA_RX - 0.8, ARENA_X + ARENA_RX + 0.8, ARENA_Z - ARENA_RZ - 0.8, ARENA_Z + ARENA_RZ + 0.8, 0, H + 4, true);
+  // ---- 4. Upper Bowl Skin: Bronze Cladding, Upper-Left Blue Glass Strip & Right Stacked Ribbed Bands
+  const SKIN_RX = ARENA_RX + 1.0;
+  const SKIN_RZ = ARENA_RZ + 1.0;
+
+  // (a) Bronze/champagne ribbed cladding wrapping from left wing (+0.54) around rear (+PI / -PI) to right (-1.82)
+  mg.add(
+    arenaRibbonGeo(
+      sample(40, Math.PI * 2 - 1.82, 0.54, (a) => {
+        const [lx, lz] = pt(SKIN_RX, SKIN_RZ, a);
+        return [lx, 0, lz];
+      }),
+      sample(40, Math.PI * 2 - 1.82, 0.54, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.5, SKIN_RZ - 0.5, a);
+        return [lx, 18.8, lz];
+      }),
+      12,
+      2.5,
+      true
+    ),
+    bronzeSkin,
+    true
+  );
+  // Sculpted 3D vertical metallic fins along the left & rear bronze facade
+  for (let i = 0; i <= 26; i++) {
+    const a = 0.62 + (i / 26) * (Math.PI * 2 - 1.82 - 0.62);
+    const [lx, lz] = pt(SKIN_RX + 0.08, SKIN_RZ + 0.08, a);
+    const [wx, , wz] = arenaToWorld(lx, 0, lz);
+    mg.box(bronzeWing, wx, 9.4, wz, 0.22, 18.4, 0.14, ARENA_YAW - a);
+  }
+
+  // (b) Long sweeping strip of cobalt-blue glass curving around the upper-left bronze flank (a = +0.64 .. +1.76)
+  mg.add(
+    arenaRibbonGeo(
+      sample(18, 1.76, 0.64, (a, k) => {
+        const taper = Math.sin(k * Math.PI);
+        const [lx, lz] = pt(SKIN_RX + 0.22, SKIN_RZ + 0.22, a);
+        return [lx, 11.4 + (1 - taper) * 1.1, lz];
+      }),
+      sample(18, 1.76, 0.64, (a, k) => {
+        const taper = Math.sin(k * Math.PI);
+        const [lx, lz] = pt(SKIN_RX + 0.08, SKIN_RZ + 0.08, a);
+        return [lx, 15.2 - (1 - taper) * 0.7, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    blueGlass
+  );
+  // Projecting angled bronze brow hood overhanging above the blue glass strip
+  mg.add(
+    arenaRibbonGeo(
+      sample(18, 1.82, 0.56, (a) => {
+        const [lx, lz] = pt(SKIN_RX + 0.9, SKIN_RZ + 0.9, a);
+        return [lx, 15.3, lz];
+      }),
+      sample(18, 1.82, 0.56, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.35, SKIN_RZ - 0.35, a);
+        return [lx, 18.6, lz];
+      }),
+      4,
+      1,
+      true
+    ),
+    bronzeSkin,
+    true
+  );
+
+  // (c) Left & right sculpted metallic wing fins framing the giant curved LED screen
+  mg.add(
+    arenaRibbonGeo(
+      sample(6, 0.64, 0.52, (a, k) => {
+        const [lx, lz] = pt(SKIN_RX + 0.8 + (1 - k) * 0.4, SKIN_RZ + 0.8 + (1 - k) * 0.4, a);
+        return [lx, 8.2 + (1 - k) * 1.4, lz];
+      }),
+      sample(6, 0.64, 0.52, (a) => {
+        const [lx, lz] = pt(SKIN_RX + 0.6, SKIN_RZ + 0.6, a);
+        return [lx, 18.4, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    bronzeWing,
+    true
+  );
+  mg.add(
+    arenaRibbonGeo(
+      sample(6, -0.51, -0.66, (a, k) => {
+        const [lx, lz] = pt(SKIN_RX + 0.6 + k * 0.3, SKIN_RZ + 0.6 + k * 0.3, a);
+        return [lx, 7.6 + k * 1.2, lz];
+      }),
+      sample(6, -0.51, -0.66, (a) => {
+        const [lx, lz] = pt(SKIN_RX + 0.45, SKIN_RZ + 0.45, a);
+        return [lx, 18.2, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    gunmetalRib,
+    true
+  );
+
+  // (d) Stacked horizontal ribbed metallic bands wrapping around the right shoulder (a = -0.54 .. -1.85)
+  mg.add(
+    arenaRibbonGeo(
+      sample(22, -0.54, -1.85, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.3, SKIN_RZ - 0.3, a);
+        return [lx, 0, lz];
+      }),
+      sample(22, -0.54, -1.85, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.5, SKIN_RZ - 0.5, a);
+        return [lx, 18.8, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    darkMetal,
+    true
+  );
+  for (let band = 0; band < 7; band++) {
+    const y0 = 6.2 + band * 1.72;
+    const y1 = y0 + 1.38;
+    const stepOut = 0.35 + Math.sin((band / 6) * Math.PI) * 0.55;
+    const bandMat = band % 2 === 0 ? gunmetalRib : bronzeWing;
+    mg.add(
+      arenaRibbonGeo(
+        sample(22, -0.56 - band * 0.015, -1.84, (a) => {
+          const [lx, lz] = pt(SKIN_RX + stepOut, SKIN_RZ + stepOut, a);
+          return [lx, y0, lz];
+        }),
+        sample(22, -0.56 - band * 0.015, -1.84, (a) => {
+          const [lx, lz] = pt(SKIN_RX + stepOut - 0.25, SKIN_RZ + stepOut - 0.25, a);
+          return [lx, y1, lz];
+        }),
+        4,
+        1,
+        true
+      ),
+      bandMat,
+      true
+    );
+  }
+
+  // ---- 5. Roof Ribbed Parapet Drum + Low Curved Roof Cap + Standing "T·Mobile ARENA" Roof Letters
+  mg.add(
+    arenaRibbonGeo(
+      sample(48, Math.PI, -Math.PI, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.15, SKIN_RZ - 0.15, a);
+        return [lx, 17.5, lz];
+      }),
+      sample(48, Math.PI, -Math.PI, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.55, SKIN_RZ - 0.55, a);
+        return [lx, 19.05, lz];
+      }),
+      18,
+      0.5,
+      true
+    ),
+    bronzeSkin
+  );
+  // Low oval roof cap
+  const roofCap = new THREE.Mesh(new THREE.CylinderGeometry(SKIN_RX - 1.4, SKIN_RX - 0.55, 1.3, 40, 1), darkMetal);
+  roofCap.scale.set(1, 1, (SKIN_RZ - 0.55) / (SKIN_RX - 0.55));
+  roofCap.position.set(ARENA_X, 19.7, ARENA_Z);
+  roofCap.rotation.y = ARENA_YAW;
+  b.add(roofCap);
+
+  // Standing silver/white "T·Mobile ARENA" letters along roof edge directly above the LED screen
+  const lettersTex = makeRoofLettersTex();
+  const lettersMat = new THREE.MeshStandardMaterial({
+    map: lettersTex,
+    emissiveMap: lettersTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.38,
+    alphaTest: 0.35,
+    roughness: 0.28,
+    metalness: 0.6,
+    side: THREE.DoubleSide,
+  });
+  b.nightGlow(lettersMat, 0.38, 1.0);
+  // Front glowing silver face + subtle dark backing 0.18 m behind for 3D depth (u=0 LEFT -> u=1 RIGHT)
+  mg.add(
+    arenaRibbonGeo(
+      sample(18, 0.37, -0.35, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.18, SKIN_RZ - 0.18, a);
+        return [lx, 19.0, lz];
+      }),
+      sample(18, 0.37, -0.35, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.18, SKIN_RZ - 0.18, a);
+        return [lx, 21.6, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    lettersMat
+  );
+  const lettersBackMat = new THREE.MeshBasicMaterial({ map: lettersTex, color: 0x262830, alphaTest: 0.35, side: THREE.DoubleSide });
+  mg.add(
+    arenaRibbonGeo(
+      sample(18, 0.37, -0.35, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.36, SKIN_RZ - 0.36, a);
+        return [lx, 19.0, lz];
+      }),
+      sample(18, 0.37, -0.35, (a) => {
+        const [lx, lz] = pt(SKIN_RX - 0.36, SKIN_RZ - 0.36, a);
+        return [lx, 21.6, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    lettersBackMat
+  );
+  // Structural steel rails behind the standing roof letters
+  for (const ry of [19.75, 20.65]) {
+    mg.add(
+      arenaRibbonGeo(
+        sample(18, 0.36, -0.34, (a) => {
+          const [lx, lz] = pt(SKIN_RX - 0.42, SKIN_RZ - 0.42, a);
+          return [lx, ry - 0.04, lz];
+        }),
+        sample(18, 0.36, -0.34, (a) => {
+          const [lx, lz] = pt(SKIN_RX - 0.42, SKIN_RZ - 0.42, a);
+          return [lx, ry + 0.04, lz];
+        }),
+        1,
+        1,
+        true
+      ),
+      silverFrame
+    );
+  }
+
+  // ---- 6. Giant Curved Living LED Screen (y = 11.3 .. 17.6, wrapping upper front bowl)
+  const ledCanvas = document.createElement('canvas');
+  ledCanvas.width = 1024;
+  ledCanvas.height = 256;
+  const ledCtx = ledCanvas.getContext('2d')!;
+  const ledTex = new THREE.CanvasTexture(ledCanvas);
+  ledTex.colorSpace = THREE.SRGBColorSpace;
+  ledTex.anisotropy = 4;
+
+  const drawArenaLed = (localSec: number, nightVal: number) => {
+    const cycle = localSec % 28;
+    const w = 1024;
+    const h = 256;
+    if (cycle < 12 || cycle >= 22) {
+      // Primary Resting Slide: Iconic hot-magenta "WELCOME TO T·Mobile ARENA" with white swoosh
+      const g = ledCtx.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, '#c62472');
+      g.addColorStop(0.35, '#e23a8c');
+      g.addColorStop(0.7, '#d82c80');
+      g.addColorStop(1, '#bd1e6a');
+      ledCtx.fillStyle = g;
+      ledCtx.fillRect(0, 0, w, h);
+
+      // Subtle living shimmer sweep across the magenta surface
+      const sweepX = ((localSec * 90) % (w + 300)) - 150;
+      const sg = ledCtx.createLinearGradient(sweepX - 140, 0, sweepX + 140, 0);
+      sg.addColorStop(0, 'rgba(255,255,255,0)');
+      sg.addColorStop(0.5, 'rgba(255,210,234,0.1)');
+      sg.addColorStop(1, 'rgba(255,255,255,0)');
+      ledCtx.fillStyle = sg;
+      ledCtx.fillRect(0, 0, w, h);
+
+      drawTMobileWordmark(ledCtx, w * 0.51, h * 0.72, 1.02, '#ffffff', true, true);
+    } else if (cycle < 17) {
+      // Slide 2: Vegas Golden Knights promo
+      const g = ledCtx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#101216');
+      g.addColorStop(0.55, '#2b2414');
+      g.addColorStop(1, '#101216');
+      ledCtx.fillStyle = g;
+      ledCtx.fillRect(0, 0, w, h);
+      ledCtx.fillStyle = '#c8a038';
+      ledCtx.fillRect(0, 0, w, 10);
+      ledCtx.fillRect(0, h - 10, w, 10);
+      ledCtx.fillStyle = '#c8a038';
+      ledCtx.beginPath();
+      ledCtx.moveTo(150, 44);
+      ledCtx.lineTo(222, 44);
+      ledCtx.lineTo(222, 138);
+      ledCtx.lineTo(186, 208);
+      ledCtx.lineTo(150, 138);
+      ledCtx.closePath();
+      ledCtx.fill();
+      ledCtx.fillStyle = '#14161b';
+      ledCtx.beginPath();
+      ledCtx.moveTo(164, 64);
+      ledCtx.lineTo(208, 64);
+      ledCtx.lineTo(186, 168);
+      ledCtx.closePath();
+      ledCtx.fill();
+
+      ledCtx.textAlign = 'left';
+      ledCtx.textBaseline = 'middle';
+      ledCtx.fillStyle = '#f2d06b';
+      ledCtx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
+      ledCtx.fillText('THE FORTRESS • T-MOBILE ARENA', 265, 74);
+      ledCtx.fillStyle = '#ffffff';
+      ledCtx.font = '900 54px "Segoe UI", Arial, sans-serif';
+      ledCtx.fillText('VEGAS GOLDEN KNIGHTS', 265, 136, 710);
+      ledCtx.fillStyle = '#c8a038';
+      ledCtx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
+      ledCtx.fillText('HOME ICE • PUCK DROP 7:00 PM', 265, 194);
+    } else {
+      // Slide 3: Live Events & Concerts promo
+      const g = ledCtx.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, '#140822');
+      g.addColorStop(0.5, '#680848');
+      g.addColorStop(1, '#1a0a2e');
+      ledCtx.fillStyle = g;
+      ledCtx.fillRect(0, 0, w, h);
+      ledCtx.fillStyle = '#e20074';
+      ledCtx.fillRect(0, h - 12, w, 12);
+      ledCtx.textAlign = 'center';
+      ledCtx.textBaseline = 'middle';
+      ledCtx.fillStyle = '#ff68b8';
+      ledCtx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
+      ledCtx.fillText('WORLD TOUR • CHAMPIONSHIP FIGHT NIGHT • LIVE', w / 2, 66);
+      ledCtx.fillStyle = '#ffffff';
+      ledCtx.font = '900 62px "Segoe UI", Arial, sans-serif';
+      ledCtx.fillText('LIVE AT T-MOBILE ARENA', w / 2, 136, 920);
+      ledCtx.fillStyle = '#ffd25a';
+      ledCtx.font = 'bold 26px "Segoe UI", Arial, sans-serif';
+      ledCtx.fillText('DOORS 6:30 PM • TICKETS AT BOX OFFICE', w / 2, 198);
+    }
+    // Subtle physical LED dot matrix texture
+    ledCtx.fillStyle = `rgba(0,0,0,${0.08 * (1 - nightVal * 0.4)})`;
+    for (let y = 0; y < h; y += 4) ledCtx.fillRect(0, y, w, 1);
+    ledTex.needsUpdate = true;
+  };
+
+  drawArenaLed(0, 0.5);
+  const screenMat = new THREE.MeshStandardMaterial({
+    map: ledTex,
+    emissiveMap: ledTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.54,
+    roughness: 0.38,
+  });
+  b.nightGlow(screenMat, 0.54, 0.76);
+  // Sample LEFT (+0.54/+0.58) -> RIGHT (-0.52/-0.56) so text reads left-to-right!
+  const ledMesh = new THREE.Mesh(
+    arenaRibbonGeo(
+      sample(28, 0.54, -0.52, (a) => {
+        const [lx, lz] = pt(SKIN_RX + 0.58, SKIN_RZ + 0.58, a);
+        return [lx, 11.3, lz];
+      }),
+      sample(28, 0.58, -0.56, (a) => {
+        const [lx, lz] = pt(SKIN_RX + 0.25, SKIN_RZ + 0.25, a);
+        return [lx, 17.55, lz];
+      }),
+      1,
+      1,
+      true
+    ),
+    screenMat
+  );
+  b.add(ledMesh);
+
+  let nearSeconds = 0;
+  let lastLedFrame = -1;
+  b.every((dt, _t, night) => {
+    const dx = viewer.cam.x - ARENA_X;
+    const dz = viewer.cam.z - ARENA_Z;
+    if (dx * dx + dz * dz > 240 * 240) {
+      nearSeconds = 0;
+      return;
+    }
+    nearSeconds += dt;
+    const frame = Math.floor(nearSeconds * 4);
+    if (frame !== lastLedFrame) {
+      lastLedFrame = frame;
+      drawArenaLed(nearSeconds, night);
+    }
+  });
+
+  // Freeway-facing west rooftop sign (visible from I-15 & Dean Martin Dr)
+  const westPt = arenaToWorld(-SKIN_RX + 1.2, 20.6, 0);
+  signBoard(b, 'T-MOBILE ARENA', '#140812', '#ff2d95', 16, 2.4, westPt[0], westPt[1], westPt[2], -Math.PI / 2 + ARENA_YAW, 'NEXT EXIT • TROPICANA AVE');
+
+  // ---- 7. Vivid Magenta Under-Deck Wash Lights & Plaza Glow
+  for (const la of [-0.1, 0.45, 0.86]) {
+    const lp = pt(LOBBY_RX + deckOverhang(la) * 0.62, LOBBY_RZ + deckOverhang(la) * 0.62, la);
+    const lw = arenaToWorld(lp[0], 5.1, lp[1]);
+    b.light(0xff148c, 18, 25, lw[0], lw[1], lw[2], 0.28);
+  }
+  b.light(0xffb86a, 18, 22, -96, 8, 368, 0.15);
+
+  // Colliders & map metadata
+  b.collider(ARENA_X - 20.2, ARENA_X + 20.2, ARENA_Z - 25.6, ARENA_Z + 25.6, 0, 21, true);
   b.building(ARENA_X, ARENA_Z, ARENA_RX * 2, ARENA_RZ * 2, '#9a683a', 'T-Mobile Arena');
-  b.zone('T-Mobile Arena', ARENA_X - ARENA_RX - 3, ARENA_X + ARENA_RX + 4, ARENA_Z - ARENA_RZ - 3, ARENA_Z + ARENA_RZ + 4);
-  b.pickup(-113.5, 1.25, 394, 4, 'T-Mobile Arena VIP Pack', false);
+  b.zone('T-Mobile Arena', ARENA_X - 24, ARENA_X + 26, ARENA_Z - 28, ARENA_Z + 28);
+  const pkPt = arenaToWorld(LOBBY_RX + 3.2, 1.25, 0);
+  b.pickup(pkPt[0], pkPt[1], pkPt[2], 4, 'T-Mobile Arena VIP Pack', false);
 }
 
 // ================================================================ Arena BOH & Frank Sinatra Dr South
@@ -542,11 +1335,11 @@ function buildFrankSinatraArenaSection(b: WorldBuilder, mg: Merger): void {
   }
   pools.flush(b);
 
-  // Bruno Mars Dr (connecting Park MGM Garage south edge -> Frank Sinatra Dr at z = 360)
-  flatRoad(b, -137, 360, 8.5, 46, 'x', 2, true, L1 + 0.005, 'Bruno Mars Dr');
+  // Bruno Mars Dr (connecting Park MGM Garage south edge -> Frank Sinatra Dr at z = 358)
+  flatRoad(b, -137, 358, 8.0, 46, 'x', 2, true, L1 + 0.005, 'Bruno Mars Dr');
 
-  // Arena Dr (connecting Arena South dock & NYNY rear -> Frank Sinatra Dr at z = 423)
-  flatRoad(b, -134, 423, 9, 54, 'x', 2, true, L1 + 0.005, 'Arena Dr');
+  // Arena Dr (connecting Arena South dock & NYNY rear -> Frank Sinatra Dr at z = 425)
+  flatRoad(b, -134, 425, 8.5, 54, 'x', 2, true, L1 + 0.005, 'Arena Dr');
 
   // Sinatra Substation (architecturally screened enclosure west of Arena S-W, z = 408..420)
   addBuilding(b, mg, { x: -157.5, z: 414.5, w: 4.5, d: 9.0, h: 4.5, wall: 0x8f887d, trim: 0x5c5850, label: 'Sinatra Substation' });

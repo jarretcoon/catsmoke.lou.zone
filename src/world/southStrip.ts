@@ -464,20 +464,20 @@ function buildNYNY(b: WorldBuilder): void {
   top = stack(-51, 408, [[8, 8, 18]], skin('#d0c0a4', 317), podium.top);
   mg.at(copper, new THREE.CylinderGeometry(1.6, 2.4, 3, 8), -51, top + 1.5, 408);
   mg.at(gold, new THREE.ConeGeometry(1.6, 2.2, 8), -51, top + 4.1, 408);
-  // Municipal building (from the ground, west of the podium) with its wedding-cake lantern
-  tower(b, { x: -92, z: 384, w: 9, d: 9, h: 36, facade: skin('#cfc2a8', 318), minimal: true });
-  b.add(mesh(new THREE.BoxGeometry(9.8, 3.8, 9.8), mat(0x6a5a48, 0.6, 0.2), -92, 1.9, 384, true));
-  for (let i = 0; i < 3; i++) mg.at(i % 2 ? gold : mat(0xe8dcc4, 0.6), new THREE.CylinderGeometry(2.6 - i * 0.7, 3.0 - i * 0.7, 2.2, 10), -92, 37 + i * 2.2, 384);
-  mg.beam(gold, v3(-92, 43.6, 384), v3(-92, 46.5, 384), 0.25, 6, 0.08);
+  // Municipal building (on NYNY's west podium edge, clear of Toshiba Plaza) with its wedding-cake lantern
+  tower(b, { x: -82, z: 398, w: 9, d: 9, h: 36, facade: skin('#cfc2a8', 318), minimal: true });
+  b.add(mesh(new THREE.BoxGeometry(9.8, 3.8, 9.8), mat(0x6a5a48, 0.6, 0.2), -82, 1.9, 398, true));
+  for (let i = 0; i < 3; i++) mg.at(i % 2 ? gold : mat(0xe8dcc4, 0.6), new THREE.CylinderGeometry(2.6 - i * 0.7, 3.0 - i * 0.7, 2.2, 10), -82, 37 + i * 2.2, 398);
+  mg.beam(gold, v3(-82, 43.6, 398), v3(-82, 46.5, 398), 0.25, 6, 0.08);
   b.building(-65, 400.5, 42, 47, '#9a6a52', 'NYNY');
-  b.building(-92, 384, 9, 9, '#cfc2a8');
+  b.building(-82, 398, 9, 9, '#cfc2a8');
 
   buildBrooklynBridge(b, mg);
   buildLiberty(b, mg, -33, 409);
   mg.flush(b);
   buildBigAppleCoaster(b, podium);
 
-  b.zone('New York-New York', -115, -19, zN, TROP_N);
+  b.zone('New York-New York', -91, -19, zN, TROP_N);
   b.zone('Brooklyn Bridge (NYNY)', -26, -19, 390.5, 410.5);
   b.zone('Statue of Liberty (NYNY)', -37, -29, 405.5, 412.5);
   b.crowd.tourists.push(
@@ -623,14 +623,14 @@ function buildBigAppleCoaster(b: WorldBuilder, podium: { x0: number; x1: number;
     [-56, 1.2, 371],
     [-63, 1.25, 371],
     [-70, 2.6, 371],
-    [-86, 20, 371],
-    [-100, 37, 371],
-    [-107, 41, 373.5],
-    [-111.5, 37.5, 381.5],
-    [-109, 18, 392],
-    [-102, 7, 400.5],
-    [-94, 14, 410],
-    [-84, 24, 419.5],
+    [-77, 20, 371],
+    [-82, 37, 373],
+    [-85, 41, 377],
+    [-85.5, 37.5, 385],
+    [-85, 18, 395],
+    [-83, 7, 404],
+    [-80, 14, 412],
+    [-76, 24, 419.5],
     [-70, 20.5, 420.5],
     [-57, 16.5, 420],
     [-47, 15, 416.5],

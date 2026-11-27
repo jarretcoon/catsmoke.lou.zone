@@ -121,7 +121,7 @@ function buildSoundWalls(b: WorldBuilder, mg: Merger): void {
   wallRun(I15.westWallX, -620, -18);
   wallRun(I15.westWallX, 72, 210);
   wallRun(I15.westWallX, 232, 392);
-  wallRun(I15.westWallX, 488, 880);
+  wallRun(I15.westWallX, 498, 880);
 }
 
 // ================================================================ Bridges & Dropicana Ramps
@@ -246,7 +246,7 @@ function buildBridge(
 
 function buildOverpassesAndRamps(b: WorldBuilder, mg: Merger): void {
   // 1. Widened "Dropicana" Tropicana Ave Overpass (z = 442.7, 6 lanes + wide pedestrian sidewalks)
-  buildBridge(b, mg, I15.tropZ, 21.0, 6, -114, -144, -223, -246, 7.2, 'Tropicana Ave Bridge (I-15)');
+  buildBridge(b, mg, I15.tropZ, 21.0, 6, -114, -144, -226, -246, 7.2, 'Tropicana Ave Bridge (I-15)');
 
   // 2. Dropicana SB-to-EB Flyover Viaduct (iconic curving flyover from I-15 SB over I-15 down to Tropicana EB!)
   const viaduct = mat(0x9e988e, 0.85);
@@ -316,8 +316,8 @@ function buildOverpassesAndRamps(b: WorldBuilder, mg: Merger): void {
   // NB Off-Ramp & On-Ramp near Tropicana
   emitRampSlab(-175, 515, -162, 462, 6.4);
   emitRampSlab(-162, 424, -174.5, 365, 6.2);
-  // SB Tropicana On-Ramp
-  emitRampSlab(-218, 464, -212.5, 520, 6.2);
+  // SB Tropicana On-Ramp (clear east of Joey Bishop Dr)
+  emitRampSlab(-216.0, 482, -212.0, 526, 5.4);
   // Flamingo Rd Loop On/Off Ramps on west side of I-15 (z = 12..72)
   emitRampSlab(-212, 65, -228, 12, 6.4);
   emitRampSlab(-226, 22, -211, -18, 5.8);

@@ -41,8 +41,22 @@ export function asphaltTexture(lanes: number, medianDoubleYellow: boolean, dashe
   ctx.fillStyle = '#d4d0c4';
   ctx.fillRect(6, 0, 4, 256);
   ctx.fillRect(246, 0, 4, 256);
-  // median double yellow if two-way undivided
-  if (medianDoubleYellow) {
+  const isTwltl = medianDoubleYellow && lanes >= 5 && lanes % 2 === 1;
+  // Two-way left-turn center channel for odd 5+ lane arterials, otherwise double-yellow centerline
+  if (isTwltl) {
+    const kL = Math.floor(lanes / 2);
+    const kR = Math.ceil(lanes / 2);
+    const xL = (kL / lanes) * 240 + 8;
+    const xR = (kR / lanes) * 240 + 8;
+    ctx.fillStyle = '#d8a632';
+    // Outer solid yellow edges + inner dashed yellow stripes flanking the center turn lane
+    ctx.fillRect(xL - 3.5, 0, 2.5, 256);
+    ctx.fillRect(xR + 1.0, 0, 2.5, 256);
+    for (let y = 12; y < 256; y += 64) {
+      ctx.fillRect(xL + 1.0, y, 2.5, 30);
+      ctx.fillRect(xR - 3.5, y, 2.5, 30);
+    }
+  } else if (medianDoubleYellow) {
     ctx.fillStyle = '#d8a632';
     ctx.fillRect(123, 0, 3.5, 256);
     ctx.fillRect(129.5, 0, 3.5, 256);
@@ -52,6 +66,7 @@ export function asphaltTexture(lanes: number, medianDoubleYellow: boolean, dashe
     ctx.fillStyle = '#dedbd2';
     for (let k = 1; k < lanes; k++) {
       if (medianDoubleYellow && Math.abs(k - lanes / 2) < 0.01) continue;
+      if (isTwltl && (k === Math.floor(lanes / 2) || k === Math.ceil(lanes / 2))) continue;
       const x = (k / lanes) * 240 + 8;
       for (let y = 12; y < 256; y += 64) ctx.fillRect(x - 1.5, y, 3, 30);
     }
