@@ -1327,6 +1327,11 @@ function buildEncore(b: WorldBuilder): void {
   b.floor(41, (zS + zN) / 2, 30, zS - zN, mat(0x4f7a3a, 0.95), 0.012);
   const garden: THREE.Object3D[] = [];
   for (let z = zS - 5; z > -546; z -= 9) {
+    // the Encore casino (walk-in, encoreInterior.ts) fills the garden from z −500 to −546; keep the trees out front
+    if (z < -494 && z > -547) {
+      if (Math.abs(z - -510) > 4 && Math.abs(z - -527) > 7) garden.push(place(roundTree(5.4 + (Math.round(-z) % 3) * 0.5, 0x3a6e34), 24.2, 0, z));
+      continue;
+    }
     garden.push(place(roundTree(6 + (Math.round(-z) % 3) * 0.6, 0x3a6e34), 29, 0, z));
     garden.push(place(cypressTree(5.5), 49, 0, z - 3));
     garden.push(mesh(new THREE.BoxGeometry(6, 0.3, 2.2), mat(0xc4141c, 0.7), 38, 0.15, z - 4.5));
@@ -1384,7 +1389,7 @@ function buildEncore(b: WorldBuilder): void {
 
   b.building(70, -527, 14, 56, '#a0673e', 'Encore');
   b.zone('Encore Las Vegas', 19, 100, zN, zS);
-  b.crowd.tourists.push({ pts: [[22, -494], [24, -560]], prop: 'camera' }, { pts: [[30, -500], [46, -548], [30, -556]], prop: 'bag' }, { pts: [[px0 - 2, pz1 + 1.5], [px1 + 1, pz1 + 1.5], [px1 + 1, pz0 - 1]], prop: 'yard-drink' });
+  b.crowd.tourists.push({ pts: [[22, -494], [24, -560]], prop: 'camera' }, { pts: [[27, -497.5], [50, -497.5]], prop: 'bag' }, { pts: [[px0 - 2, pz1 + 1.5], [px1 + 1, pz1 + 1.5], [px1 + 1, pz0 - 1]], prop: 'yard-drink' });
 }
 
 // =============================================================== Wynn Golf Club (behind Wynn/Encore)

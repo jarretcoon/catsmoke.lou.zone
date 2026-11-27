@@ -39,4 +39,29 @@ Object.assign(CATALOGS, {
       item('wynn-truffles', 'Snacks', 'Box of Truffles', 'Tips ×1.25 for 2 min.', 24, { tip: 1.25, secs: 120, icon: '🍫' }),
     ],
   },
+  // ---------------------------------------------------------------- Encore
+  'encore-eastside': {
+    title: 'Eastside Lounge',
+    sub: 'The red lounge on the Encore casino floor',
+    greeting: 'Grab a seat, the piano starts at nine.',
+    bye: 'Good luck out there',
+    items: [
+      drink('es-butterfly', 'Red Butterfly', 'Hibiscus, gin, a little sparkle. 🍹 for 2 min.', 23, 120),
+      drink('es-old-fashioned', 'Encore Old Fashioned', '🍹 for 2 min. Swag points for the big ice cube.', 26, 120, { degen: [8, 'Five-Star Feline'] }),
+      drink('es-prosecco', 'Prosecco', '🍹 for 90 s.', 18, 90),
+      food('es-sliders', 'Wagyu Sliders', 'Tips ×1.3 for 2 min.', 28, 1.3, 1, 120, '🍔'),
+    ],
+  },
+  'encore-boutique': {
+    title: 'Encore Boutique',
+    sub: 'Gifts and jewellery on the Encore Esplanade',
+    greeting: 'Welcome to the Esplanade.',
+    bye: 'Enjoy Encore',
+    items: [
+      item('enc-aviators', 'Wear', 'Gold Aviators', 'Wearable • +1 Swag. For the pool at Encore Beach Club.', 60, { wear: 'aviators' }),
+      item('enc-butterfly', 'Keepsakes', 'Red Glass Butterfly', 'Like the ones in the lobby. Collectible.', 38, { collect: true, degen: [10, 'Five-Star Feline'] }),
+      item('enc-chandelier', 'Keepsakes', 'Jewelled Chandelier Ornament', 'A tiny Esplanade chandelier for the tree. Collectible.', 44, { collect: true }),
+      item('enc-macarons', 'Snacks', 'Box of Macarons', 'Tips ×1.2 for 2 min, and a sprint for 1 min.', 22, { tip: 1.2, speed: 1.1, secs: 120, icon: '🍬' }),
+    ],
+  },
 });

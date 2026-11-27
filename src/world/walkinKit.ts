@@ -98,6 +98,32 @@ export function vcDouble(rough = 0.7, metal = 0): THREE.MeshStandardMaterial {
   return m;
 }
 
+let _glowDbl: THREE.MeshBasicMaterial | null = null;
+/** Unlit vertex-coloured, double-sided (skylight vaults, lamp shades seen from inside). */
+export function glowDouble(): THREE.MeshBasicMaterial {
+  return (_glowDbl ??= new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+}
+
+/**
+ * A barrel vault along z (springing at y0, crown y0 + r): a skylight glow surface and a lattice of
+ * ribs (arcs every `step` m and longitudinal ribs), like the Wynn/Encore Esplanade ceilings.
+ */
+export function latticeVault(k: Kit, x: number, z0: number, z1: number, y0: number, r: number, sky: number, rib: number, step = 0.9): void {
+  const L = z1 - z0;
+  const zc = (z0 + z1) / 2;
+  const g = new THREE.CylinderGeometry(r, r, L, 20, 1, true, Math.PI / 2, Math.PI);
+  g.rotateX(Math.PI / 2);
+  k.add(g, glowDouble(), sky, x, y0, zc);
+  for (let z = z0 + step / 2; z < z1; z += step) {
+    const a = new THREE.TorusGeometry(r - 0.03, 0.035, 4, 18, Math.PI);
+    k.add(a, vcMat(0.6, 0.1), rib, x, y0, z);
+  }
+  for (let i = 1; i < 8; i++) {
+    const a = (i / 8) * Math.PI;
+    k.box(vcMat(0.6, 0.1), rib, x + Math.cos(a) * (r - 0.04), y0 + Math.sin(a) * (r - 0.04), zc, 0.05, 0.05, L, 0, 0, a);
+  }
+}
+
 /** An open parasol hanging upside-up: canopy cone, ribs, pole and finial (Parasol Up / Down). */
 export function parasol(k: Kit, x: number, y: number, z: number, r: number, color: number, tilt = 0, ry = 0): void {
   k.at(x, y, z, ry, () => {
@@ -262,33 +288,67 @@ export function paintFlower(ctx: CanvasRenderingContext2D, x: number, y: number,
   ctx.restore();
 }
 
-/** A butterfly (Encore's motif): four wings and a body, drawn upright at (x, y). */
-export function paintButterfly(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, wing: string, edge: string, rot = 0): void {
+/** A butterfly (Encore's motif): swept upper wings, rounded lower wings, eye spots, body and antennae. */
+export function paintButterfly(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, wing: string, edge: string, rot = 0, lower?: string): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rot);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(1, r * 0.06);
+  ctx.strokeStyle = edge;
   for (const s of [-1, 1]) {
+    // upper wing
     ctx.beginPath();
-    ctx.ellipse(s * r * 0.45, -r * 0.25, r * 0.5, r * 0.36, s * 0.5, 0, Math.PI * 2);
+    ctx.moveTo(0, -0.05 * r);
+    ctx.bezierCurveTo(s * 0.3 * r, -0.85 * r, s * 1.05 * r, -1.0 * r, s * 1.0 * r, -0.42 * r);
+    ctx.bezierCurveTo(s * 0.95 * r, -0.08 * r, s * 0.45 * r, 0.04 * r, 0, 0.04 * r);
     ctx.fillStyle = wing;
     ctx.fill();
-    ctx.strokeStyle = edge;
-    ctx.lineWidth = Math.max(1, r * 0.07);
     ctx.stroke();
+    // lower wing
     ctx.beginPath();
-    ctx.ellipse(s * r * 0.32, r * 0.32, r * 0.3, r * 0.24, -s * 0.5, 0, Math.PI * 2);
+    ctx.moveTo(0, 0.04 * r);
+    ctx.bezierCurveTo(s * 0.62 * r, 0.02 * r, s * 0.82 * r, 0.55 * r, s * 0.45 * r, 0.75 * r);
+    ctx.bezierCurveTo(s * 0.25 * r, 0.86 * r, s * 0.06 * r, 0.5 * r, 0, 0.16 * r);
+    ctx.fillStyle = lower ?? wing;
     ctx.fill();
     ctx.stroke();
+    // veins
+    ctx.globalAlpha = 0.55;
     ctx.beginPath();
-    ctx.arc(s * r * 0.5, -r * 0.28, r * 0.11, 0, Math.PI * 2);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(s * 0.8 * r, -0.62 * r);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(s * 0.85 * r, -0.25 * r);
+    ctx.moveTo(0, 0.08 * r);
+    ctx.lineTo(s * 0.5 * r, 0.55 * r);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // eye spot + margin dots
+    ctx.fillStyle = '#fff4dc';
+    ctx.beginPath();
+    ctx.arc(s * 0.62 * r, -0.5 * r, 0.13 * r, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = edge;
+    ctx.beginPath();
+    ctx.arc(s * 0.62 * r, -0.5 * r, 0.06 * r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = wing;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(s * (0.92 - i * 0.04) * r, (-0.72 + i * 0.2) * r, 0.045 * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.fillStyle = edge;
   ctx.beginPath();
-  ctx.ellipse(0, 0, r * 0.07, r * 0.48, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0.12 * r, r * 0.06, r * 0.42, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0, -0.25 * r);
+  ctx.quadraticCurveTo(-0.12 * r, -0.55 * r, -0.25 * r, -0.62 * r);
+  ctx.moveTo(0, -0.25 * r);
+  ctx.quadraticCurveTo(0.12 * r, -0.55 * r, 0.25 * r, -0.62 * r);
+  ctx.stroke();
   ctx.restore();
 }
 
