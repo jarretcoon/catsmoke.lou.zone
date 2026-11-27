@@ -58,6 +58,7 @@
     { "id": "lou-night", "label": "Lou under the Welcome sign's flood light (night)", "time": "night", "tp": [1.5, 0.3, 907.8], "cam": [2.6, 0.08, 1.4], "maxCalls": 470 },
     { "id": "lou-trot-day", "label": "Lou trotting past the souvenir row, mid-stride (day)", "time": "day", "tp": [-19.4, 0.3, 762], "cam": [1.5708, 0.06, 2.6], "keys": ["KeyD"], "settle": 1.5, "maxCalls": 680 },
     { "id": "lou-gallop-night", "label": "Lou sprinting past Mandalay Bay, mid-gallop (night)", "time": "night", "tp": [-22, 0.3, 705], "cam": [1.5708, 0.06, 2.8], "keys": ["KeyD", "ShiftLeft"], "settle": 1.017, "maxCalls": 450 },
+    { "id": "crowd-close-night", "label": "People up close: the crowd waiting at the Harmon Ave crosswalk (night)", "time": "night", "tp": [11.6, 0.3, 206], "cam": [-1.2, 0.02, 2.2], "maxCalls": 760 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 290 },
     { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-0.95, 0.1, 8.5], "maxCalls": 1700 },
     { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 880 },
