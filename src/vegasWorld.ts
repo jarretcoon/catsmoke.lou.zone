@@ -72,6 +72,7 @@ export interface VegasWorldContext {
 /** Real Deuce stops on this stretch (+ the two ends of the map). side −1 = west curb (southbound). */
 const DEUCE_STOPS: Array<{ z: number; side: 1 | -1; name: string }> = [
   // southbound (west curb)
+  { z: -906, side: -1, name: 'SAHARA AVE • FESTIVAL GROUNDS' },
   { z: -722, side: -1, name: 'CIRCUS CIRCUS' },
   { z: -640, side: -1, name: 'RESORTS WORLD' },
   { z: -455, side: -1, name: 'FASHION SHOW' },
@@ -95,6 +96,7 @@ const DEUCE_STOPS: Array<{ z: number; side: 1 | -1; name: string }> = [
   { z: -470, side: 1, name: 'WYNN' },
   { z: -680, side: 1, name: 'PEPPERMILL • RIVIERA' },
   { z: -770, side: 1, name: 'FONTAINEBLEAU' },
+  { z: -966, side: 1, name: 'SAHARA • THE STRAT' },
 ];
 
 export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
