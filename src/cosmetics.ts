@@ -27,6 +27,7 @@ export const COSMETICS: CosmeticDef[] = [
   { id: 'lei', name: 'Shell Lei', blurb: 'Aloha from the Strip', price: 9, swag: 1, slot: 'neck', bone: 'Neck', shop: 'abc' },
   { id: 'cheap-shades', name: 'Neon Plastic Shades', blurb: '$10 of pure confidence', price: 10, swag: 1, slot: 'eyes', bone: 'Head', shop: 'abc' },
   { id: 'bandana', name: 'I ♥ VEGAS Bandana', blurb: 'Tourist chic', price: 12, swag: 1, slot: 'chest', bone: 'Neck', shop: 'abc' },
+  { id: 'cowboy-hat', name: 'Rhinestone Cowboy Hat', blurb: 'LINQ Promenade: the Hat Loft or Category 10', price: 45, swag: 2, slot: 'head', bone: 'Head', shop: 'abc' },
 ];
 
 export const cosmeticById = (id: CosmeticId) => COSMETICS.find((c) => c.id === id)!;
@@ -117,6 +118,31 @@ function buildCosmetic(id: CosmeticId): THREE.Group {
       dot.position.set(dx, 0.352, 0.338);
       g.add(dot);
     }
+  } else if (id === 'cowboy-hat') {
+    // white straw-look crown with a pinched top, a brim curled up at the sides, a rhinestone band
+    const straw = mat(0xf1e6cc, 0.75);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.16, 0.012, 28), straw);
+    brim.scale.set(1, 1, 0.82);
+    brim.position.set(0, 0.645, 0.25);
+    g.add(brim);
+    for (const s of [-1, 1]) {
+      const curl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.2), straw);
+      curl.position.set(s * 0.14, 0.665, 0.25);
+      curl.rotation.z = s * 0.7;
+      g.add(curl);
+    }
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.088, 0.095, 20), straw);
+    crown.position.set(0, 0.695, 0.25);
+    crown.scale.set(1, 1, 1.15);
+    g.add(crown);
+    const dent = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.02, 0.12), mat(0xd8ccb0, 0.8));
+    dent.position.set(0, 0.742, 0.25);
+    g.add(dent);
+    const stones = new THREE.Mesh(new THREE.CylinderGeometry(0.0885, 0.0895, 0.018, 20), diamond);
+    stones.position.set(0, 0.664, 0.25);
+    stones.scale.set(1, 1, 1.15);
+    g.add(stones);
+    g.rotation.z = 0.08;
   } else if (id === 'trucker-hat') {
     const red = mat(0xd81e2a, 0.7);
     const mesh2 = mat(0xf4f4f4, 0.8);

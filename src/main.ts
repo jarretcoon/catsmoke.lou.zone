@@ -9,6 +9,9 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import type { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { AbcItem, AbcShopController } from './abcShop';
+import { applyShopFx } from './shopFx';
+import { catalogById } from './shopCatalogs';
+import { BowlingGame } from './bowling';
 import { SoundFX } from './audio';
 import { CasinoController } from './casino';
 import { CatLook, setFurQuality } from './catLook';
@@ -328,7 +331,50 @@ function addCigs(count: number): void {
     S.cigBurn = 100;
   }
 }
+/** Put on (or take off) a wearable cosmetic; null if the id isn't one. */
+function wearCosmetic(cid: CosmeticId): string | null {
+  const def = cosmeticById(cid);
+  if (!def) return null;
+  const owned = S.cosmetics.owned.includes(cid);
+  let equipped = S.cosmetics.equipped.filter((e) => e !== cid);
+  if (!S.cosmetics.equipped.includes(cid)) {
+    equipped = equipped.filter((e) => cosmeticById(e).slot !== def.slot);
+    equipped.push(cid);
+  }
+  S.cosmetics = { owned: owned ? S.cosmetics.owned : [...S.cosmetics.owned, cid], equipped };
+  wardrobe?.apply(equipped);
+  goals.check(S);
+  return equipped.includes(cid) ? `Wearing the ${def.name}. Swag ${swag()}.` : `Took off the ${def.name}.`;
+}
 function applyAbcItem(item: AbcItem): { ok: boolean; msg: string } {
+  // the LINQ Promenade shops, bars and counters (shopCatalogs.ts)
+  if (item.fx)
+    return applyShopFx(item, {
+      buff,
+      buzz: (sec) => {
+        buzzTimer = Math.max(buzzTimer, sec);
+      },
+      addCigs,
+      degen: (n, label) => degen.add(n, label),
+      collect: (cid) => {
+        S.collectibles.push(cid);
+        return S.collectibles.length;
+      },
+      wear: (cid) => wearCosmetic(cid as CosmeticId),
+      loseHeat: (n) => {
+        const before = wanted.stars;
+        wanted.lose(n);
+        return before - wanted.stars;
+      },
+      refillJuice: () => {
+        if (!S.hasVapeMod) return false;
+        S.vapeJuice = 100;
+        return true;
+      },
+      addCash: (n) => {
+        S.cash += n;
+      },
+    });
   const id = item.id;
   if (id === 'pack' || id === 'carton' || id === 'cigarillo') {
     addCigs(id === 'pack' ? 20 : id === 'carton' ? 200 : 5);
@@ -424,7 +470,7 @@ const abcShop = new AbcShopController(sfx, {
     updateHUD();
     return r;
   },
-  owns: (id) => (WEARABLES.has(id) && S.cosmetics.owned.includes(id as CosmeticId)) || (id === 'coil' && S.upgrades.includes('coil')) || (id === 'mod' && S.hasVapeMod),
+  owns: (id) => ((WEARABLES.has(id) || !!cosmeticById(id as CosmeticId)) && S.cosmetics.owned.includes(id as CosmeticId)) || (id === 'coil' && S.upgrades.includes('coil')) || (id === 'mod' && S.hasVapeMod),
   onOutcome: (msg) => showToast(msg),
 });
 
@@ -489,7 +535,17 @@ const restaurants = new RestaurantSystem(scene, crowd, world.restaurants, {
   sfxCash: () => sfx.playCash(),
   sfxBad: () => sfx.playBusted(),
 });
-const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen() || phone.busy();
+const bowling = new BowlingGame(sfx, {
+  getCash: () => S.cash,
+  addCash: (n) => {
+    S.cash += n;
+    updateHUD();
+    save();
+  },
+  degen: (n, label) => degen.add(n, label),
+  toast: (msg) => showToast(msg),
+});
+const anyDialogOpen = () => casino.isOpen() || abcShop.isOpen() || bowling.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen() || phone.busy();
 
 // ---------------------------------------------------------------- chaos: score + wanted level
 const degen = new DegenScore(
@@ -1197,6 +1253,8 @@ function triggerInteract(): void {
   const shop = nearestShop();
   if (shop) {
     if (shop.kind === 'abc') return abcShop.open(shop.label);
+    if (shop.kind === 'store') return abcShop.open(shop.label, catalogById(shop.catalog));
+    if (shop.kind === 'bowling') return bowling.open(shop.label);
     if (shop.kind === 'boutique') return boutique.open();
     if (shop.kind === 'vip-host') {
       if (S.vip) return showToast('VIP Host: "Welcome back, high roller. Your tables are waiting."');
@@ -1530,7 +1588,7 @@ const phone = new Phone({
     return out;
   },
   stars: () => wanted.stars,
-  blocked: () => casino.isOpen() || abcShop.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen(),
+  blocked: () => casino.isOpen() || abcShop.isOpen() || bowling.isOpen() || boutique.isOpen() || restaurants.isOpen() || menuOpen(),
   onFoot: () => !riding && !driving.active && !rag.active && restaurants.cat.state !== 'eating',
   pose: (clip, at) => motion.holdPose(clip ? actions[clip] : null, at),
   model: () => catModel,
@@ -1775,7 +1833,9 @@ function updatePrompt(): void {
     const ride = nearestRideable();
     if (shop) {
       text =
-        shop.kind === 'abc'
+        shop.kind === 'store' || shop.kind === 'bowling'
+          ? `Press [F] — ${shop.label}${shop.hint ? `: ${shop.hint}` : ''}`
+          : shop.kind === 'abc'
           ? 'Press [F] — ABC Stores: packs, cartons, vapes & pods'
           : shop.kind === 'boutique'
             ? `Press [F] — ${shop.label} (swag = bigger tips)`

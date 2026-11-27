@@ -37,12 +37,16 @@ export interface CigPickup {
   stolenCooldown: number;
 }
 
-export type ShopKind = 'abc' | 'boutique' | 'vip-host' | 'bar';
+export type ShopKind = 'abc' | 'boutique' | 'vip-host' | 'bar' | 'store' | 'bowling';
 export interface ShopSpot {
   kind: ShopKind;
   position: THREE.Vector3;
   radius: number;
   label: string;
+  /** 'store': which menu in shopCatalogs.ts opens. */
+  catalog?: string;
+  /** Short what-they-sell line for the [F] prompt. */
+  hint?: string;
 }
 
 export interface Zone {
