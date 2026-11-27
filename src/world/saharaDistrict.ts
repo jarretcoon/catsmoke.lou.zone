@@ -82,7 +82,8 @@ class Kit {
   readonly lampHead = basic(0xffe2a8);
   constructor(readonly b: WorldBuilder) {
     this.glass = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x1d2a36, roughness: 0.15, metalness: 0.6, emissive: 0xffdcaa, emissiveIntensity: 0.1 }), 0.1, 1.1);
-    this.shopGlass = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x222a30, roughness: 0.12, metalness: 0.4, emissive: 0xfff0d0, emissiveIntensity: 0.15 }), 0.15, 0.95);
+    // storefront glass: dark by day, a warm shop glow at night that stays under the bloom threshold
+    this.shopGlass = b.nightGlow(new THREE.MeshStandardMaterial({ color: 0x182028, roughness: 0.1, metalness: 0.5, emissive: 0xffd8a8, emissiveIntensity: 0.03 }), 0.03, 0.3);
   }
   box(m: THREE.Material, x: number, y: number, z: number, w: number, h: number, d: number, ry = 0, cast = false): void {
     this.mg.box(m, x, y, z, w, h, d, ry, cast);
@@ -694,7 +695,7 @@ function buildSahara(b: WorldBuilder, k: Kit): void {
   const ez = -902;
   k.box(k.shopGlass, pX0 - 0.08, 2.3, ez, 0.12, 4.4, 12);
   k.box(k.white, pX0 - 2.2, 4.9, ez, 4.4, 0.5, 15);
-  k.box(mat(0xffe8c4, 0.4, 0, { emissive: 0xffd7a0, emissiveIntensity: 0.6 }), pX0 - 2.2, 4.63, ez, 4.2, 0.04, 14.6);
+  k.box(b.nightGlow(mat(0xffe8c4, 0.4, 0, { emissive: 0xffd7a0, emissiveIntensity: 0.1 }), 0.1, 0.5), pX0 - 2.2, 4.63, ez, 4.2, 0.04, 14.6);
   for (const dz of [-7, 7]) k.mg.beam(latticeCol, v3(pX0 - 4.1, 0, ez + dz), v3(pX0 - 4.1, 4.7, ez + dz), 0.36, 12, 0.36, true);
   for (const dz of [-7, 7]) b.collider(pX0 - 4.5, pX0 - 3.7, ez + dz - 0.4, ez + dz + 0.4, 0, 4.7, true);
   // LED marquee band over the doors (the 2026 photos: a long screen along the canopy edge)
@@ -712,9 +713,10 @@ function buildSahara(b: WorldBuilder, k: Kit): void {
   b.add(letters(b, '800° DEGREES', 6, 1.0, { style: 'sans', fill: '#ff5a2a', bg: '#141414' }, 0.12), pX0 - 0.1, 7.6, -891.5, -HALF_PI);
 
   // --- the towers (real: Alexandria 24 fl at the corner, Blanca 14 fl, Marra 26 fl behind; game heights ≈ 1:3.1)
-  const alex: FacadeSpec = { wall: '#f1efe9', mullion: '#3a3a40', glass: '#3c4654', lit: '#ffe6c0', cols: 10, rows: 24, style: 1, seed: 531 };
-  const blanca: FacadeSpec = { wall: '#efe8dc', mullion: '#c4b8a4', glass: '#4a5666', lit: '#ffe2b4', cols: 8, rows: 14, style: 1, seed: 533 };
-  const marra: FacadeSpec = { wall: '#e8dccb', mullion: '#5a4a3c', glass: '#3a4a5a', lit: '#ffe8c8', cols: 12, rows: 26, style: 1, seed: 535 };
+  // white tile with punched windows (the SLS photos): the towers read white from the Strip, not glass
+  const alex: FacadeSpec = { wall: '#f1efe9', mullion: '#d8d4cc', glass: '#3c4654', lit: '#ffe6c0', cols: 12, rows: 24, style: 0, seed: 531 };
+  const blanca: FacadeSpec = { wall: '#efe8dc', mullion: '#c4b8a4', glass: '#4a5666', lit: '#ffe2b4', cols: 10, rows: 14, style: 0, seed: 533 };
+  const marra: FacadeSpec = { wall: '#e8dccb', mullion: '#cbbba4', glass: '#3a4a5a', lit: '#ffe8c8', cols: 12, rows: 26, style: 0, seed: 535 };
   tower(b, { x: 50.5, z: -904.5, w: 14, d: 20, h: 27, y: pH, facade: alex, accent: 0xffe0b0, noSetback: true });
   tower(b, { x: 56, z: -873.5, w: 15, d: 11, h: 17, facade: blanca, accent: 0xffd8a0 });
   tower(b, { x: 71.5, z: -891, w: 12, d: 40, h: 31, facade: marra, accent: 0xffd8a0 });
@@ -1081,7 +1083,7 @@ function buildBonanza(b: WorldBuilder, k: Kit): void {
   b.collider(xB, xF, zN, zS, H, H + 0.4);
   // brick + glass storefront outside, red awning, the white marquees with bulbs
   facade(b, brick, zS - zN, 3.2, 2.4, 1.2, xF + 0.02, 1.6, (zS + zN) / 2, HALF_PI);
-  facade(b, brick, xF - xB, 3.2, 2.4, 1.2, (xF + xB) / 2, 1.6, zS + 0.02, Math.PI);
+  facade(b, brick, xF - xB, 3.2, 2.4, 1.2, (xF + xB) / 2, 1.6, zS + 0.02, 0);
   for (const [a, c] of [
     [zS - 1, door1 - 0.4],
     [door0 + 0.4, zN + 1],
@@ -1107,7 +1109,7 @@ function buildBonanza(b: WorldBuilder, k: Kit): void {
     z -= w;
   }
   // WORLD'S LARGEST GIFT SHOP over Sahara Ave (with its Western sub-line)
-  b.add(marquee(b, 15, 2.6, "WORLD'S LARGEST GIFT SHOP", 'WESTERN GIFTS ♦ HATS ♦ BELTS ♦ SOUVENIRS ♦ T-SHIRTS', '#141414', '#b8401c'), (xF + xB) / 2, 5.0, zS - 0.4, Math.PI);
+  b.add(marquee(b, 15, 2.6, "WORLD'S LARGEST GIFT SHOP", 'WESTERN GIFTS ♦ HATS ♦ BELTS ♦ SOUVENIRS ♦ T-SHIRTS', '#141414', '#b8401c'), (xF + xB) / 2, 5.0, zS + 0.4, 0);
   // the big round sign on the roof, over the entrance (faces the Strip, both sides)
   const disk = bonanzaDisk(b, 4.2);
   b.add(disk, xF - 1.2, H + 4.9, (door0 + door1) / 2, HALF_PI);
@@ -1151,7 +1153,7 @@ function buildBonanza(b: WorldBuilder, k: Kit): void {
   fl.position.set((xF + xB) / 2, 0.03, (zS + zN) / 2);
   fl.receiveShadow = true;
   b.add(fl);
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(xF - xB - 0.6, zS - zN - 0.6), mat(0xe8e6e0, 0.9));
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(xF - xB - 0.6, zS - zN - 0.6), mat(0xe8e6e0, 0.9, 0, { emissive: 0xf4f2ea, emissiveIntensity: 0.35 }));
   ceil.rotation.x = HALF_PI;
   ceil.position.set((xF + xB) / 2, H - 0.05, (zS + zN) / 2);
   b.add(ceil);
