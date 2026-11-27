@@ -3,7 +3,7 @@ import type { ClipName } from './catMotion';
 import type { TimePreset } from './vegasWorld';
 
 /**
- * Photo mode (the phone's Camera app): a free camera around Lou, his 14 clips as poses, the time of day, a few
+ * Photo mode (the phone's Camera app): a free camera around Lou, his 15 clips as poses, the time of day, a few
  * film looks, a selfie, the HUD hidden, and "Save photo" downloads a JPEG of the frame.
  *
  * The world keeps running (tourists, traffic, the fountains). Lou holds his pose. The camera is its own orbit
@@ -40,7 +40,7 @@ interface Pose {
   phone?: boolean;
 }
 
-/** All 14 clips: base poses loop, one-shots freeze on their best frame. */
+/** All 15 clips: base poses loop, one-shots freeze on their best frame. */
 const POSES: Pose[] = [
   { id: 'natural', label: 'Natural', clip: null, at: null },
   { id: 'idle', label: 'Stand', clip: 'Idle', at: null },
@@ -54,6 +54,7 @@ const POSES: Pose[] = [
   { id: 'pounce', label: 'Pounce', clip: 'Pounce', at: 0.45 },
   { id: 'jump', label: 'Jump', clip: 'Jump', at: 0.5 },
   { id: 'walk', label: 'Strut', clip: 'Walk', at: 0.3 },
+  { id: 'trot', label: 'Trot', clip: 'Trot', at: 0.25 },
   { id: 'run', label: 'Zoomies', clip: 'Run', at: 0.35 },
   { id: 'steal', label: 'Swipe', clip: 'Steal', at: 0.48 },
   { id: 'eat', label: 'Snack', clip: 'Eat', at: null },

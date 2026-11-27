@@ -157,6 +157,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   const cTop = new THREE.Color();
   const cHorizon = new THREE.Color();
   const sunDir = new THREE.Vector3();
+  const keyDir = new THREE.Vector3();
   const tmpC = new THREE.Color();
   const atmosphere: AtmosphereState = { day: 1, sunset: 0, night: 0, sunDir, top: cTop, horizon: cHorizon };
   /** 0 outdoors → 1 inside a casino/shop, eased so walking through a door adapts like eyes do. */
@@ -199,8 +200,22 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
     scene.environmentIntensity = THREE.MathUtils.lerp(0.62, 0.85, day);
     sun.color.setHex(0x9fb4ff).lerp(tmpC.setHex(0xfff4de), day).lerp(tmpC.setHex(0xff924c), sunset);
     sun.intensity = THREE.MathUtils.lerp(0.55, 2.9, day);
+    // The key light is the sun by day and the moon by night, shining from where the sky draws it (low in the
+    // south-east), so night shadows fall away from the moon you can see. It swings over late in the dusk.
+    keyDir.copy(sunDir).lerp(sky.moonDir, night * night).normalize();
+    // Moon shadows only show near Lou under the neon, and the higher moon's box takes in more of the Strip than
+    // the old low light did. At night the box is tighter and stops a little past Lou (anything beyond him can only
+    // shadow things farther off still), which keeps the shadow draws where they were and the shadows sharper.
+    const reach = Math.round(THREE.MathUtils.lerp(70, 48, night));
+    const sc = sun.shadow.camera;
+    if (sc.right !== reach) {
+      sc.left = sc.bottom = -reach;
+      sc.right = sc.top = reach;
+      sc.far = Math.round(THREE.MathUtils.lerp(260, 165, night));
+      sc.updateProjectionMatrix();
+    }
     // Shadow frustum follows the cat so shadows stay crisp across a 700 m map
-    sun.position.copy(focus).addScaledVector(sunDir, 120);
+    sun.position.copy(focus).addScaledVector(keyDir, 120);
     sun.target.position.copy(focus);
 
     // Indoors the eyes adjust: no sun through the roof, less sky in the reflections, warm house light,

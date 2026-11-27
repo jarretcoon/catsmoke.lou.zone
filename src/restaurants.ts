@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildHuman, Rig, StripCrowdSystem } from './npcs';
+import { buildHuman, poseRig, Rig, sitRig, StripCrowdSystem } from './npcs';
 import { burgerProp, RestaurantDef, RestaurantTable } from './world/food';
 
 type DinerState = 'queue' | 'waiting' | 'seeking' | 'eating' | 'leaving' | 'sleeping';
@@ -162,8 +162,7 @@ export class RestaurantSystem {
     d.timer = 18 + Math.random() * 25;
     d.mesh.position.set(t.pos.x, t.pos.y - 0.38, t.pos.z);
     d.mesh.rotation.y = t.yaw;
-    d.leftLeg.rotation.x = -1.45;
-    d.rightLeg.rotation.x = -1.45;
+    sitRig(d, true);
     d.tray.visible = true;
   }
 
@@ -171,8 +170,7 @@ export class RestaurantSystem {
     if (d.table && d.table.taken === d.id) d.table.taken = null;
     d.mesh.position.y = d.table ? d.table.pos.y : d.mesh.position.y;
     d.table = null;
-    d.leftLeg.rotation.x = 0;
-    d.rightLeg.rotation.x = 0;
+    sitRig(d, false);
   }
 
   /** What's near Lou (for prompts and the [F] key). */
@@ -352,17 +350,14 @@ export class RestaurantSystem {
       tmp.y = 0;
       const dist = tmp.length();
       if (dist < 0.25) {
-        d.leftLeg.rotation.x = 0;
-        d.rightLeg.rotation.x = 0;
+        poseRig(d, 0, 0);
         return true;
       }
       tmp.normalize();
       d.mesh.position.addScaledVector(tmp, Math.min(dist, speed * dt));
       d.mesh.rotation.y = Math.atan2(tmp.x, tmp.z);
       d.walkPhase += dt * speed * 4;
-      const sw = Math.sin(d.walkPhase) * 0.6;
-      d.leftLeg.rotation.x = sw;
-      d.rightLeg.rotation.x = -sw;
+      poseRig(d, d.walkPhase, 1.1);
       return false;
     };
     switch (d.state) {

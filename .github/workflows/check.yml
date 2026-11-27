@@ -14,12 +14,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    # Required to merge into main. Builds the game, loads it in a headless browser and takes the
-    # postcard snapshots (scripts/check.mjs). Read-only: it never writes to the repo.
-    name: Game check
+  shard:
+    # The postcards, dealt round-robin over parallel machines (scripts/check.mjs --shard=i/n), so the check stays
+    # quick as views are added: add a number to the matrix (and --shards= below) when the shards get slow.
+    # Each shard builds the game, loads it in a headless browser and takes its share of the snapshots.
+    # Read-only: it never writes to the repo. Shard 1 also checks the build's file sizes and first download.
+    name: Game check (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 75 # ~55 postcards at 30-40 s each on software WebGL; Actions minutes are free on public repos
+    timeout-minutes: 40 # ~15 postcards at 15-30 s each on software WebGL, plus the build and the load
+    strategy:
+      fail-fast: false # let every shard finish, so one run shows every problem
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
 
@@ -49,8 +55,52 @@ jobs:
       - name: Install the test browser
         run: bunx playwright install --with-deps chromium
 
-      - name: Load the game and take the snapshots
-        run: node scripts/check.mjs
+      - name: Load the game and take this shard's snapshots
+        run: node scripts/check.mjs --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+      - name: Write the job summary
+        if: always() && hashFiles('check-out/summary.md') != ''
+        run: cat check-out/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep this shard's snapshots
+        if: always() && hashFiles('check-out/metrics.json') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-check-shard-${{ matrix.shard }}
+          path: check-out
+          retention-days: 1 # the merged copy (game-check) is the one that's kept
+
+  check:
+    # Required to merge into main (the ruleset asks for a check named exactly "Game check"). Passes only if
+    # every shard passed. Runs even when a shard failed or was cancelled (always()), so the required check
+    # always reports and a skipped job can never count as a pass. Joins the shards' snapshots and metrics
+    # into one game-check artifact for "Post snapshots".
+    name: Game check
+    needs: shard
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts
+            checks
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Fetch the shards' snapshots
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: game-check-shard-*
+          path: shards
+
+      - name: Join the shards
+        id: merge
+        run: node scripts/merge-check.mjs shards check-out --shards=4 # = the shard matrix's size
 
       - name: Write the job summary
         if: always() && hashFiles('check-out/summary.md') != ''
@@ -64,12 +114,23 @@ jobs:
           path: check-out
           retention-days: 14
 
+      - name: Pass only if every shard passed
+        if: always()
+        env:
+          SHARDS: ${{ needs.shard.result }}
+          MERGED: ${{ steps.merge.outcome }}
+        run: |
+          if [ "$SHARDS" != "success" ]; then echo "::error::The Game check shards ended in: $SHARDS"; exit 1; fi
+          if [ "$MERGED" != "success" ]; then echo "::error::The joined Game check found problems (see the summary)"; exit 1; fi
+          echo "All shards passed."
+
   report:
     # Posts the snapshots: main's go to the ci-snapshots branch as the baseline; a PR's go next to them
     # and into one PR comment that updates on every push. Skipped for PRs from forks (no write access).
     name: Post snapshots
     needs: check
-    if: always() && needs.check.result != 'cancelled' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    # A manual run on another branch posts nothing (it would overwrite main's baseline).
+    if: always() && needs.check.result != 'cancelled' && (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

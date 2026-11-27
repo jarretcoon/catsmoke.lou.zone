@@ -98,6 +98,11 @@ export class SkyDome {
     this.mesh.renderOrder = -1;
   }
 
+  /** Where the moon is drawn (unit vector toward it). The night key light shines from here (vegasWorld.ts). */
+  get moonDir(): Readonly<THREE.Vector3> {
+    return this.uniforms.moonDir.value;
+  }
+
   set(top: THREE.Color, horizon: THREE.Color, sunDir: THREE.Vector3, sunColor: THREE.Color, night: number, time: number): void {
     this.uniforms.top.value.copy(top);
     this.uniforms.horizon.value.copy(horizon);

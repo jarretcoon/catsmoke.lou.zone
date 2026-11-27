@@ -2,14 +2,59 @@ import { SoundFX } from './audio';
 
 export type AbcCategory = 'Smokes' | 'Vape' | 'Snacks & Drinks' | 'Souvenirs' | 'Essentials';
 
+/** What buying an item does (shopFx.ts). Items without fx are the ABC Stores' own (main.ts). */
+export interface ShopFx {
+  /** Tourists' tips × while the buff lasts. */
+  tip?: number;
+  /** Sprint/move × while the buff lasts. */
+  speed?: number;
+  /** Buff length (seconds) and its HUD icon. */
+  secs?: number;
+  icon?: string;
+  /** Seconds of 🍹 buzz (tips +50%). */
+  buzz?: number;
+  /** Smokes added to the stash. */
+  smokes?: number;
+  /** Goes on the souvenir shelf. */
+  collect?: boolean;
+  /** A wearable cosmetic (Swag). */
+  wear?: string;
+  /** Degen points + the rank line. */
+  degen?: [number, string];
+  /** Wanted stars to lose. */
+  heat?: number;
+  /** Refill the vape juice (if Lou has the mod). */
+  juice?: boolean;
+  /** A coin flip for cash. */
+  gamble?: { chance: number; win: number; winMsg: string; loseMsg: string };
+}
+
 export interface AbcItem {
   id: string;
-  cat: AbcCategory;
+  cat: AbcCategory | string;
   name: string;
   desc: string;
   price: number;
   tag?: string;
+  fx?: ShopFx;
 }
+
+/** Any shop that reuses this dialog: its own title, menu and lines. */
+export interface ShopCatalog {
+  title: string;
+  sub: string;
+  greeting: string;
+  bye: string;
+  items: AbcItem[];
+}
+
+const ABC_CATALOG = (): ShopCatalog => ({
+  title: 'ABC Stores',
+  sub: 'Smokes • Vapes • Snacks • Souvenirs • 21+ (we ID under 40)',
+  greeting: 'Aloha! Stock up on smokes, vapes, snacks & souvenirs.',
+  bye: 'Mahalo, bye',
+  items: ABC_ITEMS,
+});
 
 /** Real-ish 2026 Strip ABC Stores prices (tobacco includes Nevada's $1.80/pack tax). */
 export const ABC_ITEMS: AbcItem[] = [
@@ -47,7 +92,6 @@ export const ABC_ITEMS: AbcItem[] = [
   { id: 'lottery', cat: 'Essentials', name: 'Lottery Ticket', desc: 'Nevada has no lottery. Try the slots.', price: 0, tag: 'N/A' },
 ];
 
-const CATS: AbcCategory[] = ['Smokes', 'Vape', 'Snacks & Drinks', 'Souvenirs', 'Essentials'];
 
 export interface AbcShopCallbacks {
   getCash: () => number;
@@ -60,9 +104,10 @@ export interface AbcShopCallbacks {
 
 export class AbcShopController {
   private readonly dialog = document.getElementById('abc-dialog') as HTMLDialogElement;
-  private tab: AbcCategory = 'Smokes';
+  private tab = 'Smokes';
   private label = 'ABC Stores';
   private status = '';
+  private catalog: ShopCatalog = ABC_CATALOG();
 
   constructor(
     private readonly sfx: SoundFX,
@@ -75,9 +120,12 @@ export class AbcShopController {
     }
   }
 
-  public open(label = 'ABC Stores'): void {
-    this.label = label;
-    this.status = 'Aloha! Stock up on smokes, vapes, snacks & souvenirs.';
+  /** Opens the ABC Stores, or any other shop's catalog in the same dialog. */
+  public open(label = 'ABC Stores', catalog?: ShopCatalog): void {
+    this.catalog = catalog ?? ABC_CATALOG();
+    this.label = catalog ? catalog.title : label;
+    this.tab = this.catalog.items[0].cat;
+    this.status = this.catalog.greeting;
     this.render();
     if (!this.dialog.open) this.dialog.showModal();
   }
@@ -88,27 +136,28 @@ export class AbcShopController {
 
   private render(): void {
     const cash = this.callbacks.getCash();
-    const items = ABC_ITEMS.filter((i) => i.cat === this.tab);
+    const cats = [...new Set(this.catalog.items.map((i) => i.cat))];
+    const items = this.catalog.items.filter((i) => i.cat === this.tab);
     this.dialog.innerHTML = `
       <div class="casino-header">
-        <div><h1>${this.label}</h1><p class="casino-sub">Smokes • Vapes • Snacks • Souvenirs • 21+ (we ID under 40)</p></div>
+        <div><h1>${this.label}</h1><p class="casino-sub">${this.catalog.sub}</p></div>
         <div class="casino-bank-wrap"><span class="stat-label">Cash</span><strong class="casino-bank">$${cash}</strong></div>
       </div>
-      <div class="abc-tabs" role="tablist">${CATS.map((c) => `<button type="button" role="tab" class="abc-tab${c === this.tab ? ' abc-tab--on' : ''}" data-tab="${c}">${c}</button>`).join('')}</div>
+      ${cats.length > 1 ? `<div class="abc-tabs" role="tablist">${cats.map((c) => `<button type="button" role="tab" class="abc-tab${c === this.tab ? ' abc-tab--on' : ''}" data-tab="${c}">${c}</button>`).join('')}</div>` : ''}
       <div class="abc-grid">${items
         .map((it) => {
           const owned = this.callbacks.owns(it.id);
-          const price = it.tag === 'N/A' ? 'N/A' : owned ? 'Owned' : `$${it.price}`;
+          const price = it.tag === 'N/A' ? 'N/A' : owned ? 'Owned' : it.price === 0 ? 'Free' : `${it.price}`;
           const hl = it.tag && it.tag !== 'N/A' ? ' abc-card--highlight' : '';
           const vape = it.cat === 'Vape' ? ' abc-card--vape' : '';
           return `<button type="button" class="abc-card${hl}${vape}" data-item="${it.id}">${it.tag && it.tag !== 'N/A' ? `<small class="abc-tag">${it.tag}</small>` : ''}<strong>${it.name}</strong><span>${it.desc}</span><em>${price}</em></button>`;
         })
         .join('')}</div>
       <p class="casino-result" aria-live="polite">${this.status}</p>
-      <form method="dialog" class="casino-footer"><button type="submit" class="action-btn">Mahalo, bye</button></form>`;
+      <form method="dialog" class="casino-footer"><button type="submit" class="action-btn">${this.catalog.bye}</button></form>`;
     this.dialog.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((btn) =>
       btn.addEventListener('click', () => {
-        this.tab = btn.dataset.tab as AbcCategory;
+        this.tab = btn.dataset.tab!;
         this.render();
       })
     );
@@ -116,7 +165,7 @@ export class AbcShopController {
   }
 
   private buy(id: string): void {
-    const item = ABC_ITEMS.find((i) => i.id === id)!;
+    const item = this.catalog.items.find((i) => i.id === id)!;
     if (item.tag === 'N/A') {
       this.sfx.playBusted();
       this.status = 'Clerk: “Nevada doesn’t have a lottery, hon. That’s what the casinos are for.”';

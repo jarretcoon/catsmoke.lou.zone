@@ -259,7 +259,7 @@ function ridePath(from: Stop, to: Stop): Path | null {
       return stripLeg(p, from.dir, s, d1, s1) ? p : null;
     });
   } else {
-    for (const D of [1, -1] as const) {
+    for (const D of from.spot?.rightOut ? [from.dir] : ([1, -1] as const)) {
       tries.push(() => {
         const p = new Path();
         pullOut(p, from);
@@ -642,7 +642,11 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     const along = st.road === 'strip' ? p.z : p.x;
     const [bx, bz] = lanePt(st.road, st.zc, st.dir, along + st.dir * 16, st.driveOff);
     path.curve(fx, fz, bx, bz, fx, fz);
-    path.line(...lanePt(st.road, st.zc, st.dir, along + st.dir * 24, st.driveOff));
+    if (st.spot?.drive) {
+      // a porte-cochère drive is a dead end: out to the Boulevard and right, back into the traffic there
+      const s = turnOnto(path, st, st.dir);
+      path.line(...lanePt('strip', 0, st.dir, s + st.dir * 12, DRIVE));
+    } else path.line(...lanePt(st.road, st.zc, st.dir, along + st.dir * 24, st.driveOff));
     path.finish(3, 3);
     path.cap.fill(j.car.tc.cruise);
     j.path = path;
@@ -685,6 +689,7 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     }
     c.tc.speed = c.tc.cruise * 0.6;
     c.tc.hijacked = false;
+    c.tc.curbside = false;
     c.hazard.visible = false;
     if (c.led) c.led.visible = false;
     const k = leaving.indexOf(j);
@@ -745,7 +750,8 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
     const yaw = Math.atan2(pose.fx, pose.fz);
     m.rotation.set(0, yaw, 0);
     c.tc.speed = j.speed;
-    // let the traffic queue behind it on a lane line; at a Boulevard curb the Deuce waits behind it
+    // let the traffic queue behind it on a lane line; at a Boulevard curb the Deuce pulls out around it
+    c.tc.curbside = false;
     if (Math.abs(pose.fz) > 0.999 && Math.abs(Math.abs(pose.x) - DRIVE) < 0.03 && Math.abs(pose.x) < STRIP.curb) {
       c.tc.axis = 'z';
       c.tc.dir = pose.fz > 0 ? 1 : -1;
@@ -754,6 +760,8 @@ export function installRideshare(h: RideshareHooks): RideshareApi {
       c.tc.axis = 'z';
       c.tc.dir = pose.fz > 0 ? 1 : -1;
       c.tc.laneX = c.tc.dir === 1 ? -STRIP.laneCenters[2] : STRIP.laneCenters[2];
+      // stopped (or all but) at the curb, waiting or dropping off: the Deuce pulls out around it (strip.ts)
+      c.tc.curbside = j.speed < 1.5;
     } else if (Math.abs(pose.fx) > 0.999 && (Math.abs(pose.z - DRIVE) < 0.03 || Math.abs(pose.z + DRIVE) < 0.03 || Math.abs(pose.z - STRIP.tropicanaZ - DRIVE) < 0.03 || Math.abs(pose.z - STRIP.tropicanaZ + DRIVE) < 0.03)) {
       c.tc.axis = 'x';
       c.tc.dir = pose.fx > 0 ? 1 : -1;

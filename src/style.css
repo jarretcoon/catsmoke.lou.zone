@@ -771,6 +771,17 @@ kbd {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Ultra is a desktop level: phones keep their four choices. It says "(max detail)" where there is room. */
+.hud--touch .seg button[data-quality="ultra"] {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .seg .seg-note {
+    display: none;
+  }
+}
+
 .seg button[aria-pressed="true"] {
   background: linear-gradient(135deg, rgba(255, 130, 48, 0.95), rgba(208, 72, 24, 0.95));
   color: #fff;

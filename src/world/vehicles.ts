@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries, toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { buildDriver } from '../npcs';
 import type { CarKind } from './props';
 
 /*
@@ -871,14 +872,10 @@ export function buildRideshareCar(model: RideModel, brand: RideBrand, color: num
   const placeholder = paintMat(0xffffff);
   addMeshes(group, geo.lists.map(([m, g]) => [m === placeholder ? paintMat(color) : m, g]));
   if (driver) {
-    const d = new Parts();
-    const z = s.posts[0] + 0.12;
-    const shirt = std(driver.shirt, 0.85);
-    d.add(shirt, new RoundedBoxGeometry(0.4, 0.5, 0.24, 1, 0.06), 0.42, s.belt + 0.14, z);
-    d.add(std(driver.skin, 0.7), new THREE.SphereGeometry(0.105, 10, 8), 0.42, s.belt + 0.55, z + 0.02);
-    d.add(std(driver.hair, 0.9), new THREE.SphereGeometry(0.112, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), 0.42, s.belt + 0.57, z);
-    for (const sx of [-1, 1]) d.add(shirt, new THREE.BoxGeometry(0.08, 0.08, 0.34), 0.42 + sx * 0.17, s.belt + 0.22, z + 0.2, 0.5);
-    addMeshes(group, d.merged());
+    // a seated person (npcs.ts), hands on the wheel, head where the old bust's was
+    const d = buildDriver(Math.round(driver.skin / 7 + driver.shirt / 13) & 1023, driver);
+    d.position.set(0.42, s.belt + 0.55 - 1.64, s.posts[0] + 0.06);
+    group.add(d);
   }
   let lidar: THREE.Mesh | null = null;
   let led: THREE.Mesh | null = null;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { CrowdBatch, crowdLook, POSE } from '../humanKit';
 import { viewer, type WorldBuilder } from './builder';
 import { R, THEME_COUNT, THEME_W, ATLAS, interiorAtlas, tickerTexture, uvRect, type Rect } from './interiorAtlas';
 
@@ -619,98 +620,9 @@ export function buildFx(group: THREE.Group, list: FxPlacement[]): void {
 }
 
 // ---------------------------------------------------------------- people (instanced)
-const SHIRT = 0xffffff;
-const SKIN = 0xff00ff;
-const HAIR = 0x00ffff;
-const VEST = 0xffff00;
-
-let _figMat: THREE.MeshStandardMaterial | null = null;
-function figureMat(): THREE.MeshStandardMaterial {
-  if (_figMat) return _figMat;
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 });
-  m.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec3 aSkin;\nattribute vec3 aHair;\nattribute vec3 aVest;')
-      .replace(
-        '#include <color_vertex>',
-        `#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
-          vColor = vec4( 1.0 );
-        #endif
-        #ifdef USE_COLOR
-          vColor.rgb *= color.rgb;
-        #endif
-        #ifdef USE_INSTANCING_COLOR
-          bool hiR = color.r > 0.99; bool hiG = color.g > 0.99; bool hiB = color.b > 0.99;
-          bool loR = color.r < 0.01; bool loG = color.g < 0.01; bool loB = color.b < 0.01;
-          if ( hiR && hiG && hiB ) vColor.rgb = instanceColor.rgb;
-          else if ( hiR && loG && hiB ) vColor.rgb = aSkin;
-          else if ( loR && hiG && hiB ) vColor.rgb = aHair;
-          else if ( hiR && hiG && loB ) vColor.rgb = aVest;
-        #endif`
-      );
-  };
-  m.customProgramCacheKey = () => 'casinoFigure';
-  _figMat = m;
-  return m;
-}
-
+// Guests, dealers and servers are humanKit's crowd people (the same bodies, faces and outfits as the Boulevard
+// crowd, at its mid level of detail): one instanced draw call per list, seated, standing or walking a loop.
 export type Pose = 'stand' | 'sit' | 'server';
-const figGeos = new Map<Pose, THREE.BufferGeometry>();
-function figureGeo(pose: Pose): THREE.BufferGeometry {
-  let g = figGeos.get(pose);
-  if (g) return g;
-  const b = new Geo();
-  const pants = 0x22252c;
-  const shoe = 0x121316;
-  const head = (y: number, z: number) => {
-    b.cyl(SKIN, 0, y - 0.15, z, 0.055, 0.06, 0.09, 6);
-    const hg = new THREE.SphereGeometry(0.125, 8, 6);
-    hg.scale(1, 1.15, 1.05);
-    b.add(hg, SKIN, 0, y, z);
-    const hair = new THREE.SphereGeometry(0.135, 8, 4, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    hair.scale(1, 1.05, 1.08);
-    b.add(hair, HAIR, 0, y + 0.03, z - 0.012);
-  };
-  if (pose === 'sit') {
-    for (const s of [-1, 1]) {
-      b.box(shoe, s * 0.1, 0.04, 0.48, 0.12, 0.08, 0.25);
-      b.box(pants, s * 0.1, 0.33, 0.42, 0.13, 0.5, 0.14);
-      b.box(pants, s * 0.1, 0.73, 0.2, 0.15, 0.15, 0.46);
-      b.box(SHIRT, s * 0.27, 1.12, 0.04, 0.11, 0.32, 0.13, -0.5);
-      b.box(SHIRT, s * 0.24, 0.98, 0.24, 0.1, 0.1, 0.3);
-      b.box(SKIN, s * 0.22, 0.97, 0.43, 0.09, 0.09, 0.1);
-    }
-    b.box(pants, 0, 0.74, -0.04, 0.38, 0.14, 0.24);
-    b.box(SHIRT, 0, 1.06, -0.02, 0.42, 0.56, 0.23, 0.08);
-    b.box(VEST, 0, 1.06, 0.1, 0.36, 0.42, 0.02, 0.08);
-    head(1.48, 0.04);
-  } else {
-    for (const s of [-1, 1]) {
-      b.box(shoe, s * 0.1, 0.04, 0.03, 0.13, 0.08, 0.27);
-      b.box(pants, s * 0.1, 0.47, 0, 0.15, 0.78, 0.17);
-      if (pose === 'server' && s > 0) {
-        b.box(SHIRT, 0.29, 1.32, 0.12, 0.11, 0.11, 0.36);
-        b.box(SKIN, 0.29, 1.35, 0.32, 0.09, 0.1, 0.1);
-      } else {
-        b.box(SHIRT, s * 0.27, 1.2, 0, 0.11, 0.56, 0.13);
-        b.box(SKIN, s * 0.27, 0.87, 0, 0.09, 0.11, 0.1);
-      }
-    }
-    b.box(pants, 0, 0.88, 0, 0.38, 0.14, 0.2);
-    b.box(SHIRT, 0, 1.22, 0, 0.42, 0.56, 0.23);
-    b.box(VEST, 0, 1.2, 0.118, 0.36, 0.42, 0.02);
-    head(1.68, 0);
-    if (pose === 'server') {
-      b.cyl(0xc8ccd4, 0.3, 1.41, 0.34, 0.2, 0.2, 0.025, 14);
-      b.cyl(0xff5a8a, 0.24, 1.5, 0.3, 0.035, 0.03, 0.14, 8);
-      b.cyl(0xffcf5a, 0.36, 1.5, 0.4, 0.035, 0.03, 0.14, 8);
-      b.cyl(0x8ad8ff, 0.3, 1.49, 0.44, 0.03, 0.03, 0.12, 8);
-    }
-  }
-  g = b.build();
-  figGeos.set(pose, g);
-  return g;
-}
 
 export interface Person {
   x: number;
@@ -722,46 +634,45 @@ export interface Person {
   skin?: number;
   hair?: number;
 }
-const SKINS = [0xf2c7a5, 0xe0ac86, 0xc68a62, 0x9a6440, 0x6e4a32, 0xf6d8c0];
-const HAIRS = [0x1a1410, 0x3a2614, 0x6a4424, 0xc89a5a, 0x8a8a8a, 0x2a1a10, 0xa04a1a];
 export const GUEST_SHIRTS = [0x2a5ad8, 0xd83a3a, 0x2a9a5a, 0xf2f2f2, 0x1a1a1a, 0xe8a02a, 0x8a3ad8, 0x3ab8c8, 0xd86aa8, 0x5a6a3a, 0xc8c0a8];
 
-function fillPeople(mesh: THREE.InstancedMesh, list: Person[]): void {
-  const geo = mesh.geometry;
-  const skin = new THREE.InstancedBufferAttribute(new Float32Array(list.length * 3), 3);
-  const hair = new THREE.InstancedBufferAttribute(new Float32Array(list.length * 3), 3);
-  const vest = new THREE.InstancedBufferAttribute(new Float32Array(list.length * 3), 3);
-  geo.setAttribute('aSkin', skin);
-  geo.setAttribute('aHair', hair);
-  geo.setAttribute('aVest', vest);
+function personRng(p: Person, i: number): () => number {
+  let s = (Math.imul(Math.round(p.x * 37) ^ Math.round(p.z * 53) ^ (i * 7919), 2654435761) >>> 0) || 1;
+  return () => {
+    s ^= s << 13;
+    s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s / 4294967296;
+  };
+}
+function fillPeople(batch: CrowdBatch, list: Person[], pose: Pose): void {
   list.forEach((p, i) => {
     _q.setFromAxisAngle(_y, p.rot);
     _m.compose(_p.set(p.x, p.y ?? 0, p.z), _q, _s);
-    mesh.setMatrixAt(i, _m);
-    _c.setHex(p.shirt);
-    mesh.setColorAt(i, _c);
-    _c.setHex(p.skin ?? SKINS[(i * 7 + Math.round(p.x * 3)) % SKINS.length]);
-    skin.setXYZ(i, _c.r, _c.g, _c.b);
-    _c.setHex(p.hair ?? HAIRS[(i * 5 + Math.round(p.z * 3)) % HAIRS.length]);
-    hair.setXYZ(i, _c.r, _c.g, _c.b);
-    _c.setHex(p.vest ?? p.shirt);
-    vest.setXYZ(i, _c.r, _c.g, _c.b);
+    batch.mesh.setMatrixAt(i, _m);
+    const R = personRng(p, i);
+    batch.setLook(i, crowdLook(R, { top: p.shirt, vest: p.vest, skin: p.skin, hair: p.hair }));
+    batch.setAnim(i, 0, 0, pose === 'sit' ? POSE.sit : R() < 0.3 ? POSE.pockets : POSE.free, R());
   });
+  batch.touch(list.length);
 }
 
 export function buildPeople(group: THREE.Group, pose: Pose, list: Person[]): THREE.InstancedMesh | null {
   if (!list.length) return null;
-  const mesh = new THREE.InstancedMesh(figureGeo(pose).clone(), figureMat(), list.length);
-  fillPeople(mesh, list);
-  mesh.computeBoundingSphere();
-  mesh.receiveShadow = false;
-  group.add(mesh);
-  return mesh;
+  const batch = new CrowdBatch(1, list.length);
+  fillPeople(batch, list, pose);
+  batch.mesh.computeBoundingSphere();
+  batch.mesh.receiveShadow = false;
+  group.add(batch.mesh);
+  return batch.mesh;
 }
 
 /** People walking a closed loop (cocktail servers, strolling guests). */
 export class Walkers {
   readonly mesh: THREE.InstancedMesh;
+  private readonly batch: CrowdBatch;
   private readonly seg: Array<{ ax: number; az: number; dx: number; dz: number; len: number; at: number }> = [];
   private readonly total: number;
   constructor(
@@ -770,8 +681,9 @@ export class Walkers {
     private readonly people: Array<Person & { speed: number; phase: number }>,
     loop: Array<[number, number]>
   ) {
-    this.mesh = new THREE.InstancedMesh(figureGeo(pose).clone(), figureMat(), people.length);
-    fillPeople(this.mesh, people);
+    this.batch = new CrowdBatch(1, people.length);
+    this.mesh = this.batch.mesh;
+    fillPeople(this.batch, people, pose);
     let acc = 0;
     for (let i = 0; i < loop.length; i++) {
       const [ax, az] = loop[i];
@@ -798,10 +710,12 @@ export class Walkers {
       const k = d - s.at;
       const dir = p.speed < 0 ? -1 : 1;
       _q.setFromAxisAngle(_y, Math.atan2(s.dx * dir, s.dz * dir));
-      _m.compose(_p.set(s.ax + s.dx * k, Math.abs(Math.sin(t * 7 + i)) * 0.03, s.az + s.dz * k), _q, _s);
+      _m.compose(_p.set(s.ax + s.dx * k, 0, s.az + s.dz * k), _q, _s);
       this.mesh.setMatrixAt(i, _m);
+      // a stride of about 1.75 m per step pair, a stroll's swing
+      this.batch.setAnim(i, t * Math.abs(p.speed) * 3.6 + i * 1.3, 0.6 + Math.abs(p.speed) * 0.32, POSE.free, (i * 0.618) % 1);
     });
-    this.mesh.instanceMatrix.needsUpdate = true;
+    this.batch.touch(this.people.length, false);
   }
 }
 
