@@ -21,6 +21,7 @@ import { buildStrip, DeuceState, TrafficCar } from './world/strip';
 import { buildDeanMartin } from './world/deanMartin';
 import { buildInterstate } from './world/interstate';
 import { buildTMobileArea } from './world/tmobileArena';
+import { buildWalkIns } from './world/walkins';
 import { buildWestSide } from './world/westSide';
 
 export type { CigPickup, GamblingSpot, PlatformBox, ShopSpot } from './world/builder';
@@ -136,6 +137,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   buildTMobileArea(b);
   buildInterstate(b);
   buildDeanMartin(b);
+  buildWalkIns(b);
   buildStreetShops(b);
   buildStreetLife(b);
   buildBackdrop(b);

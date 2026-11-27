@@ -26,8 +26,10 @@ export interface CasinoSpec {
   height: number;
   /** Which wall faces the Strip / gets the doors, and where along it the doorway is centered. */
   entrance: { side: 'east' | 'west' | 'north' | 'south'; at: number; width: number };
-  /** Extra doorways (e.g. corner entrances). */
-  extraEntrances?: Array<{ side: 'east' | 'west' | 'north' | 'south'; at: number; width: number }>;
+  /** Extra doorways (e.g. corner entrances). `inner` = an opening into a connected hall (no canopy, doors or runner). */
+  extraEntrances?: Array<{ side: 'east' | 'west' | 'north' | 'south'; at: number; width: number; inner?: boolean }>;
+  /** Outside faces dressed by other code (street fronts): no pilasters, cornice or accent strip there. */
+  bare?: Array<'east' | 'west' | 'north' | 'south'>;
   carpet: [string, string, string?];
   wall: number;
   ceiling: number;
@@ -114,8 +116,8 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
       // Walls cast shadows now, so the desert sun no longer shines straight through onto the slots
       if (along === 'z') b.box(fixed, 0, mid, t, s.height, len, wallMat, true, true);
       else b.box(mid, 0, fixed, len, s.height, t, wallMat, true, true);
-      // Pilasters on the outside face
-      for (let u = a + 1.2; u < c - 0.6; u += 4.5) {
+      // Pilasters on the outside face (unless another module dresses that face)
+      if (!s.bare?.includes(side)) for (let u = a + 1.2; u < c - 0.6; u += 4.5) {
         if (along === 'z') b.add(mesh(new THREE.BoxGeometry(0.4, s.height, 0.7), pilaster, fixed + out * (t / 2 + 0.2), s.height / 2, u));
         else b.add(mesh(new THREE.BoxGeometry(0.7, s.height, 0.4), pilaster, u, s.height / 2, fixed + out * (t / 2 + 0.2)));
       }
@@ -123,7 +125,9 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
     // Cornice + glowing accent strip across the whole side
     const full = hi - lo;
     const mid2 = (lo + hi) / 2;
-    if (along === 'z') {
+    if (s.bare?.includes(side)) {
+      // the street-front code owns this face's cornice and lighting
+    } else if (along === 'z') {
       b.add(mesh(new THREE.BoxGeometry(t + 1, 0.8, full + 1), cornice, fixed + out * 0.25, s.height - 0.4, mid2));
       b.add(mesh(new THREE.BoxGeometry(t + 1.05, 0.22, full + 1), accent, fixed + out * 0.25, s.height - 1.0, mid2));
     } else {
@@ -149,6 +153,8 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
         s.height,
         true
       );
+      // An opening into a connected hall: just the lintel
+      if ((s.extraEntrances ?? []).some((e) => e.inner && e.side === side && Math.abs(e.at - mid) < 0.01)) continue;
       // Glowing door frame + a marquee canopy with a lit underside, like every Strip entrance
       const frame = basic(0xffd27a);
       const canopy = mat(0x1c1a20, 0.4, 0.6);

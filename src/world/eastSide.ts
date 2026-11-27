@@ -618,13 +618,13 @@ function buildHarrahs(b: WorldBuilder): void {
   b.crowd.performers.push({ kind: 'slapper', x: 16, z: -170, facing: -Math.PI / 2 });
 
   const harrahs = { wall: '#d9c4a0', mullion: '#ecdcbc', glass: '#7a4a3a', lit: '#ffe0a0', cols: 10, rows: 22, style: 0 as const, seed: 121 };
-  b.box(52, 0, -164, 16, 12, 42, mat(0xdcc8a6, 0.7), true);
+  // the low-rise in front of the tower is the walk-in casino now (harrahsInterior.ts, x 44..60.4)
   // violet neon parapet line: Harrah's has been lit purple after dark since June 2021
   const violet = new THREE.MeshStandardMaterial({ color: 0xb89ae0, emissive: 0x8a3cff, emissiveIntensity: 0.05, roughness: 0.5 });
   b.nightGlow(violet, 0.05, 0.9);
   b.add(mesh(new THREE.BoxGeometry(0.25, 0.3, 42), violet, 43.85, 11.3, -164));
   // the striped barrel arch with the LED screen and the globe crest over Carnaval Court (harrahsFront.ts)
-  harrahsArch(b, 43, -153, 7.2, 8.6, 8);
+  harrahsArch(b, 43, -153, 7.2, 8.6, 1.2, true);
   tower(b, { x: 72, z: -165, w: 22, d: 40, h: 36, facade: harrahs, crownGlow: 0.5, wash: 0x8a3cff, washStrength: 0.6, washZone: 12 }); // purple wash; soft crown so the script reads
   harrahsSigns(b); // the burgundy-and-gold script marquee at the Strip + tower script (stripSigns.ts)
   b.building(62, -165, 40, 42, '#7a1c1c', "Harrah's");
@@ -853,9 +853,11 @@ function buildSphere(b: WorldBuilder): void {
 
 // ---------------------------------------------------------------- Palazzo
 function buildPalazzo(b: WorldBuilder): void {
-  b.box(34, 0, -350, 26, 9, 80, mat(0xd9c39a, 0.7), true);
+  // The podium is the walk-in casino + Waterfall Atrium now (palazzoInterior.ts, x 21.6..47, z −390..−318);
+  // only the strip by the Venetian stays solid
+  b.box(32.5, 0, -314, 23, 9, 8, mat(0xd9c39a, 0.7), true);
   // Arcade of lit boutique arches, pilasters with lanterns, cornice, balustrade, palms (stripFronts.ts)
-  palazzoFront(b, 21, -390, -310, 9, -340);
+  palazzoFront(b, 21, -390, -310, 9, -340, true);
   palazzoSigns(b); // bronze marquee + gold letters on the podium and tower (stripSigns.ts)
   const gold = { wall: '#c8a46a', mullion: '#e0c38a', glass: '#7a5a34', lit: '#ffe6a8', cols: 12, rows: 26, style: 1 as const, seed: 141 };
   tower(b, { x: 70, z: -350, w: 24, d: 50, h: 60, facade: gold, metal: 0.4, wash: 0xffd9a0, crownGlow: 0.7 });

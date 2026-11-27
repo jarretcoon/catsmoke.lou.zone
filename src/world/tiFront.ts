@@ -227,7 +227,7 @@ export function tiShipLights(b: WorldBuilder, ships: Array<{ x: number; z: numbe
  * tile eaves, windows lit at night) on the casino wall behind the ships at x (facing +x, z0…z1, h tall),
  * and rockwork boulders round the lagoon's edges (x0…x1, zA…zB).
  */
-export function tiCove(b: WorldBuilder, wallX: number, z0: number, z1: number, h: number, lagoon: { x0: number; x1: number; zA: number; zB: number }): void {
+export function tiCove(b: WorldBuilder, wallX: number, z0: number, z1: number, h: number, lagoon: { x0: number; x1: number; zA: number; zB: number }, door?: { z0: number; z1: number; h: number }): void {
   const W = 1024;
   const H = 256;
   const houses = ['#e98a6a', '#f2cf6a', '#6cbcb4', '#e0a35a', '#d9746a', '#8fc2d9', '#efe0b8', '#c98aa8'];
@@ -288,9 +288,22 @@ export function tiCove(b: WorldBuilder, wallX: number, z0: number, z1: number, h
   const em = canvasTex(W, H, paint(true));
   const m = b.nightGlow(new THREE.MeshStandardMaterial({ map, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: 0.02, roughness: 0.85 }), 0.02, 0.8);
   const len = z1 - z0;
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(len, h), m);
-  plane.rotation.y = Math.PI / 2;
-  b.add(plane, wallX + 0.03, h / 2, (z0 + z1) / 2);
+  // the painted front, split round the casino door when there is one (tiInterior.ts)
+  const piece = (za: number, zb: number, ya: number, yb: number) => {
+    if (zb - za < 0.01 || yb - ya < 0.01) return;
+    const g = new THREE.PlaneGeometry(zb - za, yb - ya);
+    const uv = g.attributes.uv as THREE.BufferAttribute;
+    // rotated +90° about y, local +x runs toward −z: u = 0 at z1
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (z1 - zb) / len + uv.getX(i) * ((zb - za) / len), ya / h + uv.getY(i) * ((yb - ya) / h));
+    const plane = new THREE.Mesh(g, m);
+    plane.rotation.y = Math.PI / 2;
+    b.add(plane, wallX + 0.03, (ya + yb) / 2, (za + zb) / 2);
+  };
+  if (door) {
+    piece(z0, door.z0, 0, h);
+    piece(door.z0, door.z1, door.h, h);
+    piece(door.z1, z1, 0, h);
+  } else piece(z0, z1, 0, h);
   // rockwork round the lagoon
   const rock = mat(0x8a7058, 0.95);
   const rocks: THREE.BufferGeometry[] = [];

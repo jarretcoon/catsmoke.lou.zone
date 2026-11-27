@@ -528,7 +528,7 @@ export function forumPlanting(b: WorldBuilder, x: number, zs: number[]): void {
  * (the THE PALAZZO letters at z −346…−334 sit on it), cornice and balustrade with urns, a bronze
  * canopy over the doors at `door`, and palms in planters along the walk.
  */
-export function palazzoFront(b: WorldBuilder, x: number, z0: number, z1: number, h: number, door: number): void {
+export function palazzoFront(b: WorldBuilder, x: number, z0: number, z1: number, h: number, door: number, walkIn = false): void {
   const stone = mat(0xe6d3ab, 0.7);
   const light = mat(0xf0e3c6, 0.65);
   const dark = mat(0xb79f74, 0.8);
@@ -546,7 +546,8 @@ export function palazzoFront(b: WorldBuilder, x: number, z0: number, z1: number,
   for (let i = 0; i < bays; i++) {
     const zc = z0 + (i + 0.5) * bw;
     const isDoor = Math.abs(zc - door) < bw / 2;
-    archPane(b, -1, x - 0.04, zc, bw * 0.66, isDoor ? 0 : 0.75, 3.6);
+    // the door bay is an open arch when the casino behind is a walk-in (palazzoInterior.ts)
+    if (!(isDoor && walkIn)) archPane(b, -1, x - 0.04, zc, bw * 0.66, isDoor ? 0 : 0.75, 3.6);
     if (!isDoor) proud(b, -1, x, 0.16, zc, bw * 0.74, 0.6, 0.18, light); // sill
     // keystone over the arch
     proud(b, -1, x, 0.2, zc, 0.5, 3.6 + bw * 0.33 - 0.35, 0.55, light);

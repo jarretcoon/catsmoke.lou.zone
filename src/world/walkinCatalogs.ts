@@ -1,0 +1,167 @@
+import type { AbcItem } from '../abcShop';
+import { CATALOGS } from '../shopCatalogs';
+
+/*
+ * Menus for the build-5 walk-in casinos' bars and shops. They open in the shared shop dialog
+ * (abcShop.ts) like the LINQ Promenade's, so they pay out through the same economy: buzz, timed food
+ * buffs, wearables, collectibles and degen points. Prices are rounded 2026 resort prices.
+ */
+
+const item = (id: string, cat: string, name: string, desc: string, price: number, fx: AbcItem['fx'], tag?: string): AbcItem => ({ id, cat, name, desc, price, fx, tag });
+const drink = (id: string, name: string, desc: string, price: number, buzz: number, extra: AbcItem['fx'] = {}, tag?: string) => item(id, 'Drinks', name, desc, price, { buzz, ...extra }, tag);
+const food = (id: string, name: string, desc: string, price: number, tip: number, speed: number, secs: number, icon: string, tag?: string) => item(id, 'Food', name, desc, price, { tip, speed, secs, icon }, tag);
+
+Object.assign(CATALOGS, {
+  // ---------------------------------------------------------------- Wynn Las Vegas
+  'wynn-parasol-up': {
+    title: 'Parasol Up',
+    sub: 'The bar under the parasols • Wynn Las Vegas',
+    greeting: 'Welcome to Parasol Up. Look up.',
+    bye: 'Enjoy the evening',
+    items: [
+      drink('pu-margarita', 'Parasol Margarita', 'Blood orange, Cointreau, a sugared rim. 🍹 for 2 min.', 24, 120),
+      drink('pu-champagne', 'Glass of Champagne', 'It’s the Wynn. 🍹 for 90 s and Swag points for the pinky.', 28, 90, { degen: [8, 'Five-Star Feline'] }),
+      drink('pu-espresso', 'Espresso Martini', '🍹 for 2 min and a little faster on the way out.', 25, 120, { speed: 1.1, secs: 120, icon: '☕' }),
+      drink('pu-mocktail', 'Garden Spritz (no booze)', 'Elderflower and cucumber. A lap of cool water. 🍹 for 45 s.', 14, 45),
+      food('pu-truffle-fries', 'Truffle Fries', 'Tips ×1.2 for 2 min.', 18, 1.2, 1, 120, '🍟'),
+    ],
+  },
+  'wynn-signature': {
+    title: 'Wynn Signature Shop',
+    sub: 'Robes • Linens • Fragrance • Wynn keepsakes',
+    greeting: 'Good evening. Everything here is from the rooms upstairs.',
+    bye: 'Thank you for visiting Wynn',
+    items: [
+      item('wynn-bowtie', 'Wear', 'Velvet Bow Tie', 'Wearable • +1 Swag. Wynn red, for the salon.', 45, { wear: 'bowtie' }, 'NEW'),
+      item('wynn-candle', 'Keepsakes', 'Atrium Flower Candle', 'Smells like the atrium. Collectible.', 48, { collect: true, degen: [10, 'Five-Star Feline'] }),
+      item('wynn-butterfly-pin', 'Keepsakes', 'Butterfly Mosaic Pin', 'The floor mosaic, tiny, in enamel. Collectible.', 32, { collect: true }),
+      item('wynn-chip-set', 'Keepsakes', 'Souvenir Chip Set', 'Wynn chips in a case. Worth nothing at the cage. Collectible.', 40, { collect: true, degen: [8, 'Souvenir Hoarder'] }),
+      item('wynn-truffles', 'Snacks', 'Box of Truffles', 'Tips ×1.25 for 2 min.', 24, { tip: 1.25, secs: 120, icon: '🍫' }),
+    ],
+  },
+  // ---------------------------------------------------------------- Encore
+  'encore-eastside': {
+    title: 'Eastside Lounge',
+    sub: 'The red lounge on the Encore casino floor',
+    greeting: 'Grab a seat, the piano starts at nine.',
+    bye: 'Good luck out there',
+    items: [
+      drink('es-butterfly', 'Red Butterfly', 'Hibiscus, gin, a little sparkle. 🍹 for 2 min.', 23, 120),
+      drink('es-old-fashioned', 'Encore Old Fashioned', '🍹 for 2 min. Swag points for the big ice cube.', 26, 120, { degen: [8, 'Five-Star Feline'] }),
+      drink('es-prosecco', 'Prosecco', '🍹 for 90 s.', 18, 90),
+      food('es-sliders', 'Wagyu Sliders', 'Tips ×1.3 for 2 min.', 28, 1.3, 1, 120, '🍔'),
+    ],
+  },
+  'encore-boutique': {
+    title: 'Encore Boutique',
+    sub: 'Gifts and jewellery on the Encore Esplanade',
+    greeting: 'Welcome to the Esplanade.',
+    bye: 'Enjoy Encore',
+    items: [
+      item('enc-aviators', 'Wear', 'Gold Aviators', 'Wearable • +1 Swag. For the pool at Encore Beach Club.', 60, { wear: 'aviators' }),
+      item('enc-butterfly', 'Keepsakes', 'Red Glass Butterfly', 'Like the ones in the lobby. Collectible.', 38, { collect: true, degen: [10, 'Five-Star Feline'] }),
+      item('enc-chandelier', 'Keepsakes', 'Jewelled Chandelier Ornament', 'A tiny Esplanade chandelier for the tree. Collectible.', 44, { collect: true }),
+      item('enc-macarons', 'Snacks', 'Box of Macarons', 'Tips ×1.2 for 2 min, and a sprint for 1 min.', 22, { tip: 1.2, speed: 1.1, secs: 120, icon: '🍬' }),
+    ],
+  },
+  // ---------------------------------------------------------------- Harrah's
+  'harrahs-piano-bar': {
+    title: "Piano Bar at Harrah's",
+    sub: 'Dueling pianos nightly • requests welcome',
+    greeting: 'Two pianos, one cat. What do you want to hear?',
+    bye: 'Tip the piano players!',
+    items: [
+      drink('hp-hurricane', 'Mardi Gras Hurricane', 'Rum, passion fruit, a bead necklace. 🍹 for 2 min.', 19, 120, { degen: [5, 'Krewe Member'] }),
+      drink('hp-beer', 'Draft Beer', '🍹 for 90 s.', 11, 90),
+      drink('hp-purple', 'Purple Rain Martini', 'The house colour. 🍹 for 2 min.', 18, 120),
+      item('hp-request', 'Requests', 'Request a Song ($20 tip)', 'They play "Piano Man" for Lou. The whole room sings. Tips ×1.3 for 3 min.', 20, { tip: 1.3, secs: 180, icon: '🎹', degen: [10, 'Piano Man'] }, 'FUN'),
+    ],
+  },
+  'harrahs-fulton': {
+    title: 'Fulton Street Food Hall',
+    sub: "Pizza • Bao • Ice cream • Coffee • Harrah's",
+    greeting: 'Order at the counter!',
+    bye: 'Enjoy',
+    items: [
+      food('fs-pizza', 'NY Slice', 'Tips ×1.2 for 2 min.', 7, 1.2, 1, 120, '🍕'),
+      food('fs-bao', 'Pork Belly Bao', 'Tips ×1.25 for 2 min.', 9, 1.25, 1, 120, '🥟'),
+      food('fs-icecream', 'Ice Cream Cone', 'A sprint for 90 s. Brain freeze included.', 6, 1, 1.15, 90, '🍦'),
+      food('fs-coffee', 'Cold Brew', 'A sprint for 2 min.', 6, 1, 1.12, 120, '☕'),
+    ],
+  },
+  // ---------------------------------------------------------------- The Palazzo
+  'palazzo-lavo': {
+    title: 'LAVO Lounge',
+    sub: 'Italian restaurant & lounge • The Palazzo',
+    greeting: 'Buonasera. Table for one cat?',
+    bye: 'Ciao',
+    items: [
+      drink('lv-negroni', 'Negroni', '🍹 for 2 min. Swag points for ordering it right.', 22, 120, { degen: [8, 'Five-Star Feline'] }),
+      drink('lv-spritz', 'Aperol Spritz', '🍹 for 90 s.', 19, 90),
+      drink('lv-limoncello', 'Limoncello Shot', '🍹 for 60 s.', 12, 60),
+      food('lv-meatball', 'The One-Pound Meatball', 'LAVO’s famous one. Tips ×1.4 for 3 min, and Lou naps after.', 36, 1.4, 0.95, 180, '🍝', 'FAMOUS'),
+    ],
+  },
+  'palazzo-shop': {
+    title: 'The Palazzo Shop',
+    sub: 'Venetian glass • perfume • gelato • Grand Canal Shoppes',
+    greeting: 'Benvenuti! Everything is from Venice. Mostly.',
+    bye: 'Grazie',
+    items: [
+      item('pz-glass-cat', 'Keepsakes', 'Murano Glass Cat', 'A tiny glass tabby. It looks like Lou. Collectible.', 42, { collect: true, degen: [10, 'Souvenir Hoarder'] }, 'NEW'),
+      item('pz-lantern', 'Keepsakes', 'Silk Atrium Lantern', 'Like the ones under the dome. Collectible.', 28, { collect: true }),
+      item('pz-fedora', 'Wear', 'Rat Pack Fedora', 'Wearable • +2 Swag. The Sands stood right here.', 120, { wear: 'fedora' }),
+      item('pz-gelato', 'Snacks', 'Pistachio Gelato', 'A sprint for 90 s.', 9, { speed: 1.15, secs: 90, icon: '🍨' }),
+    ],
+  },
+  // ---------------------------------------------------------------- Treasure Island
+  'ti-breeze': {
+    title: 'Breeze Bar',
+    sub: 'The island bar on the TI casino floor',
+    greeting: 'Ahoy! What’ll it be?',
+    bye: 'Fair winds',
+    items: [
+      drink('tb-rum-punch', 'Pirate Rum Punch', '🍹 for 2 min. Arr.', 16, 120, { degen: [6, 'Pirate Cat'] }),
+      drink('tb-mai-tai', 'Mai Tai', '🍹 for 2 min.', 18, 120),
+      drink('tb-draft', '2-for-1 Draft Beer', 'The TV-commercial deal. 🍹 for 2 min.', 9, 120, {}, 'DEAL'),
+      food('tb-shrimp', 'Coconut Shrimp', 'Tips ×1.25 for 2 min.', 15, 1.25, 1, 120, '🍤'),
+    ],
+  },
+  'ti-mystere': {
+    title: 'Mystère Box Office',
+    sub: 'Cirque du Soleil at TI • since 1993',
+    greeting: 'Tickets for tonight? There are a few left up front.',
+    bye: 'Enjoy the show',
+    items: [
+      item('tm-ticket', 'Tickets', 'Mystère Ticket (tonight)', 'Lou watches the trampolines. Inspired: a sprint for 3 min.', 89, { speed: 1.2, secs: 180, icon: '🎪', degen: [12, 'Cirque Kitty'] }, 'TONIGHT'),
+      item('tm-program', 'Souvenirs', 'Show Programme', 'Glossy. Collectible.', 20, { collect: true }),
+      item('tm-plush', 'Souvenirs', 'Baby Bird Plush', 'The big baby from the show, tiny. Lou wrestles it. Collectible.', 30, { collect: true, degen: [8, 'Souvenir Hoarder'] }),
+      item('tm-popcorn', 'Snacks', 'Popcorn', 'Tips ×1.1 for 2 min.', 8, { tip: 1.1, secs: 120, icon: '🍿' }),
+    ],
+  },
+  // ---------------------------------------------------------------- Mandalay Bay
+  'mandalay-rhythm': {
+    title: 'Rhythm & Riffs',
+    sub: 'Live music lounge • Mandalay Bay casino',
+    greeting: 'The band’s on at ten. What can I get you?',
+    bye: 'Rock on',
+    items: [
+      drink('rr-mai-tai', 'Tropical Mai Tai', '🍹 for 2 min.', 18, 120),
+      drink('rr-bourbon', 'Bourbon on the Rocks', '🍹 for 2 min. Swag points for the blues.', 17, 120, { degen: [6, 'Blues Cat'] }),
+      drink('rr-beer', 'Bucket of Beers (one)', '🍹 for 90 s.', 10, 90),
+      food('rr-wings', 'Hot Wings', 'Tips ×1.25 for 2 min.', 16, 1.25, 1, 120, '🍗'),
+    ],
+  },
+  'mandalay-shark-reef': {
+    title: 'Shark Reef Aquarium',
+    sub: 'Sharks, rays, sea turtles • Mandalay Bay',
+    greeting: 'Two thousand animals and one very interested cat.',
+    bye: 'No fishing, please',
+    items: [
+      item('sr-ticket', 'Tickets', 'Shark Reef Admission', 'Lou presses his nose to the glass for an hour. Calm: the heat dies down (−1 wanted star).', 32, { heat: 1, degen: [12, 'Shark Week'] }, 'COOL DOWN'),
+      item('sr-plush', 'Souvenirs', 'Hammerhead Plush', 'Lou’s new nemesis. Collectible.', 22, { collect: true, degen: [8, 'Souvenir Hoarder'] }),
+      item('sr-tooth', 'Souvenirs', 'Shark Tooth Necklace', 'A real-looking tooth on a cord. Collectible.', 15, { collect: true }),
+      item('sr-tuna', 'Snacks', 'Tuna Snack Pack (for cats)', 'Not from the tank. Promise. A sprint for 2 min.', 6, { speed: 1.12, secs: 120, icon: '🐟' }),
+    ],
+  },
+});

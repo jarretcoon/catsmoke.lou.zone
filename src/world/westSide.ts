@@ -846,9 +846,11 @@ function buildTreasureIsland(b: WorldBuilder): void {
     const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
     tower(b, { x: -104 + Math.cos(a) * 13, z: -364 + Math.sin(a) * 13, w: 28, d: 11, h: 34, facade: { ...ti, seed: 51 + i }, rotY: -a });
   }
-  b.box(-80, 0, -364, 14, 10, 50, mat(0xb26a4c, 0.8), true);
+  // the north part of the low-rise (between the tower wings and Spring Mountain Rd) is the walk-in casino
+  // now (tiInterior.ts, x −98..−73.6, z −391..−370); the rest stays solid
+  b.box(-80, 0, -354.5, 14, 10, 31, mat(0xb26a4c, 0.8), true);
   // the Caribbean village front behind the ships and the rockwork round the cove (tiFront.ts)
-  tiCove(b, -73, -389, -339, 10, { x0: lx0, x1: lx1, zA: lz0, zB: lz1 });
+  tiCove(b, -73, -389, -339, 10, { x0: lx0, x1: lx1, zA: lz0, zB: lz1 }, { z0: -376.5, z1: -371.5, h: 4.2 });
   // the 2003 TI sign by the Spring Mountain corner, and the gold letters on the wings (tiFront.ts)
   buildTiSign(b);
   tiTowerLetters(b);
