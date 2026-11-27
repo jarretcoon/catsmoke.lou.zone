@@ -5,6 +5,7 @@ import type { CrowdConfig } from './npcs';
 import type { Rideable } from './rides';
 import { buildBackdrop } from './world/backdrop';
 import { buildBackOfHouse } from './world/backOfHouse';
+import { buildCrossRoads } from './world/crossRoads';
 import { buildStreetShops } from './world/streetShops';
 import { buildStreetLife } from './world/streetLife';
 import { CigPickup, GamblingSpot, INDOOR_ZONE, PlatformBox, ShopSpot, viewer, WorldBuilder } from './world/builder';
@@ -132,6 +133,7 @@ export function buildVegasStripWorld(scene: THREE.Scene): VegasWorldContext {
   buildSouthStrip(b);
   buildFoodAndShops(b);
   buildBackOfHouse(b);
+  buildCrossRoads(b); // the real cross streets off the Boulevard: Harmon, Reno, Mandalay Bay Rd, Fashion Show Dr, …
   buildTMobileArea(b);
   buildInterstate(b);
   buildDeanMartin(b);

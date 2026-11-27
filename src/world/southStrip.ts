@@ -2025,7 +2025,7 @@ function buildBallpark(b: WorldBuilder): void {
   const x0 = 20.5;
   const x1 = xFromO(417) - 0.6; // 106.8
   const z0 = TROP_S + 0.6;
-  const z1 = zFromS(-1978) - 0.4; // 538.7
+  const z1 = 523.4; // the south fence steps back from real s −1978 to make room for Reno Ave (southCrossRoads.ts)
   // The NW corner (|x| < 30 near Tropicana) is the skybridge ring's: the site notches around it.
   const xr = 30.3;
   const zr = RING_S + 0.3;
@@ -2050,7 +2050,7 @@ function buildBallpark(b: WorldBuilder): void {
     const len = alongX ? Math.abs(cx - ax) : Math.abs(cz - az);
     b.box((ax + cx) / 2, 0, (az + cz) / 2, alongX ? len : 0.15, 2.5, alongX ? 0.15 : len, screen, true, false);
   }
-  for (const z of [484, 516, 532]) sign(b, 'ATHLETICS', '#0b3d2e', '#f2c230', 8, 1.5, x0 - 0.12, 1.3, z, -Math.PI / 2, 'LAS VEGAS BALLPARK • COMING 2028', 0.06);
+  for (const z of [484, 500, 516]) sign(b, 'ATHLETICS', '#0b3d2e', '#f2c230', 8, 1.5, x0 - 0.12, 1.3, z, -Math.PI / 2, 'LAS VEGAS BALLPARK • COMING 2028', 0.06);
   for (let x = 38; x < x1 - 5; x += 20) sign(b, 'COMING 2028', '#0b3d2e', '#ffffff', 8, 1.5, x, 1.3, z0 - 0.12, Math.PI, 'FUTURE HOME OF THE ATHLETICS', 0.06);
   for (const z of [497, 503]) mg.box(mat(0x8c8f94, 0.4, 0.6), x0, 1.6, z, 0.3, 3.2, 0.3);
   sign(b, 'HARD HAT AREA', '#f2c230', '#111111', 3.4, 0.9, x0 - 0.2, 2.9, 500, -Math.PI / 2, 'AUTHORIZED PERSONNEL ONLY', 0.06);
@@ -2096,7 +2096,7 @@ function buildBallpark(b: WorldBuilder): void {
   // Two big steel truss arches + the first roof trusses and panels between them
   const steel = mat(0x8a929c, 0.45, 0.75);
   const archX = [48, 74];
-  const span = 70;
+  const span = 46; // feet inside the Reno Ave fence (southCrossRoads.ts)
   const rise = 30;
   const zc = 499;
   for (const ax of archX) {
@@ -2132,33 +2132,33 @@ function buildBallpark(b: WorldBuilder): void {
 
   // Cranes: two slewing tower cranes and a crawler crane lifting a truss segment
   towerCrane(b, mg, 36, 472, 52, 44, 0xf2c230, 0.4, 0.045);
-  towerCrane(b, mg, 100, 530, 46, 38, 0xd8302a, 2.4, 0.06);
+  towerCrane(b, mg, 98, 512, 46, 38, 0xd8302a, 2.4, 0.06);
   const crawler = mat(0xe86a1a, 0.5, 0.4);
-  mg.box(mat(0x2a2a2a, 0.8), 60, 0.6, 520, 4.2, 1.2, 6.2);
-  mg.box(crawler, 60, 2.2, 520, 3.4, 2.0, 4.4, 0, true);
-  const boomA = v3(60, 3.2, 518);
-  const boomB = v3(54, 30, 508);
+  mg.box(mat(0x2a2a2a, 0.8), 60, 0.6, 516, 4.2, 1.2, 6.2);
+  mg.box(crawler, 60, 2.2, 516, 3.4, 2.0, 4.4, 0, true);
+  const boomA = v3(60, 3.2, 514);
+  const boomB = v3(54, 30, 504);
   for (const s of [-0.6, 0.6]) mg.beam(crawler, boomA.clone().add(v3(s, 0, 0)), boomB.clone().add(v3(s * 0.4, 0, 0)), 0.12, 4);
   for (let k = 0; k < 10; k++) mg.beam(crawler, boomA.clone().lerp(boomB, k / 10).add(v3(-0.6, 0, 0)), boomA.clone().lerp(boomB, (k + 1) / 10).add(v3(0.6, 0, 0)), 0.05, 3);
-  mg.beam(mat(0x222222, 0.5), boomB, v3(54, 14, 508), 0.03, 3);
-  mg.beam(steel, v3(48.6, 13.4, 508), v3(59.4, 13.4, 508), 0.2, 5);
-  b.collider(57.5, 62.5, 516.5, 523.5, 0, 3.2, true);
+  mg.beam(mat(0x222222, 0.5), boomB, v3(54, 14, 504), 0.03, 3);
+  mg.beam(steel, v3(48.6, 13.4, 504), v3(59.4, 13.4, 504), 0.2, 5);
+  b.collider(57.5, 62.5, 512.5, 519.5, 0, 3.2, true);
 
   // Site dressing: trailers, porta-johns, steel stacks, light towers, cones
-  b.box(30, 0, 530, 10, 3.2, 3.4, mat(0xeeeeee, 0.6), true);
-  sign(b, 'FIELD OFFICE', '#ffffff', '#1a1a1a', 3.4, 0.6, 30, 2.4, 528.2, Math.PI, undefined, 0.05);
-  b.box(30, 0, 524.5, 10, 3.2, 3.4, mat(0xd8d8d0, 0.6), true);
+  b.box(30, 0, 518, 10, 3.2, 3.4, mat(0xeeeeee, 0.6), true);
+  sign(b, 'FIELD OFFICE', '#ffffff', '#1a1a1a', 3.4, 0.6, 30, 2.4, 516.2, Math.PI, undefined, 0.05);
+  b.box(30, 0, 512.5, 10, 3.2, 3.4, mat(0xd8d8d0, 0.6), true);
   for (let i = 0; i < 4; i++) mg.box(mat(0x2a66cc, 0.6), 96 - i * 1.4, 1.15, 464, 1.2, 2.3, 1.2, 0, true);
   b.collider(91, 97, 463.2, 464.8, 0, 2.3, true);
-  for (let i = 0; i < 6; i++) mg.box(mat(0x6b7480, 0.5, 0.6), 40, 0.2 + i * 0.36, 528 + (i % 2) * 0.25, 7, 0.32, 0.5);
-  b.collider(36.4, 43.6, 527.5, 528.8, 0, 2.2);
-  b.pickup(40, 2.6, 528.1, 4, "Ironworker's Lunch-Break Pack", false);
+  for (let i = 0; i < 6; i++) mg.box(mat(0x6b7480, 0.5, 0.6), 40, 0.2 + i * 0.36, 516 + (i % 2) * 0.25, 7, 0.32, 0.5);
+  b.collider(36.4, 43.6, 515.5, 516.8, 0, 2.2);
+  b.pickup(40, 2.6, 516.1, 4, "Ironworker's Lunch-Break Pack", false);
   for (let i = 0; i < 8; i++) mg.box(mat(0x7a4a2a, 0.8, 0.4), 88, 0.12 + i * 0.13, 470 + i * 0.3, 6, 0.1, 0.1);
   const lamp = new THREE.MeshStandardMaterial({ color: 0xf4f4e8, emissive: 0xfff4d0, emissiveIntensity: 0.05 });
   b.nightGlow(lamp, 0.02, 2.4);
   for (const [lx, lz] of [
     [46, 464],
-    [26, 534],
+    [26, 519],
     [100, 476],
     [66, 464],
   ]) {
@@ -2253,7 +2253,7 @@ function buildEastLots(b: WorldBuilder): void {
   ground(b, 19.4, xE, a0, a1, 0xa89272);
   scatter(a0, a1, 40, 0.11);
   chainLink(b, mg, 19.7, 555, 19.7, 574); // (ampm + ARCO on the Reno Ave corner north of here: southFronts.ts)
-  chainLink(b, mg, 19.7, 582, 19.7, a1 - 2);
+  chainLink(b, mg, 19.7, 582, 19.7, 616.2); // Hacienda Ave crosses at 625 (southCrossRoads.ts)
   billboard(b, mg, 32, 560, 'INJURED? CALL 702-555-0188', 'THE CAT LAWYERS • WE FIGHT FOR YOU', '#f2c230', '#111111');
   billboard(b, mg, 32, 604, 'ALL-YOU-CAN-EAT CRAB LEGS', 'BUFFET • OPEN 24 HOURS', '#7a1414', '#ffe9a0');
   b.zone('Vacant Lot (Reno Ave)', 19, xE, a0, a1);
@@ -2263,7 +2263,7 @@ function buildEastLots(b: WorldBuilder): void {
   const d1 = zFromS(-2770); // 715.1
   ground(b, 19.4, xFromO(414), d0, d1, 0x8f7656);
   // frontage fence only up to the motels (3961 → the Shell at 4207 are open businesses: southFronts.ts)
-  chainLink(b, mg, 19.7, d0 + 1, 19.7, 648.2);
+  chainLink(b, mg, 19.7, 633.8, 19.7, 648.2);
   chainLink(b, mg, 46, 648.2, 46, 702);
   const fabric = mat(0xf4f4f0, 0.7, 0, { side: THREE.DoubleSide });
   for (const [tx, tz] of [

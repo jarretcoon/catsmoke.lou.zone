@@ -986,7 +986,7 @@ function buildWestBack(b: WorldBuilder, R: () => number): void {
   ], 'Garden of the Gods Pool', 301);
 
   // ---- behind Cosmopolitan / Vdara: surface lot + rideshare
-  surfaceLot(b, -156, -104, 122, 178, 103, 0.62, 'Cosmopolitan Lot');
+  surfaceLot(b, -156, -104, 122, 156, 103, 0.62, 'Cosmopolitan Lot'); // Vdara and the ARIA garage stand north of Harmon Ave (harmonAve.ts)
   chainFence(b, -156, 121.5, -104, 121.5);
   b.add(transformerBox(), -107, 0, 180.5);
   // ---- behind NYNY / Park MGM: garage (Arena & Toshiba Plaza built in tmobileArena.ts)
@@ -1091,9 +1091,10 @@ function buildEastBack(b: WorldBuilder, R: () => number): void {
   employeeEntrance(b, 131.05, 75, Math.PI / 2, 2.4, 9);
   bohWallDressing(b, false, 131.1, 67, 83, 3.8, Math.PI / 2, R);
 
-  // ---- Planet Hollywood: garage + valet storage lot; fenced development lot to the south
-  parkingGarage(b, 134, 176, 212, 262, 4, 'Planet Hollywood Self Parking', '-x', 204);
-  surfaceLot(b, 132, 176, 124, 170, 106, 0.66, 'PH Valet Storage');
+  // ---- Planet Hollywood: garage (north of Harmon Ave, entered from it, like the real one) + valet storage lot;
+  // fenced development lot to the south. South of Harmon are the Signature towers and Topgolf (harmonAve.ts).
+  parkingGarage(b, 134, 176, 152, 204, 4, 'Planet Hollywood Self Parking', '+z', 204);
+  surfaceLot(b, 132, 176, 124, 148, 106, 0.66, 'PH Valet Storage');
   chainFence(b, 131.5, 123.5, 176.5, 123.5);
   loadingDock(b, 127.2, 132.4, 180, 206, '+x', 3, [1], R);
   constructionFence(b, 130, 300, 176, 300);

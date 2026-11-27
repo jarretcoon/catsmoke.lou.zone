@@ -63,17 +63,50 @@ export const STRIP = {
 /** Real signalised mid-block crossings of the Strip (real meters north of Flamingo / -3.2). */
 /** `bridged`: the Boulevard has no at-grade crossing here; people use the pedestrian bridges (signals stay for the cross street). */
 /** `eastStub`: the east stub ends at this x; the district draws the road on from there (Sands Ave curves to the Sphere: sphereDistrict.ts). */
-export const CROSSWALKS: Array<{ z: number; name: string; offset: number; road?: 'west' | 'east' | 'both'; bridged?: boolean; eastStub?: number }> = [
+/**
+ * `mouth` (crossRoads.ts draws the road): the cross street meets the Boulevard over z mouth[0]..mouth[1] on
+ * `mouthSide`, so the curb, the median and the curb furniture stop there; `stop` = the stop lines for the
+ * southbound and northbound lanes (before the whole intersection); `poles` = z of the west and east signal
+ * poles (clear of the mouths).
+ */
+export interface StripCrossing {
+  z: number;
+  name: string;
+  offset: number;
+  road?: 'west' | 'east' | 'both';
+  bridged?: boolean;
+  eastStub?: number;
+  mouth?: [number, number];
+  mouthSide?: 'west' | 'east' | 'both';
+  /** a different mouth on the east side (offset intersections, e.g. Mandalay Bay Rd / Hacienda Ave) */
+  mouthEast?: [number, number];
+  stop?: [number, number];
+  poles?: [number, number];
+}
+/** Whether z on side s (−1 west, 1 east) is inside a cross street's mouth (± pad). */
+export function inMouth(z: number, s: -1 | 1, pad = 0): boolean {
+  return CROSSWALKS.some((c) => {
+    if (!c.mouth) return false;
+    const side = c.mouthSide ?? 'both';
+    if (side !== 'both' && (side === 'west') !== s < 0) return false;
+    const m = s > 0 && c.mouthEast ? c.mouthEast : c.mouth;
+    return z > m[0] - pad && z < m[1] + pad;
+  });
+}
+export const CROSSWALKS: StripCrossing[] = [
   { z: -797, name: 'Circus Circus Dr', offset: 6, road: 'west' },
   { z: -735.3, name: 'Circus Circus main entrance', offset: 3, road: 'west' },
-  { z: -669.8, name: 'Resorts World Ave', offset: 12 },
+  // Resorts World Ave and Fashion Show Dr (west only): roads by northCrossRoads.ts
+  { z: -666.4, name: 'Resorts World Ave', offset: 12, mouth: [-682.9, -670.1], mouthSide: 'west', stop: [-685.2, -663.8], poles: [-663.2, -686.2] },
   { z: -615.3, name: 'Convention Center Dr', offset: 2, road: 'east' },
   { z: -573.1, name: 'Genting Blvd', offset: 8 },
-  { z: -475.3, name: 'Fashion Show Dr', offset: 4 },
+  { z: -494.4, name: 'Fashion Show Dr', offset: 4, mouth: [-490.4, -477.6], mouthSide: 'west', stop: [-496.8, -475.2], poles: [-474.6, -497.2] },
   { z: -407, name: 'Spring Mountain Rd / Sands Ave', offset: 10, road: 'both', bridged: true, eastStub: 40 },
-  { z: 206, name: 'Harmon Ave', offset: 3 },
-  { z: 529.6, name: 'Reno Ave', offset: 7 },
-  { z: 621.1, name: 'Mandalay Bay Rd / Hacienda', offset: 13 },
+  // Harmon: the crosswalk is on the south leg (the 2012 bridge carries the north one); the road is crossRoads.ts's
+  { z: 226, name: 'Harmon Ave', offset: 3, mouth: [207.8, 221.8], stop: [205.6, 230.4], poles: [229.6, 223.3] },
+  // Reno and Mandalay Bay Rd / Hacienda: roads by southCrossRoads.ts, crosswalks on the south legs; both are offset crossings
+  { z: 545.4, name: 'Reno Ave', offset: 7, mouth: [526.6, 541.4], mouthEast: [525.5, 538.5], stop: [523.4, 549.8], poles: [549.2, 542.6] },
+  { z: 635.4, name: 'Mandalay Bay Rd / Hacienda', offset: 13, mouth: [605.1, 619.9], mouthEast: [618.5, 631.5], stop: [602.9, 639.8], poles: [639.2, 632.8] },
   { z: 716.2, name: 'Four Seasons Dr', offset: 5 },
   { z: 806.7, name: 'Russell Rd', offset: 9, road: 'both' },
   { z: 100, name: 'Bellagio Dr / Paris', offset: 9 },
@@ -211,13 +244,27 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   // Curb: concrete face with a pale weathered top edge (the gutter pan is painted into the road)
   const curbMat = mat(0xb4ada1, 0.8);
   const curbTop = mat(0xd4cec2, 0.75);
-  for (const s of [-1, 1]) {
-    for (const [z0, z1] of [
+  for (const s of [-1, 1] as const) {
+    // the curb runs, cut at Sahara Ave and where a cross street's mouth meets this side (crossRoads.ts curbs the corners)
+    const runs: Array<[number, number]> = [];
+    for (const [a, c] of [
       [STRIP.north, STRIP.saharaZ - STRIP.saharaHalf],
       [STRIP.saharaZ + STRIP.saharaHalf, -STRIP.flamingoHalf],
       [STRIP.flamingoHalf, STRIP.tropicanaZ - STRIP.flamingoHalf],
       [STRIP.tropicanaZ + STRIP.flamingoHalf, STRIP.south],
     ]) {
+      let cur = a;
+      const ms = CROSSWALKS.filter((cw) => cw.mouth && (cw.mouthSide ?? 'both') !== (s < 0 ? 'east' : 'west'))
+        .map((cw) => (s > 0 && cw.mouthEast ? cw.mouthEast : cw.mouth!))
+        .filter((m) => m[1] > a && m[0] < c)
+        .sort((m, n) => m[0] - n[0]);
+      for (const m of ms) {
+        if (m[0] > cur) runs.push([cur, m[0]]);
+        cur = Math.max(cur, m[1]);
+      }
+      if (cur < c) runs.push([cur, c]);
+    }
+    for (const [z0, z1] of runs) {
       b.add(mesh(new THREE.BoxGeometry(0.3, 0.16, z1 - z0), curbMat, s * (half + 0.15), 0.08, (z0 + z1) / 2));
       b.add(mesh(new THREE.BoxGeometry(0.36, 0.025, z1 - z0), curbTop, s * (half + 0.17), 0.165, (z0 + z1) / 2));
     }
@@ -230,6 +277,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     { z0: 890, z1: 952 }, // Welcome sign island (built by the south district)
     { z0: STRIP.saharaZ - STRIP.saharaHalf - 9, z1: STRIP.saharaZ + STRIP.saharaHalf + 9 }, // Sahara Ave + the left-turn bays (saharaDistrict.ts)
     ...CROSSWALKS.map((c) => ({ z0: c.z - 5, z1: c.z + 5 })),
+    // left-turn openings across the whole intersection at the cross streets crossRoads.ts builds
+    ...CROSSWALKS.filter((c) => c.stop).map((c) => ({ z0: c.stop![0] - 1, z1: c.stop![1] + 1 })),
   ].sort((a, c) => a.z0 - c.z0);
   const medianRuns: Array<[number, number]> = [];
   let cursor = STRIP.north + 4;
@@ -387,14 +436,16 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     const lamps = signalLamps();
     const ped = cw.bridged ? null : pedCountdown(b, cw.z, cw.offset, clock);
     for (const s of [-1, 1]) {
-      const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.45), white, s * ((half + STRIP.medianHalf) / 2), 0.055, cw.z - s * 4.2);
+      // stop bars ahead of the whole intersection where a cross street comes in (southbound x < 0, northbound x > 0)
+      const barZ = cw.stop ? (s < 0 ? cw.stop[0] + 0.3 : cw.stop[1] - 0.3) : cw.z - s * 4.2;
+      const bar = mesh(new THREE.PlaneGeometry(half - STRIP.medianHalf, 0.45), white, s * ((half + STRIP.medianHalf) / 2), 0.055, barZ);
       bar.rotation.x = -Math.PI / 2;
       b.add(bar);
       const sig = trafficSignal(5.5, lamps);
       const blade = STREET_BLADES[cw.name];
       if (blade) sig.group.add(placed(streetBlade(b, s < 0 ? blade[0] : blade[1]), 2.0, 7.35, 0));
       const sx = s * (half + 0.9);
-      const sz = cw.z - s * 3.4;
+      const sz = cw.poles ? (s < 0 ? cw.poles[0] : cw.poles[1]) : cw.z - s * 3.4;
       b.add(sig.group, sx, 0, sz, s < 0 ? 0 : Math.PI);
       b.collider(sx - 0.25, sx + 0.25, sz - 0.25, sz + 0.25, 0, 7, true);
       signals.push({ sig, read: () => crosswalkPhase(clock(), cw.offset) });
@@ -424,7 +475,8 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
   // --- Street furniture along both sidewalks ---
   const glowMat = new THREE.MeshBasicMaterial({ map: makeGlowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
   let poleIdx = 0;
-  const nearCrossing = (z: number, r: number) => Math.abs(z) < 30 || Math.abs(z - STRIP.tropicanaZ) < 30 || Math.abs(z - STRIP.saharaZ) < STRIP.saharaHalf + 8 || (z > 885 && z < 955) || CROSSWALKS.some((c) => Math.abs(c.z - z) < r + (c.road ? 6 : 0));
+  const nearCrossing = (z: number, r: number) =>
+    Math.abs(z) < 30 || Math.abs(z - STRIP.tropicanaZ) < 30 || Math.abs(z - STRIP.saharaZ) < STRIP.saharaHalf + 8 || (z > 885 && z < 955) || CROSSWALKS.some((c) => Math.abs(c.z - z) < r + (c.road ? 6 : 0) || (c.mouth && z > Math.min(c.mouth[0], c.mouthEast?.[0] ?? Infinity) - 2.5 && z < Math.max(c.mouth[1], c.mouthEast?.[1] ?? -Infinity) + 2.5));
   const poleZs: number[] = [];
   for (let z = STRIP.north + 10; z < STRIP.south - 5; z += 24) if (!nearCrossing(z, 7)) poleZs.push(z);
   glow.setPoles(STRIP.north + 10, 24, poleZs);
@@ -602,7 +654,7 @@ export function buildStrip(b: WorldBuilder, deuceStops: Array<{ z: number; side:
     consider(-dir * (STRIP.flamingoHalf + 2.2), flamingoPhase(t).ns);
     consider(STRIP.tropicanaZ - dir * (STRIP.flamingoHalf + 2.2), tropicanaPhase(t).ns);
     consider(STRIP.saharaZ - dir * (STRIP.saharaHalf + 5.6), saharaPhase(t).ns); // behind the crosswalk
-    for (const cw of CROSSWALKS) consider(cw.z - dir * 4.6, crosswalkPhase(t, cw.offset));
+    for (const cw of CROSSWALKS) consider(cw.stop ? (dir === 1 ? cw.stop[0] : cw.stop[1]) : cw.z - dir * 4.6, crosswalkPhase(t, cw.offset));
     return best;
   };
 

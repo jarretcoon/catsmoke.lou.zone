@@ -19,6 +19,7 @@ import { bellagioLakeFront, bellagioLakeVillage, cosmoBeacon, cosmoComets } from
 import { ariaMarquee, crystalsTenants, veerTowers } from './cityCenterFront';
 import { buildGuitarHotel, hardRockBanner } from './guitarHotel';
 import { crystalsFront, forumPlanting, forumWall } from './stripFronts';
+import { squashZ } from './harmonAve';
 
 /**
  * West side of Las Vegas Blvd, south → north:
@@ -53,24 +54,27 @@ function plaza(b: WorldBuilder, x0: number, x1: number, z0: number, z1: number, 
 function buildCityCenter(b: WorldBuilder): void {
   const silver = { wall: '#a9b8c6', mullion: '#cfd8e0', glass: '#6d8396', lit: '#fff2cf', cols: 10, rows: 18, style: 2 as const, seed: 3 };
   // The Shops at Crystals — Libeskind's tilted steel-and-glass shards over a glass storefront band (stripFronts.ts)
-  b.box(-40, 0, 232, 38, 9, 40, mat(0xb9c3cc, 0.4, 0.6), true);
-  crystalsFront(b);
-  // No big name on the Strip face, only the tenants' signs; the ARIA marquee stands across the walk (cityCenterFront.ts)
-  crystalsTenants(b);
+  // Harmon Ave now runs along its north side (harmonAve.ts), so the podium is squeezed from z 212…252 to 225.5…252
+  squashZ(b, 212, 252, 225.5, () => {
+    b.box(-40, 0, 232, 38, 9, 40, mat(0xb9c3cc, 0.4, 0.6), true);
+    crystalsFront(b);
+    // No big name on the Strip face, only the tenants' signs; the ARIA marquee stands across the walk (cityCenterFront.ts)
+    crystalsTenants(b);
+  });
   ariaMarquee(b);
-  // Veer Towers at Harmon, leaning 5° apart, behind Crystals
+  // Veer Towers south of Harmon, leaning 5° apart, behind Crystals
   veerTowers(b, [
-    { x: -70, z: 217, w: 11, d: 9, h: 45, lean: -0.087 },
-    { x: -86, z: 229, w: 11, d: 9, h: 45, lean: 0.087 },
+    { x: -70, z: 233, w: 11, d: 9, h: 45, lean: -0.087 },
+    { x: -86, z: 245, w: 11, d: 9, h: 45, lean: 0.087 },
   ]);
   tower(b, { x: -40, z: 280, w: 16, d: 22, h: 52, facade: silver, metal: 0.6, rough: 0.25 });
   b.add(neonSign('WALDORF ASTORIA', '#0d0f14', '#f6e7c8', 10, 1.4), -31.8, 46, 280, -Math.PI / 2);
   // ARIA: curving blue-silver low-e glass with sawtooth sunshade fins washed by podium floodlights
   curvedTower(b, -60, 268, 62, Math.PI * 0.86, Math.PI * 1.24, 6, 16, 56, { ...silver, glass: '#56789a', mullion: '#d8e0e8', lit: '#eef3ff', seed: 5 }, 0.7, { rough: 0.2, fins: { every: 2, depth: 0.8 }, ledFins: false, wash: 0xdce8ff, washZone: 22, washStrength: 0.6 });
   buildAriaSign(b);
-  // Vdara: a slim silver crescent
-  curvedTower(b, -100, 215, 46, Math.PI * 0.9, Math.PI * 1.2, 4, 13, 53, { ...silver, wall: '#c8d2da', glass: '#8aa2b8', mullion: '#eef2f5', seed: 9 }, 0.7, { crescent: true, rough: 0.2, ledFins: false, wash: 0xeef4ff, washZone: 14 });
-  b.building(-40, 232, 38, 40, '#9aa6b2', 'Crystals');
+  // Vdara: a slim silver crescent on the north side of Harmon Ave (2600 W Harmon), west of the Cosmopolitan
+  curvedTower(b, -70, 189, 46, Math.PI * 0.9, Math.PI * 1.2, 4, 13, 53, { ...silver, wall: '#c8d2da', glass: '#8aa2b8', mullion: '#eef2f5', seed: 9 }, 0.7, { crescent: true, rough: 0.2, ledFins: false, wash: 0xeef4ff, washZone: 14 });
+  b.building(-40, 238.75, 38, 26.5, '#9aa6b2', 'Crystals');
   b.building(-40, 280, 16, 22, '#a9b8c6');
   b.building(-112, 268, 22, 70, '#a9b8c6', 'ARIA');
   b.zone('CityCenter • ARIA & Crystals', -150, -19, 208, 312);
