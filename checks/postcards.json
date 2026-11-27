@@ -84,6 +84,8 @@
     { "id": "arena-loading-dock-day", "label": "T-Mobile Arena back of house on Frank Sinatra Dr: dock doors, guard gate, utility yard (day)", "time": "day", "tp": [-163, 0.3, 398], "cam": [-1.4, 0.15, 7], "maxCalls": 1400 },
     { "id": "russell-hotel-row-day", "label": "Dean Martin Dr south of Russell Rd: Staybridge, Fairfield, Courtyard, Residence Inn (day)", "time": "day", "tp": [-226, 0.3, 840], "cam": [2.2, 0.2, 14], "maxCalls": 340 },
     { "id": "russell-hotel-row-night", "label": "The stadium-area hotel row and its pole signs (night)", "time": "night", "tp": [-226, 0.3, 840], "cam": [2.2, 0.2, 14], "maxCalls": 340 },
+    { "id": "wynn-casino", "label": "Wynn casino: the marble aisle, lantern chandeliers, red chandeliers and Parasol Up (inside, night)", "time": "night", "tp": [88.5, 0.3, -462], "cam": [0, 0.1, 7], "maxCalls": 920 },
+    { "id": "wynn-atrium-day", "label": "Wynn atrium: mosaic floor, flower balls, the flower balloon and the Esplanade shops (inside, day)", "time": "day", "tp": [57, 0.3, -491.1], "cam": [-1.5708, 0.12, 3.6], "maxCalls": 540 },
     { "id": "sphere-seat", "label": "Sphere seat view (Oz show)", "time": "night", "ride": "sphere-seat", "sphereT": 52, "maxCalls": 340 },
     { "id": "rideshare-pickup", "label": "Waymo at the Bellagio rideshare pickup, Flamingo Rd (sunset)", "time": "sunset", "ride": "rideshare-demo-pickup", "cam": [-0.95, 0.1, 8.5], "maxCalls": 1700 },
     { "id": "waymo-day", "label": "A Waymo in Strip traffic by the Bellagio fountains (day)", "time": "day", "ride": "rideshare-demo-traffic", "cam": [1.5708, 0.08, 11], "maxCalls": 880 },

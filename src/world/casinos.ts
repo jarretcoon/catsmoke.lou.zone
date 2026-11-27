@@ -26,8 +26,8 @@ export interface CasinoSpec {
   height: number;
   /** Which wall faces the Strip / gets the doors, and where along it the doorway is centered. */
   entrance: { side: 'east' | 'west' | 'north' | 'south'; at: number; width: number };
-  /** Extra doorways (e.g. corner entrances). */
-  extraEntrances?: Array<{ side: 'east' | 'west' | 'north' | 'south'; at: number; width: number }>;
+  /** Extra doorways (e.g. corner entrances). `inner` = an opening into a connected hall (no canopy, doors or runner). */
+  extraEntrances?: Array<{ side: 'east' | 'west' | 'north' | 'south'; at: number; width: number; inner?: boolean }>;
   carpet: [string, string, string?];
   wall: number;
   ceiling: number;
@@ -149,6 +149,8 @@ export function buildCasinoFloor(b: WorldBuilder, s: CasinoSpec): void {
         s.height,
         true
       );
+      // An opening into a connected hall: just the lintel
+      if ((s.extraEntrances ?? []).some((e) => e.inner && e.side === side && Math.abs(e.at - mid) < 0.01)) continue;
       // Glowing door frame + a marquee canopy with a lit underside, like every Strip entrance
       const frame = basic(0xffd27a);
       const canopy = mat(0x1c1a20, 0.4, 0.6);
